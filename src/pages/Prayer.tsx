@@ -6,6 +6,7 @@ import { search } from '../data/contentRepo'
 import type { SearchResult } from '../data/types'
 import { AiError, getAiProvider } from '../lib/ai'
 import { buildLocalPrayer } from '../lib/prayerLocal'
+import { loadPrayerLibrary, matchLibrary } from '../lib/prayerLibrary'
 import { generatePrayer, withName, type PrayerSet } from '../lib/prayerAi'
 import SafetyNote from '../components/SafetyNote'
 import { loadSavedPrayers, matchSavedPrayers, type SavedPrayersDoc } from '../data/savedPrayers'
@@ -52,8 +53,10 @@ export default function PrayerPage() {
     async (request: string, fresh = false) => {
       if (!request) return
       ctl.current?.abort()
-      const pdoc = await loadPeople().catch(() => null)
-      const local = (why?: string) => setState({ s: 'done', set: buildLocalPrayer(request, pdoc), local: true, why })
+      const [pdoc, lib] = await Promise.all([loadPeople().catch(() => null), loadPrayerLibrary()])
+      const local = (why?: string) => setState({ s: 'done', set: buildLocalPrayer(request, pdoc, lib), local: true, why })
+      const le = matchLibrary(lib, request) // คลังคำอธิษฐานของคริสตจักรที่ตรงหัวข้อ
+      const forSelf = le?.id === 'finance'
       const ai = await getAiProvider()
       if (!ai) return local() // ไม่มี AI → สร้างจากข้อมูลในแอปทันที ไม่เด้งกลับ
       const c = new AbortController()
@@ -61,11 +64,18 @@ export default function PrayerPage() {
       setState({ s: 'loading', chars: 0 })
       try {
         const hints = pdoc ? peopleForText(pdoc, request, 5) : []
+        const ref = le ? { title: le.title, texts: le.versions.map((v) => v.text), forSelf } : null
         const set = await generatePrayer(ai, pdoc, request, hints, {
           signal: c.signal,
           cacheHours: fresh ? 0 : 24,
           onProgress: (chars) => !c.signal.aborted && setState({ s: 'loading', chars }),
-        })
+        }, ref)
+        if (le) {
+          // แสดงต้นฉบับของคริสตจักรให้เลือกได้ ต่อจากแบบที่ AI ปรับให้เรื่องนี้
+          const mine = { label: 'ปรับให้เรื่องนี้', text: forSelf ? set.self.prayer : set.intercede.prayer }
+          if (le.id !== 'finance') set.occasion = true
+          set.versions = forSelf ? { self: [mine, ...le.versions] } : { intercede: [mine, ...le.versions] }
+        }
         if (!c.signal.aborted) setState({ s: 'done', set })
       } catch (e) {
         if (c.signal.aborted) return
@@ -171,7 +181,11 @@ function PrayerResult({
   set, name, people, request, onRegenerate,
 }: { set: PrayerSet; name: string; people: PeopleDoc | null; request: string; onRegenerate: () => void }) {
   const [tab, setTab] = useState<'intercede' | 'self'>('intercede')
-  const [opening, setOpening] = useState<Opening>(set.people.length ? 'person' : 'scripture')
+  const [vi, setVi] = useState(0) // แบบคำอธิษฐานที่เลือก (เผื่อพี่น้อง)
+  const [vs, setVs] = useState(0) // แบบคำอธิษฐานที่เลือก (เพื่อตนเอง)
+  const intercedePrayer = set.versions?.intercede?.[vi]?.text ?? set.intercede.prayer
+  const selfPrayer = set.versions?.self?.[vs]?.text ?? set.self.prayer
+  const [opening, setOpening] = useState<Opening>(set.occasion ? 'situation' : set.people.length ? 'person' : 'scripture')
   const [big, setBig] = useState(false)
   const [copied, setCopied] = useState<'' | 'ok' | 'manual'>('')
   const [kits, setKits] = useState<SearchResult[]>([])
@@ -205,12 +219,12 @@ function PrayerResult({
   const steps = tab === 'intercede'
     ? [
         { h: 'ก่อนอธิษฐาน', t: openingText },
-        { h: 'อธิษฐานเผื่อ', t: n(set.intercede.prayer) },
+        { h: set.occasion ? 'อธิษฐานนำ' : 'อธิษฐานเผื่อ', t: n(intercedePrayer) },
         { h: 'หลังอธิษฐาน', t: n(set.intercede.after) },
       ]
     : [
         { h: 'เตือนใจตนเอง', t: [anchor ? verseLine(anchor.ref) : '', set.self.before].filter(Boolean).join('\n\n') },
-        { h: 'อธิษฐานเพื่อตนเอง', t: n(set.self.prayer) },
+        { h: 'อธิษฐานเพื่อตนเอง', t: n(selfPrayer) },
         { h: 'ภาวนาระหว่างวัน', t: n(set.self.breath) },
       ]
 
@@ -278,8 +292,9 @@ function PrayerResult({
           <div className="prayer-step prayer-step--main">
             <span className="prayer-step__no">2</span>
             <div className="prayer-step__body">
-              <h3>อธิษฐานเผื่อ</h3>
-              <p className="prayer-text">{n(set.intercede.prayer)}</p>
+              <h3>{set.occasion ? 'อธิษฐานนำ' : 'อธิษฐานเผื่อ'}</h3>
+              <Versions list={set.versions?.intercede} i={vi} onPick={setVi} />
+              <p className="prayer-text">{n(intercedePrayer)}</p>
             </div>
           </div>
           <div className="prayer-step">
@@ -307,7 +322,7 @@ function PrayerResult({
           )}
           <div className="prayer-step prayer-step--main">
             <span className="prayer-step__no">2</span>
-            <div className="prayer-step__body"><h3>อธิษฐานเพื่อตนเอง</h3><p className="prayer-text">{set.self.prayer}</p></div>
+            <div className="prayer-step__body"><h3>อธิษฐานเพื่อตนเอง</h3><Versions list={set.versions?.self} i={vs} onPick={setVs} /><p className="prayer-text">{n(selfPrayer)}</p></div>
           </div>
           {set.self.breath && (
             <div className="breath"><span>ภาวนาระหว่างวัน</span><p>{set.self.breath}</p></div>
@@ -453,6 +468,18 @@ export function VerseCard({ label, v, explain, gist }: { label: string; v?: Vers
           <p className="say">{explain}</p>
         </>
       )}
+    </div>
+  )
+}
+
+/** ตัวเลือกแบบคำอธิษฐาน (แสดงเมื่อมีมากกว่า 1 แบบ เช่น ต้นฉบับของคริสตจักร) */
+function Versions({ list, i, onPick }: { list?: { label: string }[]; i: number; onPick: (i: number) => void }) {
+  if (!list || list.length < 2) return null
+  return (
+    <div className="versions" role="radiogroup" aria-label="เลือกแบบคำอธิษฐาน">
+      {list.map((v, k) => (
+        <button key={k} type="button" role="radio" aria-checked={i === k} onClick={() => onPick(k)}>{v.label}</button>
+      ))}
     </div>
   )
 }

@@ -882,3 +882,8 @@ a.chip { display: inline-flex; align-items: center; text-decoration: none; }
 .saved-list__group { display: flex; flex-direction: column; gap: 0.5rem; }
 .saved-list__cat { font-size: 0.9rem; color: var(--ink-soft); margin-top: 0.25rem; }
 .saved-text { display: flex; flex-direction: column; gap: 0.9rem; background: var(--surface); border: 1.5px solid var(--gold); border-radius: var(--radius); padding: 0.9rem 0.95rem; font-size: 1.05rem; line-height: 1.85; white-space: pre-line; }
+/* เลือกแบบคำอธิษฐาน + ข้อความยาวหลายย่อหน้า */
+.versions { display: flex; gap: 0.35rem; overflow-x: auto; padding-bottom: 0.15rem; }
+.versions button { flex: 0 0 auto; min-height: 36px; padding: 0.2rem 0.75rem; border-radius: 999px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-size: 0.8rem; cursor: pointer; }
+.versions button[aria-checked='true'] { background: var(--navy); border-color: var(--navy); color: #fff; }
+.prayer-text, .say, .prayer-big { white-space: pre-line; }
