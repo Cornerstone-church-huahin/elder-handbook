@@ -14,7 +14,7 @@ await p.addInitScript(() => {
   const o = window.scrollTo.bind(window); window.scrollTo = (...a) => { o(...a); return {} }
 })
 await p.goto(URL); await p.waitForTimeout(700)
-await p.click('text=การบริหารจัดการคริสตจักร'); await p.waitForSelector('.topic-card')
+await p.click('.action:has-text("การบริหารจัดการ")'); await p.waitForSelector('.topic-card')
 check(await p.locator('.topic-card').count() === 12, '12 topic cards')
 await p.click('.topic-card >> nth=1'); await p.waitForSelector('.org')
 check((await p.locator('h1').textContent()).includes('โครงสร้าง'), 'structure topic opens with org chart')

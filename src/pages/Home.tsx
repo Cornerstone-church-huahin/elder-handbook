@@ -34,7 +34,7 @@ export default function Home() {
       </div>
 
       <section className="section">
-        <label htmlFor="home-search" className="section__title">วันนี้กำลังเผชิญเรื่องอะไร?</label>
+        <label htmlFor="home-search" className="sr-only">ค้นหา</label>
         <form className="search" role="search" onSubmit={onSubmit}>
           <IconSearch />
           <input

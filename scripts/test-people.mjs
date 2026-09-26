@@ -16,7 +16,7 @@ await p.addInitScript(() => {
   const o = window.scrollTo.bind(window); window.scrollTo = (...a) => { o(...a); return {} }
 })
 await p.goto(URL); await p.waitForTimeout(700)
-await p.click('text=บุคคลในพระคัมภีร์ 100 คน'); await p.waitForSelector('.testament-head')
+await p.click('.action:has-text("บุคคลในพระคัมภีร์")'); await p.waitForSelector('.testament-head')
 const heads = await p.locator('.testament-block > .testament-head span').allTextContents()
 check(heads.join('|') === 'พันธสัญญาเดิม|พันธสัญญาใหม่', 'list split into Old / New Testament: ' + heads.join('|'))
 check(await p.locator('.era-block').count() === 9, 'list shows 9 eras')
@@ -40,7 +40,7 @@ await p.click('text=เรื่องราวชีวิต'); await p.waitFo
 check((await p.evaluate(() => window.__prompts.at(-1))).includes('ห้ามยกหรือเขียนข้อความพระคัมภีร์'), 'teach prompt has scripture rule')
 await p.screenshot({ path: '/tmp/claude-0/shots/person.png', fullPage: true })
 // เทียบสถานการณ์
-await p.goto(URL); await p.waitForTimeout(500); await p.click('text=บุคคลในพระคัมภีร์ 100 คน'); await p.waitForSelector('#compare-q')
+await p.goto(URL); await p.waitForTimeout(500); await p.click('.action:has-text("บุคคลในพระคัมภีร์")'); await p.waitForSelector('#compare-q')
 await p.fill('#compare-q', 'อยากมีลูกแต่ไม่มีสักที'); await p.press('#compare-q', 'Enter'); await p.waitForSelector('.compare-card')
 check(await p.locator('.compare-card').count() === 1, 'compare shows only people from the list (unknown id dropped)')
 // Kit: บุคคลที่เกี่ยวข้อง + ลิงก์จาก AI

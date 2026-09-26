@@ -922,3 +922,4 @@ a.chip { display: inline-flex; align-items: center; text-decoration: none; }
 .nb-editor__btns { display: grid; grid-template-columns: 2fr 1fr; gap: 0.5rem; }
 .nb-empty { display: flex; flex-direction: column; gap: 0.6rem; align-items: flex-start; }
 .nb-restore { align-self: center; font-size: 0.85rem; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }

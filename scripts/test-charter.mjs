@@ -17,7 +17,7 @@ await p.addInitScript(() => {
   const o = window.scrollTo.bind(window); window.scrollTo = (...a) => { o(...a); return {} }
 })
 await p.goto(URL); await p.waitForTimeout(800)
-await p.click('text=ธรรมนูญและระเบียบคริสตจักร'); await p.waitForSelector('.toc__chapter')
+await p.click('.action:has-text("ธรรมนูญและระเบียบ")'); await p.waitForSelector('.toc__chapter')
 check(await p.locator('.toc__chapter').count() === 10, 'TOC shows 10 chapters')
 await p.click('.toc__chapter >> nth=1'); await p.click('text=การมอบสิทธิพิเศษให้ผู้ปกครอง'); await p.waitForTimeout(200)
 check((await p.locator('h1').textContent()) === 'ข้อ 25', 'opens article 25')
@@ -39,6 +39,6 @@ await p.click('.bottomnav >> text=ค้นหา'); await p.fill('#search-q', '
 check(await p.locator('.badge:has-text("ธรรมนูญ")').count() > 0, 'universal search includes 📜 ธรรมนูญ results')
 check(errs.length === 0, 'no JS errors ' + errs.join(';'))
 await p.screenshot({ path: '/tmp/claude-0/shots/charter-search.png' })
-await p.goto(URL); await p.waitForTimeout(500); await p.click('text=ธรรมนูญและระเบียบคริสตจักร'); await p.waitForSelector('.toc__chapter'); await p.click('.toc__chapter >> nth=1')
+await p.goto(URL); await p.waitForTimeout(500); await p.click('.action:has-text("ธรรมนูญและระเบียบ")'); await p.waitForSelector('.toc__chapter'); await p.click('.toc__chapter >> nth=1')
 await p.screenshot({ path: '/tmp/claude-0/shots/charter-toc.png', fullPage: false })
 await b.close(); console.log(fail ? fail + ' FAILED' : 'ALL PASSED'); process.exit(fail ? 1 : 0)
