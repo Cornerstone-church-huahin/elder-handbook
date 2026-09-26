@@ -41,7 +41,7 @@ for (const [label, id] of [['Claude', 'claude'], ['Gemini', 'gemini'], ['ChatGPT
   await p.goto(URL + '#/settings'); await p.waitForSelector('.ai-vendors')
   await p.click(`.ai-vendor >> text=${label}`); await p.fill('#ai-key', 'good-' + id); await p.click('text=ทดสอบและบันทึก')
   await p.waitForSelector('.ai-keys__ok'); check((await p.textContent('.ai-keys__ok')).includes('ใช้ได้'), `${label}: key test ok`)
-  await p.goto(URL + '#/prayer?q=' + encodeURIComponent('ทดสอบ ' + id + ' ป่วย'))
+  await p.goto(URL + '#/prayer/ai?q=' + encodeURIComponent('ทดสอบ ' + id + ' ป่วย'))
   await p.waitForSelector('.prayer-text', { timeout: 8000 })
   const txt = await p.textContent('.main')
   check((await p.textContent('.prayer-text')).includes(id), `${label}: prayer came from ${id}`)
@@ -51,7 +51,7 @@ check(seen.some((s) => s.vendor === 'gemini' && s.url.includes('gemini-3.8-flash
 check(seen.some((s) => s.vendor === 'openai' && s.body.model === 'gpt-6-astra'), 'openai default model used')
 // AI ล่ม → ใช้ข้อมูลในแอปแทน ไม่เด้งกลับ
 await ctx.unroute('https://api.openai.com/**'); await ctx.route('https://api.openai.com/**', (r) => r.request().method() === 'OPTIONS' ? r.fulfill({ status: 204, headers: cors }) : r.fulfill({ status: 500, headers: cors, body: '{}' }))
-await p.goto(URL + '#/prayer?q=' + encodeURIComponent('ลูกป่วย ไม่สบาย ล่ม')); await p.waitForSelector('.prayer-text', { timeout: 8000 })
+await p.goto(URL + '#/prayer/ai?q=' + encodeURIComponent('ลูกป่วย ไม่สบาย ล่ม')); await p.waitForSelector('.prayer-text', { timeout: 8000 })
 check((await p.textContent('.prayer-text')).includes('ข้าแต่พระบิดาเจ้า') && !(await p.textContent('.main')).includes('ลองอีกครั้ง'), 'AI failure falls back to local prayer')
 check(errs.length === 0, 'no JS errors ' + errs.join(';'))
 await p.goto(URL + '#/settings'); await p.waitForSelector('.ai-vendors'); if (process.env.SHOT) await p.screenshot({ path: process.env.SHOT })

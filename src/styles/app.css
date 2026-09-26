@@ -887,3 +887,38 @@ a.chip { display: inline-flex; align-items: center; text-decoration: none; }
 .versions button { flex: 0 0 auto; min-height: 36px; padding: 0.2rem 0.75rem; border-radius: 999px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-size: 0.8rem; cursor: pointer; }
 .versions button[aria-checked='true'] { background: var(--navy); border-color: var(--navy); color: #fff; }
 .prayer-text, .say, .prayer-big { white-space: pre-line; }
+/* ---------- สมุดคำอธิษฐาน ---------- */
+.nb-bar { display: flex; gap: 0.5rem; align-items: center; position: sticky; top: 3.2rem; z-index: 5; background: var(--bg); padding-block: 0.35rem; }
+.nb-search { flex: 1; display: flex; align-items: center; gap: 0.4rem; min-height: 44px; padding: 0 0.6rem; border: 1.5px solid var(--navy); border-radius: 999px; background: var(--surface); }
+.nb-search svg { width: 1.1rem; height: 1.1rem; color: var(--ink-soft); flex: none; }
+.nb-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; font-size: 0.95rem; color: var(--ink); padding: 0.35rem 0; }
+.nb-search input::-webkit-search-cancel-button { display: none; }
+.nb-search__clear { border: 0; background: var(--surface-2); color: var(--ink-soft); width: 28px; height: 28px; border-radius: 50%; font-size: 0.8rem; cursor: pointer; }
+.nb-add { flex: none; min-height: 44px; padding-inline: 0.9rem; border-radius: 999px; }
+.nb-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.nb-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); scroll-margin-top: 7rem; transition: box-shadow 0.3s, border-color 0.3s; }
+.nb-card--open { border-color: var(--gold); border-width: 1.5px; }
+.nb-card--flash { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.45); }
+.nb-card__head { width: 100%; display: flex; align-items: center; gap: 0.65rem; padding: 0.65rem 0.8rem; min-height: 56px; background: none; border: 0; text-align: left; font: inherit; color: var(--ink); cursor: pointer; }
+.nb-card__icon { font-size: 1.35rem; flex: none; }
+.nb-card__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; }
+.nb-card__title { font-weight: 700; font-size: 0.98rem; line-height: 1.4; }
+.nb-card__sub { font-size: 0.8rem; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nb-card--open .nb-card__sub { white-space: normal; }
+.nb-card__chev { color: var(--ink-soft); font-size: 0.75rem; flex: none; }
+.nb-card__body { display: flex; flex-direction: column; gap: 0.7rem; padding: 0 0.85rem 0.85rem; min-height: calc(100dvh - 15rem); }
+.nb-card__text { font-family: var(--font-display); font-size: 1.05rem; line-height: 1.9; display: flex; flex-direction: column; gap: 0.8rem; }
+.nb-card__text p { white-space: pre-line; }
+.nb-card__actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.35rem; margin-top: auto; }
+.nb-card__actions .btn { padding-inline: 0.3rem; font-size: 0.82rem; }
+.nb-editor { display: flex; flex-direction: column; gap: 0.6rem; background: var(--surface); border: 1.5px solid var(--gold); border-radius: var(--radius); padding: 0.85rem; min-height: calc(100dvh - 13rem); scroll-margin-top: 7rem; }
+.nb-editor__h { font-size: 1.05rem; }
+.nb-editor label { display: flex; flex-direction: column; gap: 0.25rem; font-weight: 600; font-size: 0.85rem; }
+.nb-editor input, .nb-editor textarea { font: inherit; font-weight: 400; font-size: 1rem; color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 0.6rem; padding: 0.5rem 0.65rem; min-height: 44px; width: 100%; }
+.nb-editor input:focus, .nb-editor textarea:focus { border-color: var(--navy); outline: none; }
+.nb-editor__row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.nb-editor__text { flex: 1; }
+.nb-editor__text textarea { flex: 1; min-height: 36dvh; line-height: 1.8; resize: vertical; }
+.nb-editor__btns { display: grid; grid-template-columns: 2fr 1fr; gap: 0.5rem; }
+.nb-empty { display: flex; flex-direction: column; gap: 0.6rem; align-items: flex-start; }
+.nb-restore { align-self: center; font-size: 0.85rem; }

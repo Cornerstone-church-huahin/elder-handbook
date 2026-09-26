@@ -86,7 +86,7 @@ function AiKeySettings() {
   return (
     <form className="card ai-keys" onSubmit={(e) => { e.preventDefault(); save() }}>
       <h2 style={{ fontSize: '1.1rem' }}>🔑 ผู้ช่วย AI (ไม่บังคับ)</h2>
-      <p className="source-note">ไม่ใส่คีย์ก็สร้างคำอธิษฐานได้จากข้อมูลในแอป ใส่คีย์แล้วคำตอบจะเฉพาะเรื่องมากขึ้น คีย์เก็บในเครื่องนี้เท่านั้น ไม่ขึ้นไปที่ GitHub</p>
+      <p className="source-note">ใส่คีย์แล้วใช้ผู้ช่วย AI ได้ในหน้าคู่มืออภิบาล ธรรมนูญ การบริหาร และบุคคลในพระคัมภีร์ คีย์เก็บในเครื่องนี้เท่านั้น ไม่ขึ้นไปที่ GitHub</p>
 
       <div className="ai-vendors" role="radiogroup" aria-label="เลือกผู้ให้บริการ AI">
         {VENDORS.map((x) => (

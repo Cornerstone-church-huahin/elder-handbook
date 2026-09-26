@@ -5,7 +5,7 @@ const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
 let fail = 0; const check = (ok, m) => { console.log((ok ? 'PASS ' : 'FAIL ') + m); if (!ok) fail++ }
 const ctx = await b.newContext({ viewport: { width: 390, height: 844 } })
 const p = await ctx.newPage(); const errs = []; p.on('pageerror', (e) => errs.push(e.message))
-const go = async (q) => { await p.goto(URL + '#/prayer?q=' + encodeURIComponent(q)); await p.waitForSelector('.prayer-text') }
+const go = async (q) => { await p.goto(URL + '#/prayer/ai?q=' + encodeURIComponent(q)); await p.waitForSelector('.prayer-text') }
 
 await go('อธิษฐานนำถวายทรัพย์วันอาทิตย์')
 check((await p.textContent('.prayer-text')).includes('ท้องพระคลัง'), 'offering: church prayer used')

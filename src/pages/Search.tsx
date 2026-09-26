@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { search } from '../data/contentRepo'
 import { loadCharter, searchCharter } from '../data/charter'
 import { loadManagement, matchTopics } from '../data/management'
-import { loadSavedPrayers, matchSavedPrayers } from '../data/savedPrayers'
+import { loadNotebook, scoreNote } from '../lib/prayerNotebook'
 import type { SearchResult, SourceType } from '../data/types'
 import { IconSearch } from '../components/Icons'
 import { RelatedPeople } from './People'
@@ -49,11 +49,16 @@ export default function Search() {
           })),
         )
         .catch(() => [] as SearchResult[]),
-      loadSavedPrayers()
-        .then((d) =>
-          matchSavedPrayers(d, initial, 3).map((x): SearchResult => ({
-            type: 'saved-prayer', id: x.id, title: `${x.title} · ${x.subtitle}`, icon: d.categories.find((c) => c.id === x.category)?.icon ?? '🙏', href: `/prayer/saved/${x.id}`,
-          })),
+      loadNotebook()
+        .then((list) =>
+          list
+            .map((x) => ({ x, s: scoreNote(x, initial) }))
+            .filter((r) => r.s >= 3)
+            .sort((a, b) => b.s - a.s)
+            .slice(0, 3)
+            .map(({ x }): SearchResult => ({
+              type: 'saved-prayer', id: x.id, title: x.title, icon: x.icon, href: `/prayer?open=${encodeURIComponent(x.id)}`,
+            })),
         )
         .catch(() => [] as SearchResult[]),
     ]).then(([a, b, c, d]) => alive && setResults([...d, ...a, ...c, ...b]))
@@ -100,7 +105,7 @@ export default function Search() {
       )}
 
       {initial && (
-        <Link to={`/prayer?q=${encodeURIComponent(initial)}`} className="btn btn--gold">🙏 สร้างคำอธิษฐานเผื่อเรื่องนี้</Link>
+        <Link to={`/prayer?q=${encodeURIComponent(initial)}`} className="btn btn--gold">🙏 หาคำอธิษฐานเรื่องนี้</Link>
       )}
 
       {initial && (

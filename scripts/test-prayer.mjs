@@ -1,6 +1,6 @@
 // ทดสอบผู้ช่วยอธิษฐานเผื่อด้วย AI จำลอง: 2 ส่วน, เลือกเปิดก่อนอธิษฐาน, ชื่อไม่ถูกส่งให้ AI, บุคคลจากรายชื่อเท่านั้น, โหมดตัวใหญ่, คัดลอก
 import { chromium } from 'playwright'
-const URL = process.env.URL || 'http://localhost:4185/index.html'
+const URL = process.env.URL || 'http://localhost:4173/'
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
 let fail = 0; const check = (ok, m) => { console.log((ok ? 'PASS ' : 'FAIL ') + m); if (!ok) fail++ }
 const ctx = await b.newContext({ viewport: { width: 390, height: 844 } })
@@ -24,7 +24,7 @@ await p.addInitScript(() => {
 })
 await p.goto(URL); await p.waitForTimeout(700)
 check(await p.locator('.prayer-cta').count() === 0, 'home has no large prayer banner (menu card only)')
-await p.click('.action:has-text("อธิษฐานเผื่อ")'); await p.waitForSelector('#prayer-q')
+await p.goto(URL + '#/prayer/ai'); await p.waitForSelector('#prayer-q')
 await p.fill('#prayer-q', 'คุณแม่ของพี่น้องป่วยหนัก อยู่ ICU')
 await p.click('text=🙏 สร้างคำอธิษฐาน'); await p.waitForSelector('.prayer-text')
 const prompt = await p.evaluate(() => window.__prompts.at(-1))
@@ -42,12 +42,11 @@ await p.click('.seg button:has-text("พระคำ")')
 await p.click('text=📋 คัดลอกไปส่งทาง Line'); await p.waitForTimeout(200)
 const clip = await p.evaluate(() => navigator.clipboard.readText()).catch(() => '')
 check(clip.includes('พี่น้อง') && clip.includes('อิสยาห์ 41:10'), 'copy for Line includes prayer and reference')
-await p.screenshot({ path: '/tmp/claude-0/shots/prayer.png', fullPage: true })
 await p.click('text=🔠 เปิดตัวอักษรใหญ่เพื่ออธิษฐาน'); await p.waitForSelector('.prayer-big')
 await p.click('.fieldmode__nav .primary'); check((await p.locator('.prayer-big').textContent()).includes('ข้าแต่พระบิดาเจ้า'), 'large mode steps to the prayer')
 await p.click('.fieldmode__close')
 // จากหน้าคู่มือ
-await p.goto(URL); await p.waitForTimeout(500); await p.fill('#home-search', 'เสียชีวิต'); await p.press('#home-search', 'Enter'); await p.click('.result >> nth=0'); await p.click('text=🙏 สร้างคำอธิษฐานเผื่อเรื่องนี้'); await p.waitForSelector('.prayer-text')
-check(true, 'kit page links straight into prayer generation')
+await p.goto(URL); await p.waitForTimeout(500); await p.fill('#home-search', 'เสียชีวิต'); await p.press('#home-search', 'Enter'); await p.click('.result >> nth=0'); await p.click('text=🙏 หาคำอธิษฐานเรื่องนี้'); await p.waitForSelector('#nb-q')
+check((await p.inputValue('#nb-q')).length > 0, 'kit page opens prayer notebook with the topic searched')
 check(errs.length === 0, 'no JS errors ' + errs.join(';'))
 await b.close(); console.log(fail ? fail + ' FAILED' : 'ALL PASSED'); process.exit(fail ? 1 : 0)

@@ -1,4 +1,4 @@
-import { HashRouter, MemoryRouter, Route, Routes } from 'react-router-dom'
+import { HashRouter, MemoryRouter, Navigate, Route, Routes, useParams } from 'react-router-dom'
 import AppShell from './components/AppShell'
 import Home from './pages/Home'
 import Search from './pages/Search'
@@ -7,8 +7,8 @@ import { AskPage, ComingSoon, KitPage } from './pages/Placeholders'
 import { CharterArticlePage, CharterAsk, CharterHome } from './pages/Charter'
 import { PeopleCompare, PeopleHome, PersonPage } from './pages/People'
 import { ManagementAsk, ManagementHome, ManagementTopic } from './pages/Management'
-import PrayerPage from './pages/Prayer'
-import SavedPrayerPage from './pages/SavedPrayer'
+import PrayerAiPage from './pages/Prayer'
+import PrayerNotebookPage from './pages/PrayerNotebook'
 import ElderDutiesPage from './pages/ElderDuties'
 
 // HashRouter: ใช้ได้บนทุก Static Hosting โดยไม่ต้องตั้งค่า rewrite
@@ -28,8 +28,9 @@ export default function App() {
           <Route path="ask" element={<AskPage />} />
           <Route path="members" element={<ComingSoon icon="👤" title="สมาชิก" note="รายชื่อสมาชิกและประวัติการอภิบาลจะเปิดใช้หลังระบบเข้าสู่ระบบพร้อม" />} />
           <Route path="followups" element={<ComingSoon icon="📅" title="สิ่งที่ต้องติดตาม" note="ยังไม่มีรายการติดตาม" />} />
-          <Route path="prayer" element={<PrayerPage />} />
-          <Route path="prayer/saved/:id" element={<SavedPrayerPage />} />
+          <Route path="prayer" element={<PrayerNotebookPage />} />
+          <Route path="prayer/ai" element={<PrayerAiPage />} />
+          <Route path="prayer/saved/:id" element={<SavedRedirect />} />
           <Route path="sermon" element={<ComingSoon icon="📖" title="เตรียมพระคำ" />} />
           <Route path="service" element={<ComingSoon icon="⛪" title="เตรียมพิธี" />} />
           <Route path="people" element={<PeopleHome />} />
@@ -46,4 +47,10 @@ export default function App() {
       </Routes>
     </Router>
   )
+}
+
+/** ลิงก์เก่า /prayer/saved/:id → เปิดการ์ดนั้นในสมุดคำอธิษฐาน */
+function SavedRedirect() {
+  const { id } = useParams()
+  return <Navigate to={`/prayer?open=${encodeURIComponent(id ?? '')}`} replace />
 }
