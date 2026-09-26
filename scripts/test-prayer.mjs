@@ -23,8 +23,8 @@ await p.addInitScript(() => {
   const o = window.scrollTo.bind(window); window.scrollTo = (...a) => { o(...a); return {} }
 })
 await p.goto(URL); await p.waitForTimeout(700)
-check(await p.locator('.prayer-cta').count() === 1, 'home has prominent prayer button')
-await p.click('.prayer-cta'); await p.waitForSelector('#prayer-q')
+check(await p.locator('.prayer-cta').count() === 0, 'home has no large prayer banner (menu card only)')
+await p.click('.action:has-text("อธิษฐานเผื่อ")'); await p.waitForSelector('#prayer-q')
 await p.fill('#prayer-q', 'คุณแม่ของพี่น้องป่วยหนัก อยู่ ICU'); await p.fill('#prayer-name', 'คุณสมศรี')
 await p.click('text=🙏 สร้างคำอธิษฐาน'); await p.waitForSelector('.prayer-text')
 const prompt = await p.evaluate(() => window.__prompts.at(-1))

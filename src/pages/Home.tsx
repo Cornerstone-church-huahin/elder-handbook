@@ -49,15 +49,6 @@ export default function Home() {
         </form>
       </section>
 
-      <Link to="/prayer" className="prayer-cta">
-        <span className="prayer-cta__icon" aria-hidden="true">🙏</span>
-        <span className="prayer-cta__body">
-          <strong>อธิษฐานเผื่อพี่น้อง</strong>
-          <span>พิมพ์เรื่องที่พี่น้องเผชิญ รับคำอธิษฐานพร้อมพระคำและบุคคลในพระคัมภีร์</span>
-        </span>
-        <span className="prayer-cta__go" aria-hidden="true">›</span>
-      </Link>
-
       <section className="section">
         <h2 className="section__title">สิ่งที่ควรติดตาม</h2>
         <p className="empty">ยังไม่มีรายการติดตาม เมื่อบันทึกการเยี่ยมและเลือกวันติดตามแล้ว รายการจะแสดงที่นี่</p>
