@@ -23,9 +23,12 @@ export default function AppShell() {
     <div className="app">
       <header className="topbar">
         {isTabRoot ? (
-          <Link to="/" className="topbar__brand" aria-label="คทาผู้เลี้ยง หน้าแรก">
+          <Link to="/" className="topbar__brand" aria-label="คู่มือผู้ปกครองคริสตจักร หน้าแรก">
             <StaffMark />
-            <span className="topbar__name">คทาผู้เลี้ยง</span>
+            <span className="topbar__names">
+              <span className="topbar__name">คู่มือผู้ปกครองคริสตจักร</span>
+              <span className="topbar__en">Church Elder's Handbook</span>
+            </span>
           </Link>
         ) : (
           <div className="topbar__brand">

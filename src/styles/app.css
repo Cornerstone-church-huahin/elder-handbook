@@ -754,3 +754,33 @@ a.chip { display: inline-flex; align-items: center; text-decoration: none; }
 .breath p { font-family: var(--font-display); font-size: 1.1rem; }
 .prayer-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(13rem, 100%), 1fr)); gap: 0.6rem; }
 .prayer-big { font-family: var(--font-display); font-size: 1.6rem; line-height: 1.8; }
+
+/* ชื่อแอปสองภาษาในแถบบน */
+.topbar__names { display: flex; flex-direction: column; min-width: 0; line-height: 1.15; }
+.topbar__names .topbar__name { font-size: 1.05rem; overflow: hidden; text-overflow: ellipsis; }
+.topbar__en { font-size: 0.7rem; color: var(--gold); letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------- ตั้งค่า › หน้าที่ผู้ปกครอง ---------- */
+.settings-row__go { font-size: 1.6rem; color: var(--ink-soft); flex: none; }
+.btn--danger { background: #b3261e; border-color: #b3261e; color: #fff; }
+.duty-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.6rem; }
+.duty { display: grid; grid-template-columns: auto 1fr; gap: 0.7rem; padding: 0.85rem 0.9rem; border-radius: var(--radius); background: var(--surface); border: 1.5px solid var(--line); }
+.duty__no { width: 1.9rem; height: 1.9rem; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); color: var(--accent-ink); font-weight: 700; font-variant-numeric: tabular-nums; }
+.duty__body { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
+.duty__text { line-height: 1.6; }
+.duty__src { font-size: 0.75rem; color: var(--ink-soft); }
+.duty__btns { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+.duty__btns--warn { padding: 0.6rem 0.8rem; border-radius: var(--radius); background: #fde8e6; color: #5c0f0a; }
+.duty__btns--warn .btn { min-height: 2.6rem; padding-inline: 0.9rem; }
+.mini {
+  min-height: 2.5rem; padding: 0 0.75rem;
+  border-radius: 999px; border: 1.5px solid var(--line); background: var(--bg);
+  font-size: 0.85rem; cursor: pointer;
+}
+.mini:disabled { opacity: 0.35; cursor: default; }
+.duty__edit { display: flex; flex-direction: column; gap: 0.5rem; }
+.duty__edit textarea, .duty-new {
+  width: 100%; padding: 0.6rem 0.8rem;
+  border-radius: 0.7rem; border: 2px solid var(--navy); background: var(--bg);
+  font-size: 1rem; line-height: 1.6; resize: vertical;
+}

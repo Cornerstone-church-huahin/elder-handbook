@@ -1,0 +1,30 @@
+// ทดสอบ ตั้งค่า › หน้าที่ผู้ปกครอง: แสดงรายการตั้งต้น เพิ่ม แก้ไข ลบ (ยืนยันในหน้า) เลื่อนลำดับ คืนค่า และจำค่าหลังรีโหลด + ชื่อแอปใหม่
+import { chromium } from 'playwright'
+const URL = process.env.URL || 'http://localhost:4185/index.html'
+const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+let fail = 0; const check = (ok, m) => { console.log((ok ? 'PASS ' : 'FAIL ') + m); if (!ok) fail++ }
+const p = await b.newPage({ viewport: { width: 390, height: 844 } })
+const errs = []; p.on('pageerror', e => errs.push(e.message))
+await p.addInitScript(() => { const o = window.scrollTo.bind(window); window.scrollTo = (...a) => { o(...a); return {} } })
+const open = async () => { await p.goto(URL); await p.waitForTimeout(600); await p.click('[aria-label="ตั้งค่า"]'); await p.click('text=หน้าที่ผู้ปกครอง'); await p.waitForSelector('.duty') }
+await p.goto(URL); await p.waitForTimeout(600)
+check((await p.locator('.topbar__name').textContent()) === 'คู่มือผู้ปกครองคริสตจักร' && (await p.locator('.topbar__en').textContent()) === "Church Elder's Handbook", 'new Thai + English app name in header')
+await open()
+const n0 = await p.locator('.duty').count(); check(n0 === 13, 'default duties shown (' + n0 + ')')
+await p.fill('#duty-new', 'เยี่ยมผู้สูงอายุเดือนละครั้ง'); await p.click('text=＋ เพิ่ม')
+check(await p.locator('.duty').count() === n0 + 1 && (await p.locator('.duty__text').last().textContent()).includes('ผู้สูงอายุ'), 'add duty')
+await p.locator('.duty').last().locator('text=✏️ แก้ไข').click(); await p.locator('.duty__edit textarea').fill('เยี่ยมผู้สูงอายุทุกสัปดาห์'); await p.click('text=บันทึก')
+check((await p.locator('.duty__text').last().textContent()) === 'เยี่ยมผู้สูงอายุทุกสัปดาห์', 'edit duty')
+await p.locator('.duty').last().locator('[aria-label="เลื่อนขึ้น"]').click()
+check((await p.locator('.duty__text').nth(n0 - 1).textContent()) === 'เยี่ยมผู้สูงอายุทุกสัปดาห์', 'move duty up')
+await p.locator('.duty').first().locator('text=🗑️ ลบ').click()
+check(await p.locator('text=ลบข้อนี้?').count() === 1, 'delete asks for confirmation in page')
+await p.locator('.duty').first().locator('.btn--danger').click()
+check(await p.locator('.duty').count() === n0, 'delete duty after confirm')
+await open()
+check(await p.locator('.duty').count() === n0 && await p.locator('text=เยี่ยมผู้สูงอายุทุกสัปดาห์').count() === 1, 'changes kept after reload')
+await p.click('text=↺ คืนเป็นรายการตั้งต้น'); await p.click('.btn--danger:has-text("คืนค่า")')
+check(await p.locator('.duty').count() === 13 && await p.locator('text=เยี่ยมผู้สูงอายุทุกสัปดาห์').count() === 0, 'reset to defaults')
+await p.screenshot({ path: '/tmp/claude-0/shots/duties.png' })
+check(errs.length === 0, 'no JS errors ' + errs.join(';'))
+await b.close(); console.log(fail ? fail + ' FAILED' : 'ALL PASSED'); process.exit(fail ? 1 : 0)

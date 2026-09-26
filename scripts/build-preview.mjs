@@ -18,10 +18,10 @@ const guard = `<script>(function(){function show(m){var r=document.getElementByI
 const html = `<!doctype html>
 <html lang="th"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>คทาผู้เลี้ยง</title>
+<title>คู่มือผู้ปกครองคริสตจักร</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pridi:wght@500;600&family=Sarabun:wght@400;500;700&display=swap">
 <style>${css}</style></head>
-<body>${guard}<div id="root" data-booting><p style="padding:24px;font:18px sans-serif;color:#1a2b4c;background:#f9f8f5">กำลังเปิดคทาผู้เลี้ยง…</p></div><script>${js}</script></body></html>
+<body>${guard}<div id="root" data-booting><p style="padding:24px;font:18px sans-serif;color:#1a2b4c;background:#f9f8f5">กำลังเปิดคู่มือผู้ปกครองคริสตจักร…</p></div><script>${js}</script></body></html>
 `
 fs.writeFileSync('preview.html', html)
 
@@ -30,10 +30,10 @@ fs.mkdirSync('artifact', { recursive: true })
 // แปลงอักษรไทยเป็น \\uXXXX เพื่อไม่ขึ้นกับ charset ที่เซิร์ฟเวอร์ส่งมา
 const asciiJs = js.replace(/[\u0080-\uffff]/g, (c) => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0'))
 fs.writeFileSync('artifact/app.js', asciiJs)
-const page = `<title>คทาผู้เลี้ยง</title>
+const page = `<title>คู่มือผู้ปกครองคริสตจักร</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pridi:wght@500;600&family=Sarabun:wght@400;500;700&display=swap">
 <style>${css}</style>
-${guard}<div id="root" data-booting><p style="padding:24px;font:18px sans-serif;color:#1a2b4c;background:#f9f8f5">กำลังเปิดคทาผู้เลี้ยง…</p></div>
+${guard}<div id="root" data-booting><p style="padding:24px;font:18px sans-serif;color:#1a2b4c;background:#f9f8f5">กำลังเปิดคู่มือผู้ปกครองคริสตจักร…</p></div>
 <script src="app.js"></script>
 `
 fs.writeFileSync('artifact/index.html', page)

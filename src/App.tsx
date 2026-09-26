@@ -8,6 +8,7 @@ import { CharterArticlePage, CharterAsk, CharterHome } from './pages/Charter'
 import { PeopleCompare, PeopleHome, PersonPage } from './pages/People'
 import { ManagementAsk, ManagementHome, ManagementTopic } from './pages/Management'
 import PrayerPage from './pages/Prayer'
+import ElderDutiesPage from './pages/ElderDuties'
 
 // HashRouter: ใช้ได้บนทุก Static Hosting โดยไม่ต้องตั้งค่า rewrite
 // MemoryRouter: ใช้เฉพาะไฟล์พรีวิว (npm run build:preview) ที่เปิดในกรอบซึ่งไม่มี URL จริง
@@ -21,6 +22,7 @@ export default function App() {
           <Route index element={<Home />} />
           <Route path="search" element={<Search />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="settings/duties" element={<ElderDutiesPage />} />
           <Route path="kit/:slug" element={<KitPage />} />
           <Route path="ask" element={<AskPage />} />
           <Route path="members" element={<ComingSoon icon="👤" title="สมาชิก" note="รายชื่อสมาชิกและประวัติการอภิบาลจะเปิดใช้หลังระบบเข้าสู่ระบบพร้อม" />} />

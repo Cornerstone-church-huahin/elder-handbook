@@ -11,8 +11,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg'],
       manifest: {
-        name: 'คทาผู้เลี้ยง',
-        short_name: 'คทาผู้เลี้ยง',
+        name: 'คู่มือผู้ปกครองคริสตจักร · Church Elder\'s Handbook',
+        short_name: 'คู่มือผู้ปกครอง',
         description: 'คู่มืออภิบาล พระวจนะ และพันธกิจคริสตจักร สำหรับผู้ปกครองและผู้นำฝ่ายวิญญาณ',
         lang: 'th',
         start_url: './',

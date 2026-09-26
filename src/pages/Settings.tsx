@@ -1,7 +1,10 @@
+import { Link } from 'react-router-dom'
 import { FONT_SCALES, useFontScale } from '../lib/prefs'
+import { useElderDuties } from '../lib/elderDuties'
 
 export default function Settings() {
   const { scale, setScale } = useFontScale()
+  const { list } = useElderDuties()
 
   return (
     <>
@@ -29,12 +32,21 @@ export default function Settings() {
         </div>
       </section>
 
+      <Link to="/settings/duties" className="result settings-row">
+        <span className="result__icon" aria-hidden="true">📋</span>
+        <span className="result__body">
+          <span className="result__title">หน้าที่ผู้ปกครอง</span>
+          <span className="art-where">{list.length} ข้อ · เพิ่ม แก้ไข ลบ หรือเลื่อนลำดับ</span>
+        </span>
+        <span aria-hidden="true" className="settings-row__go">›</span>
+      </Link>
+
       <section className="card">
         <h2 style={{ fontSize: '1.2rem' }}>บัญชีผู้ใช้</h2>
         <p style={{ color: 'var(--ink-soft)' }}>การเข้าสู่ระบบและพื้นที่ทำงานร่วมกันของคู่ผู้ปกครองจะเปิดใช้ในรุ่นถัดไป</p>
       </section>
 
-      <p className="disclaimer">คทาผู้เลี้ยง รุ่น 0.1 (ทดลอง)</p>
+      <p className="disclaimer">คู่มือผู้ปกครองคริสตจักร (Church Elder's Handbook) รุ่น 0.1 (ทดลอง)</p>
     </>
   )
 }
