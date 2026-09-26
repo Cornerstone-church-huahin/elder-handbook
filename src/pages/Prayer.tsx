@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { loadPeople, peopleForText, type PeopleDoc } from '../data/people'
+import { getVerses, parseRef, refUrl, type VerseRef, type VerseText } from '../data/bible'
 import { search } from '../data/contentRepo'
 import type { SearchResult } from '../data/types'
 import { AiError, getAiProvider } from '../lib/ai'
@@ -8,14 +9,6 @@ import { buildLocalPrayer } from '../lib/prayerLocal'
 import { generatePrayer, withName, type PrayerSet } from '../lib/prayerAi'
 import SafetyNote from '../components/SafetyNote'
 
-const EXAMPLES = [
-  'คุณแม่ของพี่น้องป่วยหนัก อยู่ ICU',
-  'ตกงาน มีหนี้ และเครียดมาก',
-  'ลูกวัยรุ่นไม่ยอมไปโบสถ์',
-  'สามีเพิ่งเสียชีวิต',
-  'สามีภรรยาทะเลาะกันบ่อย',
-  'กำลังจะผ่าตัดสัปดาห์หน้า',
-]
 
 type Opening = 'situation' | 'scripture' | 'person'
 const OPENINGS: { id: Opening; label: string }[] = [
@@ -118,13 +111,6 @@ export default function PrayerPage() {
         <button type="submit" className="btn btn--gold prayer-form__go">🙏 สร้างคำอธิษฐาน</button>
       </form>
 
-      {state.s === 'idle' && (
-        <div className="search-hints">
-          {EXAMPLES.map((ex) => (
-            <button key={ex} type="button" className="chip" onClick={() => setParams({ q: ex })}>{ex}</button>
-          ))}
-        </div>
-      )}
 
       {state.s === 'loading' && (
         <div className="card ai-loading" role="status" aria-live="polite">
@@ -142,11 +128,8 @@ export default function PrayerPage() {
           {state.kind !== 'declined' && <button type="button" className="btn" onClick={() => run(q || text.trim())}>ลองอีกครั้ง</button>}
         </div>
       )}
-      {state.s === 'done' && state.local && (
-        <p className="source-note prayer-local-note">📖 เตรียมจากข้อมูลในแอป{state.why ? ` (${state.why})` : ''}</p>
-      )}
       {state.s === 'done' && (
-        <PrayerResult key={q} local={state.local} set={state.set} name={name} people={people} request={q || text} onRegenerate={() => run(q || text.trim(), true)} />
+        <PrayerResult key={q} set={state.set} name={name} people={people} request={q || text} onRegenerate={() => run(q || text.trim(), true)} />
       )}
 
       <SafetyNote />
@@ -155,8 +138,8 @@ export default function PrayerPage() {
 }
 
 function PrayerResult({
-  set, name, people, request, onRegenerate, local = false,
-}: { local?: boolean; set: PrayerSet; name: string; people: PeopleDoc | null; request: string; onRegenerate: () => void }) {
+  set, name, people, request, onRegenerate,
+}: { set: PrayerSet; name: string; people: PeopleDoc | null; request: string; onRegenerate: () => void }) {
   const [tab, setTab] = useState<'intercede' | 'self'>('intercede')
   const [opening, setOpening] = useState<Opening>(set.people.length ? 'person' : 'scripture')
   const [big, setBig] = useState(false)
@@ -168,24 +151,43 @@ function PrayerResult({
     search(request).then((r) => setKits(r.slice(0, 3)))
   }, [request])
 
-  const openingText = opening === 'situation' ? set.intercede.situation : opening === 'scripture' ? set.intercede.before_scripture : set.intercede.before_person
+  const verses = useVerseTexts(set.scriptures.map((x) => x.ref))
+  const anchor = set.scriptures[0]
+  const anchorV = anchor ? verses[anchor.ref] : undefined
+  const pp = set.people.find((x) => x.id === anchor?.person) ?? set.people[0]
+  const person = pp && people ? people.people.find((x) => x.id === pp.id) : undefined
+  const personRef = set.scriptures.find((x) => x.person === pp?.id)?.ref ?? person?.refs[0] ?? ''
+  const explain = n(set.intercede.before_scripture)
+  const compare = n(set.intercede.before_person || pp?.bridge || '')
+  const who = name.trim() || 'พี่น้อง'
+
+  const verseLine = (ref: string) => {
+    const v = verses[ref]
+    const label = v?.ref?.label ?? ref
+    return v?.verses.length ? `${label} (ฉบับ 1971)\n${v.verses.map((x) => x.text).join(' ')}` : `${label} (ฉบับ 1971)`
+  }
+  const openingText =
+    opening === 'situation'
+      ? n(set.intercede.situation)
+      : opening === 'scripture'
+        ? [anchor ? verseLine(anchor.ref) : '', explain].filter(Boolean).join('\n\n')
+        : [person ? `${person.th}: ${n(pp.story)}` : '', compare].filter(Boolean).join('\n\n')
   const steps = tab === 'intercede'
     ? [
-        { h: 'ก่อนอธิษฐาน', t: n(openingText) },
+        { h: 'ก่อนอธิษฐาน', t: openingText },
         { h: 'อธิษฐานเผื่อ', t: n(set.intercede.prayer) },
         { h: 'หลังอธิษฐาน', t: n(set.intercede.after) },
       ]
     : [
-        { h: 'เตือนใจตนเอง', t: n(set.self.before) },
+        { h: 'เตือนใจตนเอง', t: [anchor ? verseLine(anchor.ref) : '', set.self.before].filter(Boolean).join('\n\n') },
         { h: 'อธิษฐานเพื่อตนเอง', t: n(set.self.prayer) },
         { h: 'ภาวนาระหว่างวัน', t: n(set.self.breath) },
       ]
 
   const copyText = [
-    `🙏 ${set.title}`,
+    tab === 'intercede' ? '🙏 อธิษฐานเผื่อพี่น้อง' : '🧎 อธิษฐานเพื่อตนเอง',
     ...steps.filter((s) => s.t).map((s) => `${s.h}\n${s.t}`),
-    set.scriptures.length ? `📖 ${set.scriptures.map((s) => s.ref).join(' · ')}` : '',
-  ].filter(Boolean).join('\n\n')
+  ].join('\n\n')
 
   const copy = async () => {
     try {
@@ -205,19 +207,6 @@ function PrayerResult({
         </div>
       )}
 
-      <section className="prayer-head">
-        <p className="eyebrow">{local ? '📖 จากข้อมูลในแอป' : '🤖 ร่างโดย AI'} · ใช้เป็นแนวทาง อธิษฐานด้วยถ้อยคำของท่านเองได้เสมอ</p>
-        <h2>{set.title}</h2>
-        {set.keys.length > 0 && (
-          <div className="prayer-keys" aria-label="คำสำคัญช่วยจำ">
-            <span className="prayer-keys__label">จำง่าย</span>
-            {set.keys.map((k, i) => (
-              <span key={i} className="prayer-key"><b>{i + 1}</b>{k}</span>
-            ))}
-          </div>
-        )}
-      </section>
-
       <div className="prayer-tabs" role="tablist">
         <button type="button" role="tab" aria-selected={tab === 'intercede'} onClick={() => setTab('intercede')}>🙏 เผื่อพี่น้อง</button>
         <button type="button" role="tab" aria-selected={tab === 'self'} onClick={() => setTab('self')}>🧎 เพื่อตนเอง</button>
@@ -234,7 +223,26 @@ function PrayerResult({
                   <button key={o.id} type="button" role="radio" aria-checked={opening === o.id} onClick={() => setOpening(o.id)}>{o.label}</button>
                 ))}
               </div>
-              <p className="say">{n(openingText) || '—'}</p>
+              {opening === 'situation' && <p className="say">{n(set.intercede.situation) || '—'}</p>}
+              {opening === 'scripture' && (anchor ? <VerseCard label={anchor.ref} v={anchorV} explain={explain} /> : <p className="say">{explain || '—'}</p>)}
+              {opening === 'person' && (
+                <div className="person-open">
+                  {person && (
+                    <p className="person-open__head">
+                      <Link to={`/people/${person.id}`}>👤 {person.th} ›</Link>
+                      {personRef && <span>{parseRef(personRef)?.label ?? personRef}</span>}
+                    </p>
+                  )}
+                  {pp?.story && <p className="person-open__story">{n(pp.story)}</p>}
+                  {compare && (
+                    <>
+                      <h4 className="verse-card__h">เชื่อมกับเรื่องของ{who}</h4>
+                      <p className="say">{compare}</p>
+                    </>
+                  )}
+                  {!person && !compare && <p className="say">—</p>}
+                </div>
+              )}
             </div>
           </div>
           <div className="prayer-step prayer-step--main">
@@ -260,7 +268,11 @@ function PrayerResult({
           {set.self.before && (
             <div className="prayer-step">
               <span className="prayer-step__no">1</span>
-              <div className="prayer-step__body"><h3>เตือนใจตนเอง</h3><p className="say">{set.self.before}</p></div>
+              <div className="prayer-step__body">
+                <h3>เตือนใจตนเอง</h3>
+                {anchor && <VerseCard label={anchor.ref} v={anchorV} />}
+                <p className="say">{set.self.before}</p>
+              </div>
             </div>
           )}
           <div className="prayer-step prayer-step--main">
@@ -282,32 +294,12 @@ function PrayerResult({
         <textarea className="copy-fallback" readOnly value={copyText} rows={8} onFocus={(e) => e.currentTarget.select()} aria-label="ข้อความสำหรับคัดลอก" />
       )}
 
-      {set.scriptures.length > 0 && (
+      {set.scriptures.length > 1 && (
         <section className="section">
-          <h2 className="section__title">📖 พระคำที่ใช้</h2>
-          <ul className="ref-list">
-            {set.scriptures.map((s) => (
-              <li key={s.ref}><span className="ref-list__ref">{s.ref}</span><span className="ref-list__theme">ใจความ: {s.gist}</span></li>
-            ))}
-          </ul>
-          <p className="source-note">เปิดอ่านข้อความจริงจากพระคริสตธรรมคัมภีร์ฉบับ 1971 ก่อนใช้</p>
-        </section>
-      )}
-
-      {set.people.length > 0 && people && (
-        <section className="section">
-          <h2 className="section__title">👤 เรื่องของบุคคลที่ใช้ประกอบ</h2>
-          {set.people.map((p) => {
-            const person = people.people.find((x) => x.id === p.id)!
-            return (
-              <article key={p.id} className="compare-card">
-                <Link to={`/people/${p.id}`} className="compare-card__name">{person.th} ›</Link>
-                <p>{n(p.story)}</p>
-                {p.bridge && <p className="compare-card__lesson">🔗 {n(p.bridge)}</p>}
-                <p className="source-note">📖 {person.refs.slice(0, 2).join(' · ')}</p>
-              </article>
-            )
-          })}
+          <h2 className="section__title">📖 พระคำเพิ่มเติม</h2>
+          {set.scriptures.slice(1).map((x) => (
+            <VerseCard key={x.ref} label={x.ref} v={verses[x.ref]} gist={x.gist} />
+          ))}
         </section>
       )}
 
@@ -329,13 +321,13 @@ function PrayerResult({
 
       <button type="button" className="btn btn--ghost" onClick={onRegenerate}>🔄 ขอคำอธิษฐานแบบใหม่</button>
 
-      {big && <PrayerMode title={set.title} steps={steps} keys={set.keys} onClose={() => setBig(false)} />}
+      {big && <PrayerMode steps={steps} onClose={() => setBig(false)} />}
     </>
   )
 }
 
 /** โหมดตัวอักษรใหญ่ ใช้ขณะอธิษฐานต่อหน้าพี่น้องหรือทางโทรศัพท์ */
-function PrayerMode({ title, steps, keys, onClose }: { title: string; steps: { h: string; t: string }[]; keys: string[]; onClose: () => void }) {
+function PrayerMode({ steps, onClose }: { steps: { h: string; t: string }[]; onClose: () => void }) {
   const list = steps.filter((s) => s.t)
   const [i, setI] = useState(0)
   useEffect(() => {
@@ -361,7 +353,7 @@ function PrayerMode({ title, steps, keys, onClose }: { title: string; steps: { h
         <button type="button" className="fieldmode__close" onClick={onClose}>ปิด</button>
       </div>
       <div className="fieldmode__body">
-        <h2>{title}{keys.length ? ` · ${keys.join(' → ')}` : ''}</h2>
+        <h2>{s?.h}</h2>
         <p className="prayer-big">{s?.t}</p>
       </div>
       <div className="fieldmode__nav">
@@ -372,6 +364,65 @@ function PrayerMode({ title, steps, keys, onClose }: { title: string; steps: { h
           <button type="button" className="primary" onClick={onClose}>อาเมน</button>
         )}
       </div>
+    </div>
+  )
+}
+
+type VerseState = { ref: VerseRef | null; verses: VerseText[] }
+
+/** ดึงข้อความพระคัมภีร์จริง (ฉบับ 1971) ของทุกข้ออ้างอิงในชุดคำอธิษฐาน */
+function useVerseTexts(refs: string[]): Record<string, VerseState | undefined> {
+  const [map, setMap] = useState<Record<string, VerseState>>({})
+  const key = refs.join('|')
+  useEffect(() => {
+    let alive = true
+    Promise.all(
+      refs.map(async (r) => {
+        const ref = parseRef(r)
+        return [r, { ref, verses: ref ? await getVerses(ref) : [] }] as const
+      }),
+    ).then((all) => alive && setMap(Object.fromEntries(all)))
+    return () => {
+      alive = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key])
+  return map
+}
+
+/** การ์ดพระคำ: ข้ออ้างอิง + ข้อความจริงจากฉบับ 1971 (ไม่ใช่ข้อความที่ AI เขียน) + คำอธิบาย */
+function VerseCard({ label, v, explain, gist }: { label: string; v?: VerseState; explain?: string; gist?: string }) {
+  const ref = v?.ref ?? null
+  return (
+    <div className="verse-card">
+      <p className="verse-card__ref">
+        <span>📖 {ref?.label ?? label}</span>
+        <small>ฉบับ 1971</small>
+      </p>
+      {v === undefined ? (
+        <p className="verse-card__text verse-card__text--wait">กำลังเปิดพระคัมภีร์…</p>
+      ) : v.verses.length ? (
+        <blockquote className="verse-card__text">
+          {v.verses.map((x) => (
+            <span key={x.n}>
+              {v.verses.length > 1 && <sup>{x.n}</sup>}
+              {x.text}{' '}
+            </span>
+          ))}
+        </blockquote>
+      ) : null}
+      {gist && <p className="verse-card__gist">{gist}</p>}
+      {ref && (
+        <a className="verse-card__link" href={refUrl(ref)} target="_blank" rel="noreferrer">
+          อ่านทั้งตอน ›
+        </a>
+      )}
+      {explain && (
+        <>
+          <h4 className="verse-card__h">ความหมายสำหรับเรื่องนี้</h4>
+          <p className="say">{explain}</p>
+        </>
+      )}
     </div>
   )
 }

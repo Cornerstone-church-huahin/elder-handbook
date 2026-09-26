@@ -30,8 +30,15 @@ export default defineConfig({
         // cache เฉพาะตัวแอปและฟอนต์
         // ห้ามเพิ่ม runtimeCaching สำหรับ API ข้อมูลสมาชิก/การเยี่ยม (ต้องออนไลน์เท่านั้น)
         globPatterns: ['**/*.{js,css,html,svg,png,json}'], // รวมระเบียบปฏิบัติฯ (json) ให้อ่านได้แม้ออฟไลน์
+        // พระคัมภีร์ทั้งเล่ม (~11MB) ไม่โหลดล่วงหน้า — เก็บไว้ในเครื่องเฉพาะเล่มที่เปิดอ่านแล้ว
+        globIgnores: ['**/data/bible/**'],
         navigateFallback: 'index.html',
         runtimeCaching: [
+          {
+            urlPattern: /\/data\/bible\/\d+\.json$/,
+            handler: 'CacheFirst',
+            options: { cacheName: 'bible-th1971', expiration: { maxEntries: 70 } },
+          },
           {
             urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/,
             handler: 'StaleWhileRevalidate',

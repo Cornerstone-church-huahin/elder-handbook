@@ -863,3 +863,18 @@ a.chip { display: inline-flex; align-items: center; text-decoration: none; }
 .ai-keys__btns .btn { flex: 1 1 8rem; }
 .ai-keys__ok { color: #1e6b34; font-weight: 600; font-size: 0.9rem; }
 .ai-keys__err { color: #b3261e; font-weight: 600; font-size: 0.9rem; }
+/* การ์ดพระคำ (ข้อความจริงฉบับ 1971) และแท็บบุคคล */
+.verse-card { display: flex; flex-direction: column; gap: 0.45rem; background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--gold); border-radius: var(--radius); padding: 0.75rem 0.85rem; }
+.verse-card__ref { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; font-weight: 700; color: var(--accent-ink); font-size: 0.95rem; }
+.verse-card__ref small { font-weight: 500; font-size: 0.72rem; color: var(--ink-soft); white-space: nowrap; }
+.verse-card__text { margin: 0; font-family: var(--font-display); font-size: 1.05rem; line-height: 1.85; color: var(--ink); }
+.verse-card__text sup { font-size: 0.65em; color: var(--accent-ink); margin-right: 0.15em; font-family: var(--font-body); }
+.verse-card__text--wait { color: var(--ink-soft); font-size: 0.9rem; }
+.verse-card__gist { font-size: 0.85rem; color: var(--ink-soft); }
+.verse-card__link { align-self: flex-start; font-size: 0.85rem; min-height: 32px; display: inline-flex; align-items: center; color: var(--accent-ink); }
+.verse-card__h { font-size: 0.9rem; margin-top: 0.3rem; color: var(--ink); }
+.person-open { display: flex; flex-direction: column; gap: 0.45rem; background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--navy); border-radius: var(--radius); padding: 0.75rem 0.85rem; }
+.person-open__head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; }
+.person-open__head a { font-weight: 700; font-size: 1.05rem; color: var(--ink); text-decoration: none; }
+.person-open__head span { font-size: 0.8rem; color: var(--ink-soft); }
+.person-open__story { line-height: 1.75; }

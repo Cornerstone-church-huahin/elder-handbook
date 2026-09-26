@@ -44,7 +44,7 @@ for (const [label, id] of [['Claude', 'claude'], ['Gemini', 'gemini'], ['ChatGPT
   await p.goto(URL + '#/prayer?q=' + encodeURIComponent('ทดสอบ ' + id + ' ป่วย')); await p.fill('#prayer-name', 'คุณสมศรี')
   await p.waitForSelector('.prayer-text', { timeout: 8000 })
   const txt = await p.textContent('.main')
-  check(txt.includes(id) && txt.includes('ร่างโดย AI'), `${label}: prayer came from ${id}`)
+  check((await p.textContent('.prayer-text')).includes(id), `${label}: prayer came from ${id}`)
   const last = seen.filter((s) => s.vendor === id).pop()
   check(!JSON.stringify(last.body).includes('คุณสมศรี'), `${label}: member name not sent`)
 }
@@ -53,7 +53,7 @@ check(seen.some((s) => s.vendor === 'openai' && s.body.model === 'gpt-6-astra'),
 // AI ล่ม → ใช้ข้อมูลในแอปแทน ไม่เด้งกลับ
 await ctx.unroute('https://api.openai.com/**'); await ctx.route('https://api.openai.com/**', (r) => r.request().method() === 'OPTIONS' ? r.fulfill({ status: 204, headers: cors }) : r.fulfill({ status: 500, headers: cors, body: '{}' }))
 await p.goto(URL + '#/prayer?q=' + encodeURIComponent('ลูกป่วย ไม่สบาย ล่ม')); await p.waitForSelector('.prayer-text', { timeout: 8000 })
-check((await p.textContent('.main')).includes('เตรียมจากข้อมูลในแอป'), 'AI failure falls back to local prayer')
+check((await p.textContent('.prayer-text')).includes('ข้าแต่พระบิดาเจ้า') && !(await p.textContent('.main')).includes('ลองอีกครั้ง'), 'AI failure falls back to local prayer')
 check(errs.length === 0, 'no JS errors ' + errs.join(';'))
-await p.goto(URL + '#/settings'); await p.waitForSelector('.ai-vendors'); await p.screenshot({ path: process.env.SHOT || '/dev/null' })
+await p.goto(URL + '#/settings'); await p.waitForSelector('.ai-vendors'); if (process.env.SHOT) await p.screenshot({ path: process.env.SHOT })
 await b.close(); console.log(fail ? `${fail} FAILED` : 'ALL PASSED'); process.exit(fail ? 1 : 0)
