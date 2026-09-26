@@ -1,10 +1,14 @@
 import { Link } from 'react-router-dom'
 import { FONT_SCALES, useFontScale } from '../lib/prefs'
 import { useElderDuties } from '../lib/elderDuties'
+import { useState } from 'react'
+import { getAccessCode, isStandaloneSite, setAccessCode } from '../lib/ai'
 
 export default function Settings() {
   const { scale, setScale } = useFontScale()
   const { list } = useElderDuties()
+  const [code, setCode] = useState(getAccessCode)
+  const [savedCode, setSavedCode] = useState(false)
 
   return (
     <>
@@ -40,6 +44,33 @@ export default function Settings() {
         </span>
         <span aria-hidden="true" className="settings-row__go">›</span>
       </Link>
+
+      {isStandaloneSite() && (
+        <form
+          className="card"
+          onSubmit={(e) => {
+            e.preventDefault()
+            setAccessCode(code)
+            setSavedCode(true)
+          }}
+        >
+          <label htmlFor="ai-code" style={{ fontSize: '1.2rem', fontWeight: 700 }}>🔑 รหัสเข้าใช้ผู้ช่วย AI</label>
+          <p style={{ color: 'var(--ink-soft)' }}>ใส่ครั้งเดียวต่อเครื่อง ขอรหัสจากผู้ดูแลระบบของคริสตจักร</p>
+          <input
+            id="ai-code"
+            className="code-input"
+            type="password"
+            autoComplete="off"
+            value={code}
+            onChange={(e) => {
+              setCode(e.target.value)
+              setSavedCode(false)
+            }}
+          />
+          <button type="submit" className="btn">บันทึกรหัส</button>
+          {savedCode && <p className="source-note">บันทึกแล้ว ใช้ผู้ช่วย AI ได้ทุกหน้า</p>}
+        </form>
+      )}
 
       <section className="card">
         <h2 style={{ fontSize: '1.2rem' }}>บัญชีผู้ใช้</h2>

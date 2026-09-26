@@ -2,9 +2,9 @@
  * ชั้น AI ของคู่มือผู้ปกครองคริสตจักร
  *
  * หน้าจอเรียกผ่าน getAiProvider() เท่านั้น ไม่ผูกกับผู้ให้บริการ AI รายใด
- * - ตอนนี้ (พรีวิว): ใช้ Claude ผ่านบัญชี Claude ของผู้เปิดดู (capability "sample")
- * - อนาคต (ใช้งานจริง): Supabase Edge Function เรียก Claude API พร้อมส่งเนื้อหาที่อนุมัติแล้ว
- *   และธรรมนูญที่เกี่ยวข้องเข้าไปด้วย (Constitution First) — เปลี่ยนเฉพาะไฟล์นี้
+ * - เปิดผ่าน Claude (พรีวิว): ใช้ Claude ของผู้เปิดดู (capability "sample")
+ * - เว็บจริง: เรียก /api/ai (functions/api/ai.ts บน Cloudflare Pages) พร้อมรหัสเข้าใช้
+ *   Step A4: เปลี่ยนรหัสเข้าใช้เป็นการตรวจ Login
  */
 import { buildKitPrompt } from './aiPrompt'
 
@@ -35,7 +35,7 @@ export interface AiProvider {
   json(prompt: string, opts: AiCallOptions): Promise<unknown>
 }
 
-export type AiErrorKind = 'unavailable' | 'declined' | 'busy' | 'refused' | 'failed' | 'cancelled'
+export type AiErrorKind = 'unavailable' | 'declined' | 'locked' | 'busy' | 'refused' | 'failed' | 'cancelled'
 export class AiError extends Error {
   constructor(public kind: AiErrorKind, message: string = kind) {
     super(message)
@@ -105,8 +105,17 @@ function normalize(raw: unknown, topic: string): AiKit {
   return kit
 }
 
+function makeProvider(json: AiProvider['json']): AiProvider {
+  return {
+    json,
+    async generateKit(topic, opts, roster) {
+      return normalize(await json(buildKitPrompt(topic, roster), opts), topic)
+    },
+  }
+}
+
 function claudeSampleProvider(sample: SampleFn): AiProvider {
-  const json = async (prompt: string, { signal, onProgress, cacheHours = 24 }: AiCallOptions) => {
+  return makeProvider(async (prompt, { signal, onProgress, cacheHours = 24 }) => {
     try {
       return await sample.json<unknown>(prompt, {
         signal,
@@ -118,13 +127,93 @@ function claudeSampleProvider(sample: SampleFn): AiProvider {
     } catch (e) {
       throw e instanceof AiError ? e : mapError(e)
     }
+  })
+}
+
+// ---------- เว็บจริง: /api/ai ----------
+const CODE_KEY = 'khatha.aiAccessCode'
+export function getAccessCode(): string {
+  try {
+    return localStorage.getItem(CODE_KEY) ?? ''
+  } catch {
+    return ''
   }
-  return {
-    json,
-    async generateKit(topic, opts, roster) {
-      return normalize(await json(buildKitPrompt(topic, roster), opts), topic)
-    },
+}
+export function setAccessCode(code: string) {
+  try {
+    localStorage.setItem(CODE_KEY, code.trim())
+  } catch {
+    /* ignore */
   }
+}
+/** true เมื่อแอปเปิดเป็นเว็บจริง (ไม่ได้เปิดผ่าน Claude) — ใช้ตัดสินว่าจะแสดงช่องรหัสเข้าใช้หรือไม่ */
+export const isStandaloneSite = () => typeof window.claude?.use !== 'function' && /^https?:$/.test(location.protocol)
+
+/** อ่าน JSON จากคำตอบแบบผ่อนปรน: ทั้งก้อน → ในบล็อกโค้ด → ตั้งแต่ { หรือ [ แรกถึงตัวปิดสุดท้าย */
+export function parseJsonLoose(text: string): unknown {
+  const t = text.trim()
+  const tries = [t]
+  const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/)
+  if (fence) tries.push(fence[1])
+  const a = Math.min(...['{', '['].map((c) => (t.indexOf(c) < 0 ? Infinity : t.indexOf(c))))
+  const b = Math.max(t.lastIndexOf('}'), t.lastIndexOf(']'))
+  if (a !== Infinity && b > a) tries.push(t.slice(a, b + 1))
+  for (const x of tries) {
+    try {
+      return JSON.parse(x)
+    } catch {
+      /* try next */
+    }
+  }
+  throw new AiError('failed', 'invalid_json')
+}
+
+function hash(s: string): string {
+  let h = 5381
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0
+  return (h >>> 0).toString(36) + s.length.toString(36)
+}
+
+function serverProvider(): AiProvider {
+  return makeProvider(async (prompt, { signal, onProgress, cacheHours = 24 }) => {
+    const key = `khatha.ai.${hash(prompt)}`
+    if (cacheHours > 0) {
+      try {
+        const hit = JSON.parse(localStorage.getItem(key) ?? 'null') as { at: number; text: string } | null
+        if (hit && Date.now() - hit.at < cacheHours * 3600_000) return parseJsonLoose(hit.text)
+      } catch {
+        /* no cache */
+      }
+    }
+    let r: Response
+    try {
+      r = await fetch('./api/ai', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-access-code': getAccessCode() },
+        body: JSON.stringify({ prompt }),
+        signal,
+      })
+    } catch (e) {
+      if (signal.aborted) throw new AiError('cancelled')
+      throw new AiError('failed', String(e))
+    }
+    const body = (await r.json().catch(() => ({}))) as { text?: string; code?: string }
+    if (r.status === 401) throw new AiError('locked')
+    if (r.status === 404 || r.status === 503) throw new AiError('unavailable', body.code)
+    if (r.status === 429) throw new AiError('busy')
+    if (body.code === 'refused') throw new AiError('refused')
+    if (!r.ok || !body.text) throw new AiError('failed', body.code ?? `HTTP ${r.status}`)
+    onProgress?.(body.text.length)
+    const value = parseJsonLoose(body.text)
+    if (cacheHours > 0) {
+      try {
+        localStorage.setItem(key, JSON.stringify({ at: Date.now(), text: body.text }))
+      } catch {
+        /* ignore */
+      }
+    }
+    return value
+  })
 }
 
 let providerPromise: Promise<AiProvider | null> | null = null
@@ -134,7 +223,7 @@ export function getAiProvider(): Promise<AiProvider | null> {
   if (!providerPromise) {
     providerPromise = (async () => {
       const use = window.claude?.use
-      if (typeof use !== 'function') return null
+      if (typeof use !== 'function') return isStandaloneSite() ? serverProvider() : null
       try {
         const sample = (await use.call(window.claude, 'sample')) as SampleFn | null
         return sample && typeof sample.json === 'function' ? claudeSampleProvider(sample) : null
