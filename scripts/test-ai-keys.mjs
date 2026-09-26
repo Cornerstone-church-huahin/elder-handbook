@@ -41,12 +41,11 @@ for (const [label, id] of [['Claude', 'claude'], ['Gemini', 'gemini'], ['ChatGPT
   await p.goto(URL + '#/settings'); await p.waitForSelector('.ai-vendors')
   await p.click(`.ai-vendor >> text=${label}`); await p.fill('#ai-key', 'good-' + id); await p.click('text=ทดสอบและบันทึก')
   await p.waitForSelector('.ai-keys__ok'); check((await p.textContent('.ai-keys__ok')).includes('ใช้ได้'), `${label}: key test ok`)
-  await p.goto(URL + '#/prayer?q=' + encodeURIComponent('ทดสอบ ' + id + ' ป่วย')); await p.fill('#prayer-name', 'คุณสมศรี')
+  await p.goto(URL + '#/prayer?q=' + encodeURIComponent('ทดสอบ ' + id + ' ป่วย'))
   await p.waitForSelector('.prayer-text', { timeout: 8000 })
   const txt = await p.textContent('.main')
   check((await p.textContent('.prayer-text')).includes(id), `${label}: prayer came from ${id}`)
   const last = seen.filter((s) => s.vendor === id).pop()
-  check(!JSON.stringify(last.body).includes('คุณสมศรี'), `${label}: member name not sent`)
 }
 check(seen.some((s) => s.vendor === 'gemini' && s.url.includes('gemini-3.8-flash')), 'gemini default model used')
 check(seen.some((s) => s.vendor === 'openai' && s.body.model === 'gpt-6-astra'), 'openai default model used')

@@ -33,7 +33,7 @@ export default function PrayerPage() {
   const [params, setParams] = useSearchParams()
   const q = (params.get('q') ?? '').trim()
   const [text, setText] = useState(q)
-  const [name, setName] = useState('') // เก็บในเครื่องเท่านั้น ไม่ส่งให้ AI
+  const name = '' // ไม่มีช่องชื่อแล้ว (ตามที่ผู้ใช้ขอ) คำอธิษฐานใช้คำว่า "พี่น้อง"
   const [state, setState] = useState<State>({ s: 'idle' })
   const [people, setPeople] = useState<PeopleDoc | null>(null)
   const ctl = useRef<AbortController | null>(null)
@@ -91,7 +91,6 @@ export default function PrayerPage() {
       <div className="page-head">
         <span className="page-icon" aria-hidden="true">🙏</span>
         <h1>อธิษฐานเผื่อ</h1>
-        <p>เล่าเรื่องที่พี่น้องเผชิญ แล้วรับคำอธิษฐานพร้อมพระคำและบุคคลในพระคัมภีร์</p>
       </div>
 
       <form className="prayer-form" onSubmit={submit}>
@@ -103,11 +102,6 @@ export default function PrayerPage() {
           value={text}
           onChange={(e) => setText(e.target.value)}
         />
-        <label htmlFor="prayer-name" className="prayer-form__name">
-          ชื่อพี่น้อง (ไม่ต้องใส่ก็ได้)
-          <input id="prayer-name" type="text" placeholder="เช่น คุณสมศรี" value={name} onChange={(e) => setName(e.target.value)} />
-          <small>ชื่อจะใส่ลงในคำอธิษฐานบนเครื่องนี้เท่านั้น ไม่ถูกส่งไปที่ AI</small>
-        </label>
         <button type="submit" className="btn btn--gold prayer-form__go">🙏 สร้างคำอธิษฐาน</button>
       </form>
 
