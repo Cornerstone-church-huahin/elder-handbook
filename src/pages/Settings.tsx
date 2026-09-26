@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { FONT_SCALES, useFontScale } from '../lib/prefs'
 import { useElderDuties } from '../lib/elderDuties'
 import { useState } from 'react'
+import { DEFAULT_REPO, getSync, saveSync, testSync } from '../lib/sync'
 import { getAiSettings, isStandaloneSite, saveAiSettings, testAiKey, VENDORS, type AiSettings, type AiVendor } from '../lib/ai'
 
 export default function Settings() {
@@ -43,6 +44,7 @@ export default function Settings() {
         <span aria-hidden="true" className="settings-row__go">›</span>
       </Link>
 
+      {isStandaloneSite() && <SyncSettings />}
       {isStandaloneSite() && <AiKeySettings />}
 
       <section className="card">
@@ -128,6 +130,48 @@ function AiKeySettings() {
       <div className="ai-keys__btns">
         <button type="button" className="btn btn--gold" onClick={test} disabled={testing}>{testing ? 'กำลังทดสอบ…' : 'ทดสอบและบันทึก'}</button>
         <button type="submit" className="btn btn--ghost">บันทึก</button>
+      </div>
+      {msg && <p className={msg.ok ? 'ai-keys__ok' : 'ai-keys__err'} role="status">{msg.text}</p>}
+    </form>
+  )
+}
+
+/** ใช้ร่วมกันออนไลน์: สมุดคำอธิษฐานซิงก์ผ่าน repo ส่วนตัวบน GitHub */
+function SyncSettings() {
+  const cur = getSync()
+  const [name, setName] = useState(cur?.name ?? '')
+  const [token, setToken] = useState(cur?.token ?? '')
+  const [repo, setRepo] = useState(cur?.repo ?? DEFAULT_REPO)
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const [busy, setBusy] = useState(false)
+  const connect = async () => {
+    if (!token.trim()) {
+      saveSync(null)
+      return setMsg({ ok: true, text: 'ปิดการใช้ร่วมกันแล้ว สมุดบันทึกในเครื่องนี้อย่างเดียว' })
+    }
+    setBusy(true)
+    setMsg(null)
+    const cfg = { name: name.trim(), token: token.trim(), repo: repo.trim() || DEFAULT_REPO }
+    const err = await testSync(cfg)
+    setBusy(false)
+    if (err) return setMsg({ ok: false, text: err })
+    saveSync(cfg)
+    setMsg({ ok: true, text: 'เชื่อมต่อแล้ว ✓ สมุดคำอธิษฐานจะบันทึกออนไลน์และเห็นร่วมกันทุกเครื่องที่ใส่รหัสนี้' })
+  }
+  return (
+    <form className="card ai-keys" onSubmit={(e) => { e.preventDefault(); connect() }}>
+      <h2 style={{ fontSize: '1.1rem' }}>☁️ ใช้ร่วมกันออนไลน์</h2>
+      <p className="source-note">ใส่รหัสเข้าใช้ร่วมครั้งเดียวต่อเครื่อง แล้วสมุดคำอธิษฐานจะบันทึกขึ้น GitHub ของคริสตจักร (repo ส่วนตัว) ทุกคนที่ใส่รหัสเดียวกันจะเห็นและแก้ไขได้</p>
+      <label htmlFor="sync-name" className="ai-keys__label">ชื่อของท่าน (แสดงว่าใครแก้ไข)</label>
+      <input id="sync-name" className="code-input" type="text" placeholder="เช่น เจ็ท" value={name} onChange={(e) => { setName(e.target.value); setMsg(null) }} />
+      <label htmlFor="sync-token" className="ai-keys__label">รหัสเข้าใช้ร่วม</label>
+      <input id="sync-token" className="code-input" type="password" autoComplete="off" spellCheck={false} placeholder="github_pat_..." value={token} onChange={(e) => { setToken(e.target.value); setMsg(null) }} />
+      <details className="ai-keys__adv">
+        <summary>ขั้นสูง: ที่เก็บข้อมูล</summary>
+        <input id="sync-repo" className="code-input" type="text" spellCheck={false} value={repo} onChange={(e) => { setRepo(e.target.value); setMsg(null) }} />
+      </details>
+      <div className="ai-keys__btns">
+        <button type="submit" className="btn btn--gold" disabled={busy}>{busy ? 'กำลังตรวจ…' : 'เชื่อมต่อและบันทึก'}</button>
       </div>
       {msg && <p className={msg.ok ? 'ai-keys__ok' : 'ai-keys__err'} role="status">{msg.text}</p>}
     </form>

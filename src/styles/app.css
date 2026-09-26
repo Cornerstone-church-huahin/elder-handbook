@@ -918,8 +918,33 @@ a.chip { display: inline-flex; align-items: center; text-decoration: none; }
 .nb-editor input:focus, .nb-editor textarea:focus { border-color: var(--navy); outline: none; }
 .nb-editor__row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
 .nb-editor__text { flex: 1; }
-.nb-editor__text textarea { flex: 1; min-height: 36dvh; line-height: 1.8; resize: vertical; }
+.nb-editor__text textarea { flex: 1; min-height: 28dvh; line-height: 1.8; resize: vertical; }
 .nb-editor__btns { display: grid; grid-template-columns: 2fr 1fr; gap: 0.5rem; }
 .nb-empty { display: flex; flex-direction: column; gap: 0.6rem; align-items: flex-start; }
 .nb-restore { align-self: center; font-size: 0.85rem; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+/* การ์ดที่กาง: 4 แท็บ แสดงผลในพื้นที่เดียวกัน */
+.nb-tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.25rem; background: var(--surface-2); border-radius: 0.7rem; padding: 0.25rem; position: sticky; top: 6.4rem; z-index: 2; }
+.nb-tabs button { min-height: 44px; border: 0; border-radius: 0.55rem; background: transparent; color: var(--ink); font: inherit; font-size: 0.8rem; font-weight: 600; cursor: pointer; padding: 0.2rem; }
+.nb-tabs button[aria-selected='true'] { background: var(--navy); color: #fff; }
+.nb-panel { display: flex; flex-direction: column; gap: 0.7rem; min-height: 40dvh; }
+.nb-verse { display: flex; flex-direction: column; gap: 0.35rem; text-decoration: none; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--gold); border-radius: var(--radius); padding: 0.7rem 0.8rem; }
+.nb-verse:active { background: var(--surface-2); }
+.nb-verse__ref { display: flex; justify-content: space-between; gap: 0.5rem; font-weight: 700; color: var(--accent-ink); font-size: 0.95rem; }
+.nb-verse__ref small { font-weight: 500; font-size: 0.72rem; color: var(--ink-soft); white-space: nowrap; }
+.nb-verse__text { font-family: var(--font-display); font-size: 1.05rem; line-height: 1.85; }
+.nb-prose { font-size: 1rem; line-height: 1.85; display: flex; flex-direction: column; gap: 0.7rem; }
+.nb-prose p:first-child { font-weight: 700; }
+.nb-prose p { white-space: pre-line; }
+.nb-none { color: var(--ink-soft); font-size: 0.9rem; background: var(--surface-2); border-radius: var(--radius); padding: 0.8rem; }
+.nb-notes { display: flex; flex-direction: column; gap: 0.5rem; }
+.nb-notes textarea { font: inherit; font-size: 1rem; min-height: 30dvh; line-height: 1.7; border: 1.5px solid var(--line); border-radius: 0.6rem; padding: 0.6rem; background: var(--surface); color: var(--ink); }
+.nb-sync { font-size: 0.8rem; color: var(--ink-soft); margin-top: -0.4rem; }
+.nb-sync--ok { color: #1e6b34; }
+.nb-sync--err { color: #b3261e; }
+.nb-sync button { border: 0; background: none; color: inherit; text-decoration: underline; font: inherit; cursor: pointer; min-height: 32px; }
+/* แท็กอัตโนมัติ: เล็ก จาง ไม่รกสายตา แตะเพื่อค้นหา */
+.nb-foot { display: flex; flex-direction: column; gap: 0.15rem; border-top: 1px dashed var(--line); padding-top: 0.4rem; }
+.nb-tags { font-size: 0.68rem; color: var(--ink-soft); opacity: 0.8; line-height: 1.9; }
+.nb-tags button { border: 0; background: none; color: inherit; font: inherit; padding: 0 0.2rem; cursor: pointer; }
+.nb-by { font-size: 0.68rem; color: var(--ink-soft); opacity: 0.8; }
