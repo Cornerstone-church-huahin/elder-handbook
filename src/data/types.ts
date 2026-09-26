@@ -27,7 +27,7 @@ export type HomeAction =
   | { id: string; kind: 'situation'; situation_slug: string; label: string; icon: string }
   | { id: string; kind: 'route'; to: string; label: string; icon: string }
 
-export type SourceType = 'situation' | 'scripture' | 'prayer' | 'constitution' | 'member' | 'management'
+export type SourceType = 'situation' | 'scripture' | 'prayer' | 'constitution' | 'member' | 'management' | 'saved-prayer'
 
 export interface SearchResult {
   type: SourceType

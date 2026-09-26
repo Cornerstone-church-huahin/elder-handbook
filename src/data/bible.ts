@@ -87,6 +87,21 @@ export async function getVerses(r: VerseRef): Promise<VerseText[]> {
   if (!r.verses.length) return []
   const c = await loadBook(r.book)
   const ch = c?.[r.chapter - 1]
-  if (!ch) return []
-  return r.verses.map((n) => ({ n, text: ch[n - 1] ?? '' })).filter((v) => v.text)
+  if (ch) return r.verses.map((n) => ({ n, text: ch[n - 1] ?? '' })).filter((v) => v.text)
+  // ออฟไลน์และยังไม่เคยเปิดเล่มนี้: ใช้ชุดข้อที่คำอธิษฐานในแอปใช้ (bible-core.json เก็บในเครื่องตั้งแต่ติดตั้ง)
+  const core = await loadCore()
+  return r.verses.map((n) => ({ n, text: core?.[`${r.book}.${r.chapter}.${n}`] ?? '' })).filter((v) => v.text)
+}
+
+let corePromise: Promise<Record<string, string> | null> | null = null
+function loadCore() {
+  if (!corePromise) {
+    corePromise = fetch('./data/bible-core.json')
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => {
+        corePromise = null
+        return null
+      })
+  }
+  return corePromise
 }

@@ -8,6 +8,7 @@ import { AiError, getAiProvider } from '../lib/ai'
 import { buildLocalPrayer } from '../lib/prayerLocal'
 import { generatePrayer, withName, type PrayerSet } from '../lib/prayerAi'
 import SafetyNote from '../components/SafetyNote'
+import { loadSavedPrayers, matchSavedPrayers, type SavedPrayersDoc } from '../data/savedPrayers'
 
 
 type Opening = 'situation' | 'scripture' | 'person'
@@ -37,6 +38,11 @@ export default function PrayerPage() {
   const [state, setState] = useState<State>({ s: 'idle' })
   const [people, setPeople] = useState<PeopleDoc | null>(null)
   const ctl = useRef<AbortController | null>(null)
+  const [saved, setSaved] = useState<SavedPrayersDoc | null>(null)
+  useEffect(() => {
+    loadSavedPrayers().then(setSaved).catch(() => {})
+  }, [])
+  const savedHits = saved && q ? matchSavedPrayers(saved, q) : []
 
   useEffect(() => {
     loadPeople().then(setPeople).catch(() => {})
@@ -105,6 +111,8 @@ export default function PrayerPage() {
         <button type="submit" className="btn btn--gold prayer-form__go">🙏 สร้างคำอธิษฐาน</button>
       </form>
 
+      {savedHits.length > 0 && state.s !== 'idle' && <SavedList title="📜 คำอธิษฐานที่บันทึกไว้สำหรับเรื่องนี้" doc={saved!} items={savedHits} />}
+
 
       {state.s === 'loading' && (
         <div className="card ai-loading" role="status" aria-live="polite">
@@ -126,8 +134,36 @@ export default function PrayerPage() {
         <PrayerResult key={q} set={state.set} name={name} people={people} request={q || text} onRegenerate={() => run(q || text.trim(), true)} />
       )}
 
+      {state.s === 'idle' && saved && <SavedList title="📜 คำอธิษฐานที่บันทึกไว้" doc={saved} items={saved.prayers} grouped />}
+
       <SafetyNote />
     </>
+  )
+}
+
+/** รายการคำอธิษฐานที่บันทึกไว้ — แตะเพื่อเปิดอ่านเต็ม (ใช้ได้ออฟไลน์) */
+function SavedList({ title, doc, items, grouped = false }: { title: string; doc: SavedPrayersDoc; items: SavedPrayersDoc['prayers']; grouped?: boolean }) {
+  const cats = grouped ? doc.categories.filter((c) => items.some((p) => p.category === c.id)) : [null]
+  return (
+    <section className="section saved-list">
+      <h2 className="section__title">{title}</h2>
+      {cats.map((c) => (
+        <div key={c?.id ?? 'all'} className="saved-list__group">
+          {c && <h3 className="saved-list__cat">{c.icon} {c.title}</h3>}
+          {items
+            .filter((p) => !c || p.category === c.id)
+            .map((p) => (
+              <Link key={p.id} to={`/prayer/saved/${p.id}`} className="result">
+                <span className="result__icon" aria-hidden="true">{doc.categories.find((x) => x.id === p.category)?.icon ?? '🙏'}</span>
+                <span className="result__body">
+                  <span className="result__title">{p.title}</span>
+                  <span className="art-where">{p.subtitle} · {p.use}</span>
+                </span>
+              </Link>
+            ))}
+        </div>
+      ))}
+    </section>
   )
 }
 
@@ -321,7 +357,7 @@ function PrayerResult({
 }
 
 /** โหมดตัวอักษรใหญ่ ใช้ขณะอธิษฐานต่อหน้าพี่น้องหรือทางโทรศัพท์ */
-function PrayerMode({ steps, onClose }: { steps: { h: string; t: string }[]; onClose: () => void }) {
+export function PrayerMode({ steps, onClose }: { steps: { h: string; t: string }[]; onClose: () => void }) {
   const list = steps.filter((s) => s.t)
   const [i, setI] = useState(0)
   useEffect(() => {
@@ -362,10 +398,10 @@ function PrayerMode({ steps, onClose }: { steps: { h: string; t: string }[]; onC
   )
 }
 
-type VerseState = { ref: VerseRef | null; verses: VerseText[] }
+export type VerseState = { ref: VerseRef | null; verses: VerseText[] }
 
 /** ดึงข้อความพระคัมภีร์จริง (ฉบับ 1971) ของทุกข้ออ้างอิงในชุดคำอธิษฐาน */
-function useVerseTexts(refs: string[]): Record<string, VerseState | undefined> {
+export function useVerseTexts(refs: string[]): Record<string, VerseState | undefined> {
   const [map, setMap] = useState<Record<string, VerseState>>({})
   const key = refs.join('|')
   useEffect(() => {
@@ -385,7 +421,7 @@ function useVerseTexts(refs: string[]): Record<string, VerseState | undefined> {
 }
 
 /** การ์ดพระคำ: ข้ออ้างอิง + ข้อความจริงจากฉบับ 1971 (ไม่ใช่ข้อความที่ AI เขียน) + คำอธิบาย */
-function VerseCard({ label, v, explain, gist }: { label: string; v?: VerseState; explain?: string; gist?: string }) {
+export function VerseCard({ label, v, explain, gist }: { label: string; v?: VerseState; explain?: string; gist?: string }) {
   const ref = v?.ref ?? null
   return (
     <div className="verse-card">

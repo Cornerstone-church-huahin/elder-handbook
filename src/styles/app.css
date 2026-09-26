@@ -878,3 +878,7 @@ a.chip { display: inline-flex; align-items: center; text-decoration: none; }
 .person-open__head a { font-weight: 700; font-size: 1.05rem; color: var(--ink); text-decoration: none; }
 .person-open__head span { font-size: 0.8rem; color: var(--ink-soft); }
 .person-open__story { line-height: 1.75; }
+/* คำอธิษฐานที่บันทึกไว้ */
+.saved-list__group { display: flex; flex-direction: column; gap: 0.5rem; }
+.saved-list__cat { font-size: 0.9rem; color: var(--ink-soft); margin-top: 0.25rem; }
+.saved-text { display: flex; flex-direction: column; gap: 0.9rem; background: var(--surface); border: 1.5px solid var(--gold); border-radius: var(--radius); padding: 0.9rem 0.95rem; font-size: 1.05rem; line-height: 1.85; white-space: pre-line; }

@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { search } from '../data/contentRepo'
 import { loadCharter, searchCharter } from '../data/charter'
 import { loadManagement, matchTopics } from '../data/management'
+import { loadSavedPrayers, matchSavedPrayers } from '../data/savedPrayers'
 import type { SearchResult, SourceType } from '../data/types'
 import { IconSearch } from '../components/Icons'
 import { RelatedPeople } from './People'
@@ -15,6 +16,7 @@ const BADGE: Record<SourceType, string> = {
   constitution: '📜 ธรรมนูญ',
   member: '👤 สมาชิก',
   management: '🏛️ การบริหาร',
+  'saved-prayer': '📜 คำอธิษฐานที่บันทึกไว้',
 }
 
 export default function Search() {
@@ -47,7 +49,14 @@ export default function Search() {
           })),
         )
         .catch(() => [] as SearchResult[]),
-    ]).then(([a, b, c]) => alive && setResults([...a, ...c, ...b]))
+      loadSavedPrayers()
+        .then((d) =>
+          matchSavedPrayers(d, initial, 3).map((x): SearchResult => ({
+            type: 'saved-prayer', id: x.id, title: `${x.title} · ${x.subtitle}`, icon: d.categories.find((c) => c.id === x.category)?.icon ?? '🙏', href: `/prayer/saved/${x.id}`,
+          })),
+        )
+        .catch(() => [] as SearchResult[]),
+    ]).then(([a, b, c, d]) => alive && setResults([...d, ...a, ...c, ...b]))
     return () => {
       alive = false
     }
