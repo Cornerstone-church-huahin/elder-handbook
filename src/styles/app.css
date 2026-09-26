@@ -1,0 +1,280 @@
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.6;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+h1, h2, h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 0;
+  text-wrap: balance;
+}
+p { margin: 0; }
+a { color: inherit; }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+
+/* ---------- โครงแอป ---------- */
+.app {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--bar-bg);
+  color: var(--bar-ink);
+  padding: calc(env(safe-area-inset-top, 0px) + 0.5rem) var(--gutter) 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.topbar__brand {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  text-decoration: none;
+}
+.topbar__brand svg { width: 2rem; height: 2rem; flex: none; }
+.topbar__name { font-family: var(--font-display); font-size: 1.2rem; font-weight: 600; white-space: nowrap; }
+.topbar__back {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  min-height: 2.6rem; padding: 0 0.6rem 0 0.2rem;
+  background: none; border: 0; color: var(--bar-ink); cursor: pointer;
+  font-size: 1rem;
+}
+.icon-btn {
+  flex: none;
+  width: 2.6rem; height: 2.6rem;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  color: var(--bar-ink);
+  text-decoration: none;
+  border: 2px solid rgba(249, 248, 245, 0.35);
+}
+.icon-btn svg { width: 1.3rem; height: 1.3rem; }
+
+.main {
+  flex: 1;
+  width: 100%;
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding-inline: var(--gutter);
+  padding-block: 1.25rem 7rem; /* เผื่อพื้นที่แถบล่าง */
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+/* ---------- แถบนำทางล่าง (4 ปุ่ม) ---------- */
+.bottomnav {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 10;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.bottomnav ul {
+  list-style: none; margin: 0 auto; padding: 0;
+  max-width: var(--maxw);
+  display: grid; grid-template-columns: repeat(4, 1fr);
+}
+.bottomnav a {
+  min-height: var(--tap);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 0.1rem;
+  padding: 0.35rem 0.1rem;
+  text-decoration: none;
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  line-height: 1.2;
+  text-align: center;
+  border-top: 4px solid transparent;
+}
+.bottomnav svg { width: 1.4rem; height: 1.4rem; }
+.bottomnav a[aria-current='page'] {
+  color: var(--ink);
+  font-weight: 700;
+  border-top-color: var(--accent);
+}
+
+/* ---------- หน้าแรก ---------- */
+.greeting { display: flex; flex-direction: column; gap: 0.25rem; }
+.greeting__date { color: var(--ink-soft); font-size: 0.9rem; }
+.greeting h1 { font-size: 1.6rem; }
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--surface);
+  border: 2px solid var(--navy);
+  border-radius: var(--radius);
+  flex-wrap: wrap;
+  padding: 0.3rem 0.4rem 0.3rem 0.9rem;
+  min-height: var(--tap);
+}
+:root[data-theme='dark'] .search { border-color: var(--line); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme='light']) .search { border-color: var(--line); } }
+.search svg { width: 1.4rem; height: 1.4rem; flex: none; color: var(--ink-soft); }
+.search input {
+  flex: 100 1 7rem; min-width: 0;
+  border: 0; background: transparent; outline: none;
+  font-size: 1rem;
+  padding-block: 0.6rem;
+}
+.search input::placeholder { color: var(--ink-soft); opacity: 1; }
+.search button {
+  flex: 1 0 auto;
+  max-width: 100%;
+  min-height: 2.6rem;
+  padding-inline: 1rem;
+  border: 0; border-radius: calc(var(--radius) - 0.3rem);
+  background: var(--navy); color: var(--parchment);
+  font-weight: 700; cursor: pointer;
+}
+.search-hints { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.chip {
+  min-height: 2.4rem;
+  padding: 0.2rem 0.85rem;
+  border-radius: 999px;
+  border: 1.5px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.section { display: flex; flex-direction: column; gap: 0.75rem; }
+.section__title { font-family: var(--font-display); font-weight: 600; font-size: 1.2rem; display: flex; align-items: baseline; gap: 0.5rem; }
+.section__title::before {
+  content: '';
+  width: 0.6rem; height: 0.6rem; flex: none;
+  background: var(--accent);
+  transform: rotate(45deg) translateY(-0.1rem);
+}
+
+.empty {
+  background: var(--surface-2);
+  border-radius: var(--radius);
+  padding: 1rem 1.1rem;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+}
+
+/* การ์ด "วันนี้คุณต้องการทำอะไร?" */
+.actions {
+  list-style: none; margin: 0; padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(8rem, 100%), 1fr));
+  gap: 0.75rem;
+}
+.action {
+  height: 100%;
+  min-height: 6rem;
+  display: flex; flex-direction: column; justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.9rem 1rem;
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  text-decoration: none;
+  color: var(--ink);
+}
+.action:active { transform: scale(0.98); }
+.action__icon { font-size: 1.7rem; line-height: 1; }
+.action__label { font-weight: 700; font-size: 1rem; line-height: 1.35; }
+.action--tool { background: var(--surface-2); box-shadow: none; }
+
+.disclaimer {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  border-top: 1px solid var(--line);
+  padding-top: 1rem;
+}
+
+/* ---------- หน้าทั่วไป ---------- */
+.page-head { display: flex; flex-direction: column; gap: 0.4rem; }
+.page-head h1 { font-size: 1.6rem; }
+.page-head p { color: var(--ink-soft); }
+.page-icon { font-size: 2.4rem; line-height: 1; }
+
+.card {
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1.1rem;
+  display: flex; flex-direction: column; gap: 0.75rem;
+}
+
+.btn {
+  min-height: var(--tap);
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+  padding: 0.5rem 1.25rem;
+  border-radius: var(--radius);
+  border: 2px solid var(--navy);
+  background: var(--navy);
+  color: var(--parchment);
+  font-weight: 700;
+  font-size: 1rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+.btn--ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+
+/* ตัวเลือกขนาดตัวอักษร */
+.scale-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(6rem, 1fr)); gap: 0.6rem; }
+.scale-option {
+  min-height: var(--tap);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 0.5rem;
+  border-radius: var(--radius);
+  border: 2px solid var(--line);
+  background: var(--surface);
+  cursor: pointer;
+}
+.scale-option[aria-pressed='true'] { border-color: var(--accent); background: var(--surface-2); font-weight: 700; }
+.scale-option__sample { font-family: var(--font-display); line-height: 1.2; }
+.scale-option__pct { font-size: 0.8rem; color: var(--ink-soft); }
+
+.results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.6rem; }
+.result {
+  display: flex; align-items: center; gap: 0.9rem;
+  min-height: var(--tap);
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius);
+  text-decoration: none;
+}
+.result__icon { font-size: 1.5rem; flex: none; }
+.result__body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.result__title { font-weight: 700; }
+.badge {
+  align-self: flex-start;
+  font-size: 0.75rem;
+  padding: 0 0.5rem;
+  border-radius: 0.4rem;
+  background: var(--surface-2);
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+  .action:active { transform: none; }
+}

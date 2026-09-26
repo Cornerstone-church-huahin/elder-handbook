@@ -1,0 +1,62 @@
+/* Design System — คทาผู้เลี้ยง
+   สีหลักตาม Blueprint: Navy #1A2B4C · Grace Gold #D4AF37 · Parchment #F9F8F5
+   ทุกขนาดใช้หน่วย rem เพื่อให้ปรับตัวอักษร 100/125/150% แล้วทั้งหน้าขยายตาม */
+
+:root {
+  --navy: #1a2b4c;
+  --gold: #d4af37;
+  --parchment: #f9f8f5;
+
+  --bg: var(--parchment);
+  --surface: #ffffff;
+  --surface-2: #f1eee6;
+  --ink: #16213a;          /* ตัวอักษรหลัก contrast ~15:1 */
+  --ink-soft: #414b62;     /* ตัวอักษรรอง contrast ~8:1 */
+  --line: #ddd7c8;
+  --accent: var(--gold);
+  --accent-ink: #7a5f0e;   /* ทองเข้มสำหรับตัวอักษรบนพื้นสว่าง (อ่านได้) */
+  --bar-bg: var(--navy);
+  --bar-ink: #f9f8f5;
+  --focus: #2f6fd6;
+  --shadow: 0 1px 2px rgba(26, 43, 76, 0.08), 0 2px 8px rgba(26, 43, 76, 0.06);
+
+  --font-body: 'Sarabun', 'Noto Sans Thai', 'Leelawadee UI', 'Thonburi', sans-serif;
+  --font-display: 'Pridi', 'Sarabun', 'Noto Serif Thai', serif;
+
+  --radius: 0.9rem;
+  --tap: 3.5rem;           /* ความสูงปุ่มขั้นต่ำ (70px ที่ 100%) */
+  --gutter: 1rem;
+  --maxw: 46rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg: #111b30;
+    --surface: #1a2743;
+    --surface-2: #22314f;
+    --ink: #f3efe4;
+    --ink-soft: #c5c9d4;
+    --line: #34446a;
+    --accent-ink: #e6c65c;
+    --bar-bg: #0b1324;
+    --shadow: none;
+  }
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #111b30;
+  --surface: #1a2743;
+  --surface-2: #22314f;
+  --ink: #f3efe4;
+  --ink-soft: #c5c9d4;
+  --line: #34446a;
+  --accent-ink: #e6c65c;
+  --bar-bg: #0b1324;
+  --shadow: none;
+}
+
+/* ขนาดตัวอักษร: ฐาน 20px (ใหญ่กว่ามือถือทั่วไปที่ 16px) */
+html { font-size: 20px; }
+html[data-scale='125'] { font-size: 25px; }
+html[data-scale='150'] { font-size: 30px; }
