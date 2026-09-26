@@ -7,14 +7,14 @@ process.env.VITE_EMBED = '1'
 const out = 'dist-preview'
 await build({
   configFile: false, base: './', plugins: [react()],
-  build: { outDir: out, emptyOutDir: true, modulePreload: false, cssCodeSplit: false, rollupOptions: { output: { format: 'iife', inlineDynamicImports: true } } },
+  build: { minify: process.env.DEBUG_BUILD ? false : 'esbuild', outDir: out, emptyOutDir: true, modulePreload: false, cssCodeSplit: false, rollupOptions: { output: { format: 'iife', inlineDynamicImports: true } } },
 })
 const dir = path.join(out, 'assets')
 const files = fs.readdirSync(dir)
 const css = fs.readFileSync(path.join(dir, files.find(f => f.endsWith('.css'))), 'utf8')
 const js = fs.readFileSync(path.join(dir, files.find(f => f.endsWith('.js'))), 'utf8').replace(/<\/script/g, '<\\/script').replace(/"<script>/g, '"\\x3cscript>').replace(/"<svg>"/g, '"\\x3csvg>"').replace(/"<\/svg>"/g, '"\\x3c/svg>"')
 // ตัวแจ้งปัญหา: ถ้าแอปโหลดไม่ขึ้น จะแสดงสาเหตุบนหน้าจอแทนหน้าว่าง
-const guard = `<script>(function(){function show(m){var r=document.getElementById('root');if(!r)return;r.innerHTML='<div style="padding:20px;font:16px sans-serif;color:#1a2b4c;background:#fff4d6;border:2px solid #a77b00;border-radius:12px;margin:16px"><b>แอปโหลดไม่สำเร็จ</b><br>กรุณาถ่ายภาพหน้าจอนี้ส่งให้ผู้พัฒนา<br><code style="word-break:break-all;font-size:13px"></code></div>';r.querySelector('code').textContent=String(m).slice(0,400)}window.addEventListener('error',function(e){if(e.target&&e.target.tagName==='SCRIPT'){show('script file blocked: '+e.target.src);return}show(e.message||e.error)},true);window.addEventListener('unhandledrejection',function(e){show(e.reason&&(e.reason.message||e.reason.code)||e.reason)});setTimeout(function(){var r=document.getElementById('root');if(r&&r.getAttribute('data-booting')!==null&&!document.querySelector('.app'))show('timeout: script did not start')},8000)})();<\/script>`
+const guard = `<script>(function(){function show(m){var r=document.getElementById('root');if(!r||document.querySelector('.app'))return;r.innerHTML='<div style="padding:20px;font:16px sans-serif;color:#1a2b4c;background:#fff4d6;border:2px solid #a77b00;border-radius:12px;margin:16px"><b>แอปโหลดไม่สำเร็จ</b><br>กรุณาถ่ายภาพหน้าจอนี้ส่งให้ผู้พัฒนา<br><code style="word-break:break-all;white-space:pre-wrap;font-size:12px;display:block;margin-top:8px"></code></div>';r.querySelector('code').textContent=String(m).slice(0,1500)}window.addEventListener('error',function(e){if(e.target&&e.target.tagName==='SCRIPT'){show('script file blocked: '+e.target.src);return}show((e.message||'')+'\\n'+(e.error&&e.error.stack||'')+'\\nline '+e.lineno+':'+e.colno)},true);window.addEventListener('unhandledrejection',function(e){show(e.reason&&(e.reason.message||e.reason.code)||e.reason)});setTimeout(function(){var r=document.getElementById('root');if(r&&r.getAttribute('data-booting')!==null&&!document.querySelector('.app'))show('timeout: script did not start')},8000)})();<\/script>`
 const html = `<!doctype html>
 <html lang="th"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
