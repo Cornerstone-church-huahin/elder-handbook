@@ -109,7 +109,7 @@ export default function PrayerNotebookPage() {
         {editing !== 'new' && <button type="button" className="btn btn--gold nb-add" onClick={startNew}>＋ เพิ่ม</button>}
       </div>
 
-      <SyncLine sync={sync} onRetry={syncNow} />
+      <SyncLine sync={sync} onRetry={syncNow} list={list ?? []} />
       {!saved && <p className="empty">เครื่องนี้บันทึกข้อมูลไม่ได้ (อาจเปิดแบบส่วนตัว) สิ่งที่แก้ไขจะหายเมื่อปิดหน้า</p>}
 
       {editing === 'new' && (
@@ -172,7 +172,16 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'notes', label: '📝 บันทึก' },
 ]
 
-function SyncLine({ sync, onRetry }: { sync: SyncStatus; onRetry: () => void }) {
+/** เวลาแบบสั้น: วันนี้ → 06:16 น. · วันอื่น → 26 ก.ย. 16:16 น. */
+function when(t: number) {
+  const d = new Date(t)
+  const hm = d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
+  return d.toDateString() === new Date().toDateString() ? `${hm} น.` : `${d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })} ${hm} น.`
+}
+
+function SyncLine({ sync, onRetry, list }: { sync: SyncStatus; onRetry: () => void; list: NotePrayer[] }) {
+  // ใครแก้ไขล่าสุด (จากทุกเครื่องที่ใช้ร่วมกัน)
+  const last = list.filter((x) => x.by && x.updated > 0).sort((a, b) => b.updated - a.updated)[0]
   if (sync.state === 'off')
     return <p className="nb-sync">📱 บันทึกในเครื่องนี้ · <Link to="/settings">ตั้งค่าใช้ร่วมกันออนไลน์ ›</Link></p>
   if (sync.state === 'error')
@@ -182,7 +191,12 @@ function SyncLine({ sync, onRetry }: { sync: SyncStatus; onRetry: () => void }) 
       </p>
     )
   if (sync.state === 'ok')
-    return <p className="nb-sync nb-sync--ok">☁️ ใช้ร่วมกันออนไลน์ · อัปเดตแล้ว {new Date(sync.at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.</p>
+    return (
+      <p className="nb-sync nb-sync--ok">
+        ☁️ ใช้ร่วมกันออนไลน์
+        {last ? <> · แก้ไขล่าสุดโดย <b>{last.by}</b> {when(last.updated)} · “{last.title.slice(0, 24)}{last.title.length > 24 ? '…' : ''}”</> : <> · อัปเดตแล้ว {when(sync.at)}</>}
+      </p>
+    )
   return <p className="nb-sync">☁️ กำลังบันทึกออนไลน์…</p>
 }
 

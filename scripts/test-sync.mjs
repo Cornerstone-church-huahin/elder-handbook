@@ -55,6 +55,7 @@ await B.click('.nb-card--open >> .nb-card__actions >> text=แก้ไข'); aw
 forceConflict = true // จำลองว่ามีอีกเครื่องบันทึกพร้อมกัน
 await A.evaluate(() => document.dispatchEvent(new Event('visibilitychange'))); await A.waitForTimeout(1500)
 check((await A.textContent('.nb-list')).includes('แก้โดยภรรยา'), 'device A sees B edit when reopened')
+check((await A.textContent('.nb-sync')).includes('แก้ไขล่าสุดโดย ภรรยา'), 'sync line shows who updated last: ' + (await A.textContent('.nb-sync')))
 await A.fill('#nb-q', 'คุณยาย'); await A.waitForTimeout(300); await A.click('.nb-card--open >> .nb-card__actions >> text=ลบ'); await A.click('.duty__btns--warn .btn--danger'); await A.waitForTimeout(1800)
 check(decode().items.find((x) => x.title.includes('คุณยาย'))?.deleted === true, 'delete syncs online (conflict retried)')
 await B.evaluate(() => document.dispatchEvent(new Event('visibilitychange'))); await B.waitForTimeout(1500); await B.fill('#nb-q', '')
