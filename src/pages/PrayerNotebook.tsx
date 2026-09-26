@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { parseRef, refUrl } from '../data/bible'
 import { scoreNote, usePrayerNotebook, type NotePrayer } from '../lib/prayerNotebook'
 import type { SyncStatus } from '../lib/sync'
+import { speakableRef, useSpeech, type Rate } from '../lib/speech'
 import { PrayerMode, useVerseTexts } from './Prayer'
 
 type Draft = { title: string; category: string; ref1: string; ref2: string; story: string; text: string; notes: string }
@@ -198,6 +199,22 @@ function NoteCard({
   const [notes, setNotes] = useState(p.notes)
   const [notesSaved, setNotesSaved] = useState(false)
   useEffect(() => setNotes(p.notes), [p.notes])
+  const tts = useSpeech()
+  const { stop } = tts
+  useEffect(() => stop(), [tab, open, stop]) // เปลี่ยนแท็บหรือพับการ์ด → หยุดอ่าน
+  const listenText = (): string => {
+    if (tab === 'verses')
+      return refs
+        .map((r) => {
+          const v = verses[r]
+          const label = speakableRef(v?.ref?.label ?? r)
+          return `${label}. ${v?.verses.map((x) => x.text).join(' ') ?? ''}`
+        })
+        .join('\n')
+    if (tab === 'story') return p.story
+    if (tab === 'prayer') return p.text
+    return notes
+  }
   const copy = async () => {
     const vs = refs.map((r) => `📖 ${parseRef(r)?.label ?? r}`).join('\n')
     try {
@@ -225,6 +242,26 @@ function NoteCard({
               <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}>{t.label}</button>
             ))}
           </div>
+
+          {tts.supported && (
+            <div className="nb-listen">
+              {tts.speaking ? (
+                <button type="button" className="btn btn--gold nb-listen__go" onClick={tts.stop}>⏸ หยุด</button>
+              ) : (
+                <button type="button" className="btn btn--gold nb-listen__go" disabled={!listenText().trim()} onClick={() => tts.speak(listenText())}>🔊 ฟัง</button>
+              )}
+              <div className="nb-listen__rate" role="radiogroup" aria-label="ความเร็วในการอ่าน">
+                {([[0.75, 'ช้า'], [1, 'ปกติ'], [1.25, 'เร็ว']] as [Rate, string][]).map(([r, l]) => (
+                  <button key={r} type="button" role="radio" aria-checked={tts.rate === r} onClick={() => { tts.setRate(r); tts.stop() }}>{l}</button>
+                ))}
+              </div>
+            </div>
+          )}
+          {tts.noVoice && (
+            <p className="nb-none">
+              มือถือเครื่องนี้ยังไม่มีเสียงภาษาไทย · Android: ตั้งค่า › การจัดการทั่วไป › การอ่านออกเสียง (Text-to-speech) › Google › ติดตั้งข้อมูลเสียง › ไทย · iPhone: ตั้งค่า › การช่วยการเข้าถึง › เนื้อหาที่ถูกพูด › เสียง › ไทย
+            </p>
+          )}
 
           <div className="nb-panel" role="tabpanel">
             {tab === 'verses' &&
