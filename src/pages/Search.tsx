@@ -61,7 +61,7 @@ export default function Search() {
             })),
         )
         .catch(() => [] as SearchResult[]),
-    ]).then(([a, b, c, d]) => alive && setResults([...d, ...a, ...c, ...b]))
+    ]).then(([a, b, c, d]) => alive && setResults([...a, ...d, ...c, ...b]))
     return () => {
       alive = false
     }

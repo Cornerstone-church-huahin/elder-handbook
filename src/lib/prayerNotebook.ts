@@ -194,6 +194,12 @@ export function usePrayerNotebook() {
           changed = true
           return { ...x, keywords: autoTags(x) } // ของที่เพิ่มเองในรุ่นก่อน: เติมแท็ก
         }
+        if (x.updated === 0) {
+          // ยังไม่เคยแก้ไข: ใช้ฉบับตั้งต้นล่าสุด (แท็กที่ปรับปรุงแล้ว)
+          if (JSON.stringify(x.keywords) === JSON.stringify(d.keywords) && x.story === d.story) return x
+          changed = true
+          return d
+        }
         if (x.story && x.refs.length >= 2 && x.keywords.length) return x
         changed = true
         const up = { ...x, story: x.story || d.story, refs: x.refs.length >= 2 ? x.refs : [...new Set([...x.refs, ...d.refs])].slice(0, 2) }
