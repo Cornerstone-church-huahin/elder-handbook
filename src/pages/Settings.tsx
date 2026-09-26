@@ -174,6 +174,33 @@ function SyncSettings() {
         <button type="submit" className="btn btn--gold" disabled={busy}>{busy ? 'กำลังตรวจ…' : 'เชื่อมต่อและบันทึก'}</button>
       </div>
       {msg && <p className={msg.ok ? 'ai-keys__ok' : 'ai-keys__err'} role="status">{msg.text}</p>}
+      {getSync() && <InviteLink />}
     </form>
+  )
+}
+
+/** ลิงก์เข้าร่วมสำหรับเครื่องอื่น: ส่งทาง Line ส่วนตัว เปิดครั้งเดียวก็เชื่อมต่อ */
+function InviteLink() {
+  const [note, setNote] = useState('')
+  const cfg = getSync()!
+  const link = `${location.origin}${location.pathname}#/join?t=${encodeURIComponent(cfg.token)}${cfg.repo !== DEFAULT_REPO ? `&r=${encodeURIComponent(cfg.repo)}` : ''}`
+  const share = async () => {
+    const text = `ลิงก์เข้าร่วมสมุดคำอธิษฐาน (คู่มือผู้ปกครองคริสตจักร) เปิดครั้งเดียวบนมือถือของท่าน:\n${link}`
+    try {
+      if (navigator.share) await navigator.share({ title: 'เข้าร่วมสมุดคำอธิษฐาน', text })
+      else {
+        await navigator.clipboard.writeText(text)
+        setNote('คัดลอกลิงก์แล้ว วางในแชต Line ส่วนตัวได้เลย')
+      }
+    } catch {
+      /* ผู้ใช้ปิดหน้าต่างแชร์ */
+    }
+  }
+  return (
+    <div className="invite">
+      <button type="button" className="btn btn--ghost" onClick={share}>📤 ส่งลิงก์ให้อีกเครื่อง (เช่น ภรรยา)</button>
+      <p className="source-note">เปิดลิงก์ครั้งเดียวบนเครื่องนั้น ใส่ชื่อ แล้วใช้ร่วมกันได้ทันที ส่งเฉพาะแชตส่วนตัว อย่าโพสต์ในกลุ่ม</p>
+      {note && <p className="ai-keys__ok">{note}</p>}
+    </div>
   )
 }

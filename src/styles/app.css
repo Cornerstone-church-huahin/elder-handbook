@@ -948,3 +948,4 @@ a.chip { display: inline-flex; align-items: center; text-decoration: none; }
 .nb-tags { font-size: 0.68rem; color: var(--ink-soft); opacity: 0.8; line-height: 1.9; }
 .nb-tags button { border: 0; background: none; color: inherit; font: inherit; padding: 0 0.2rem; cursor: pointer; }
 .nb-by { font-size: 0.68rem; color: var(--ink-soft); opacity: 0.8; }
+.invite { display: flex; flex-direction: column; gap: 0.35rem; border-top: 1px dashed var(--line); padding-top: 0.6rem; }

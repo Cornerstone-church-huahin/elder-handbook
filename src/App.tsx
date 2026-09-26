@@ -9,6 +9,7 @@ import { PeopleCompare, PeopleHome, PersonPage } from './pages/People'
 import { ManagementAsk, ManagementHome, ManagementTopic } from './pages/Management'
 import PrayerAiPage from './pages/Prayer'
 import PrayerNotebookPage from './pages/PrayerNotebook'
+import JoinPage from './pages/Join'
 import ElderDutiesPage from './pages/ElderDuties'
 
 // HashRouter: ใช้ได้บนทุก Static Hosting โดยไม่ต้องตั้งค่า rewrite
@@ -30,6 +31,7 @@ export default function App() {
           <Route path="followups" element={<ComingSoon icon="📅" title="สิ่งที่ต้องติดตาม" note="ยังไม่มีรายการติดตาม" />} />
           <Route path="prayer" element={<PrayerNotebookPage />} />
           <Route path="prayer/ai" element={<PrayerAiPage />} />
+          <Route path="join" element={<JoinPage />} />
           <Route path="prayer/saved/:id" element={<SavedRedirect />} />
           <Route path="sermon" element={<ComingSoon icon="📖" title="เตรียมพระคำ" />} />
           <Route path="service" element={<ComingSoon icon="⛪" title="เตรียมพิธี" />} />
