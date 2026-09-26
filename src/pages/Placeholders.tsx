@@ -1,9 +1,15 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { getSituation } from '../data/contentRepo'
 import type { Situation } from '../data/types'
+import AiKitPanel from '../components/AiKitPanel'
+import SafetyNote from '../components/SafetyNote'
 
-/** หน้าชั่วคราวของ Step A1 — จะถูกแทนด้วย Pastoral Kit จริงใน Step A3 */
+/**
+ * หน้า Pastoral Kit ของสถานการณ์
+ * ตอนนี้: ยังไม่มีเนื้อหาที่อนุมัติ จึงให้ AI ร่าง (ติดป้าย "ร่างโดย AI")
+ * Step A3: แสดง Kit ที่อนุมัติจากฐานข้อมูลก่อน แล้วใช้ AI เป็นตัวเสริม
+ */
 export function KitPage() {
   const { slug = '' } = useParams()
   const [s, setS] = useState<Situation | null | undefined>(undefined)
@@ -22,10 +28,26 @@ export function KitPage() {
         <h1>{s.title}</h1>
         <p>{s.summary}</p>
       </div>
-      <div className="card">
-        <p>คู่มืออภิบาลของสถานการณ์นี้กำลังจัดทำ และจะผ่านการตรวจทานจากผู้ปกครองก่อนเปิดใช้</p>
-        <Link to="/" className="btn btn--ghost">กลับหน้าแรก</Link>
+      <AiKitPanel key={s.slug} topic={`${s.title} — ${s.summary}`} />
+      <SafetyNote />
+    </>
+  )
+}
+
+/** ถาม AI จากข้อความที่ผู้ใช้พิมพ์เอง เช่น "สมาชิกกลัวการผ่าตัด" */
+export function AskPage() {
+  const [params] = useSearchParams()
+  const q = (params.get('q') ?? '').trim()
+  if (!q) return <ComingSoon title="ยังไม่ได้พิมพ์เรื่อง" icon="🔍" note="กลับไปหน้าค้นหาแล้วพิมพ์สถานการณ์ที่พบ" />
+  return (
+    <>
+      <div className="page-head">
+        <span className="page-icon" aria-hidden="true">🤖</span>
+        <h1>{q}</h1>
+        <p>คู่มือที่ผู้ช่วย AI เตรียมให้จากเรื่องที่คุณพิมพ์</p>
       </div>
+      <AiKitPanel key={q} topic={q} />
+      <SafetyNote />
     </>
   )
 }

@@ -51,10 +51,21 @@ export default function Search() {
       </form>
 
       {initial && (
+        <Link to={`/ask?q=${encodeURIComponent(initial)}`} className="ask-ai">
+          <span className="ask-ai__icon" aria-hidden="true">🤖</span>
+          <span className="result__body">
+            <span className="result__title">ให้ AI เตรียมคู่มือเรื่องนี้</span>
+            <span className="ask-ai__q">“{initial}”</span>
+          </span>
+          <span aria-hidden="true" className="ask-ai__go">›</span>
+        </Link>
+      )}
+
+      {initial && (
         <section className="section" aria-live="polite">
           {results.length > 0 ? (
             <>
-              <h2 className="section__title">พบ {results.length} รายการ</h2>
+              <h2 className="section__title">คู่มือที่เกี่ยวข้อง</h2>
               <ul className="results">
                 {results.map((r) => (
                   <li key={`${r.type}-${r.id}`}>
@@ -70,7 +81,7 @@ export default function Search() {
               </ul>
             </>
           ) : (
-            <p className="empty">ไม่พบเรื่อง “{initial}” ลองใช้คำอื่น เช่น ป่วย เสียชีวิต หนี้ ครอบครัว</p>
+            <p className="empty">ไม่พบคู่มือที่ตรงกับ “{initial}” กดปุ่มด้านบนเพื่อให้ AI ช่วยเตรียม</p>
           )}
         </section>
       )}

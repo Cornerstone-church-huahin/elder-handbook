@@ -3,7 +3,7 @@ import AppShell from './components/AppShell'
 import Home from './pages/Home'
 import Search from './pages/Search'
 import Settings from './pages/Settings'
-import { ComingSoon, KitPage } from './pages/Placeholders'
+import { AskPage, ComingSoon, KitPage } from './pages/Placeholders'
 
 // HashRouter: ใช้ได้บนทุก Static Hosting โดยไม่ต้องตั้งค่า rewrite
 // MemoryRouter: ใช้เฉพาะไฟล์พรีวิว (npm run build:preview) ที่เปิดในกรอบซึ่งไม่มี URL จริง
@@ -18,6 +18,7 @@ export default function App() {
           <Route path="search" element={<Search />} />
           <Route path="settings" element={<Settings />} />
           <Route path="kit/:slug" element={<KitPage />} />
+          <Route path="ask" element={<AskPage />} />
           <Route path="members" element={<ComingSoon icon="👤" title="สมาชิก" note="รายชื่อสมาชิกและประวัติการอภิบาลจะเปิดใช้หลังระบบเข้าสู่ระบบพร้อม" />} />
           <Route path="followups" element={<ComingSoon icon="📅" title="สิ่งที่ต้องติดตาม" note="ยังไม่มีรายการติดตาม" />} />
           <Route path="prayer" element={<ComingSoon icon="🙏" title="อธิษฐานเผื่อ" />} />

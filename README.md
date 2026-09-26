@@ -29,6 +29,7 @@ node scripts/smoke-test.mjs   # ทดสอบหน้าจอมือถื
 ## ความคืบหน้า
 - [x] A1 Project setup, Design System, App shell, หน้าแรก, ตั้งค่าขนาดตัวอักษร
 - [ ] A2 Database + seed 10 สถานการณ์
-- [ ] A3 Pastoral Kit + Field Mode
+- [~] A3 Pastoral Kit + Field Mode (มีแล้วแบบร่างโดย AI; รอเนื้อหาที่อนุมัติจาก DB)
+- [x] ทดลอง AI: src/lib/ai.ts (ตอนนี้ใช้ Claude ของผู้เปิดดูในพรีวิว, อนาคตเปลี่ยนเป็น Supabase Edge Function)
 - [ ] A4 Login + Workspace
 - [ ] A5–A8
