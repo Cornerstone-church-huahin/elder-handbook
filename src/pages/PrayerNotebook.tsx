@@ -330,7 +330,12 @@ function NoteCard({
           {tts.supported && slot && createPortal(
             <div className="nb-fab" role="group" aria-label="ฟังเสียงอ่าน">
               {tts.speaking ? (
-                <button type="button" className="nb-fab__btn nb-fab__btn--stop" onClick={tts.stop} aria-label="หยุดอ่าน">⏸ หยุด</button>
+                <button type="button" className="nb-fab__btn nb-fab__btn--stop" onClick={tts.pause} aria-label="หยุดชั่วคราว">⏸ หยุด</button>
+              ) : tts.paused ? (
+                <>
+                  <button type="button" className="nb-fab__btn" onClick={tts.resume} aria-label="ฟังต่อ">▶ ฟังต่อ</button>
+                  <button type="button" className="nb-fab__btn" onClick={tts.stop} aria-label="เริ่มใหม่">↺</button>
+                </>
               ) : (
                 <>
                   <button type="button" className="nb-fab__btn" disabled={!listenText().trim()} onClick={() => tts.speak(listenText())} aria-label="ฟังหน้านี้">🔊 หน้านี้</button>

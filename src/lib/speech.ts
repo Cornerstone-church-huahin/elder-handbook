@@ -33,7 +33,7 @@ function chunks(text: string): string[] {
   for (const para of text.split(/\n+/).map((x) => x.trim()).filter(Boolean)) {
     let cur = ''
     for (const w of para.split(/(\s+)/)) {
-      if ((cur + w).length > 160 && cur.trim()) {
+      if ((cur + w).length > 120 && cur.trim()) {
         out.push(cur.trim())
         cur = ''
       }
@@ -44,8 +44,11 @@ function chunks(text: string): string[] {
   return out
 }
 
+type Item = { text: string; section: string; first: boolean }
+
 export function useSpeech() {
   const [speaking, setSpeaking] = useState(false)
+  const [paused, setPaused] = useState(false)
   const [rate, setRateState] = useState<Rate>(() => {
     try {
       const v = Number(localStorage.getItem(RATE_KEY))
@@ -56,41 +59,71 @@ export function useSpeech() {
   })
   const [noVoice, setNoVoice] = useState(false)
   const run = useRef(0)
+  // คิวที่กำลังอ่าน + ตำแหน่ง (เพื่อหยุดชั่วคราวแล้วอ่านต่อจากจุดเดิม)
+  const q = useRef<{ items: Item[]; pos: number; onSection?: (id: string) => void } | null>(null)
 
+  /** หยุดทั้งหมด (ล้างตำแหน่ง) */
   const stop = useCallback(() => {
+    run.current++
+    q.current = null
+    if (canSpeak()) window.speechSynthesis.cancel()
+    setSpeaking(false)
+    setPaused(false)
+  }, [])
+
+  const play = useCallback(() => {
+    const cur = q.current
+    if (!cur || !canSpeak()) return
+    const id = ++run.current
+    const voice = thaiVoice()
+    setNoVoice(!voice && window.speechSynthesis.getVoices().length > 0)
+    setSpeaking(true)
+    setPaused(false)
+    const next = () => {
+      if (id !== run.current || !q.current) return
+      const c = q.current
+      if (c.pos >= c.items.length) {
+        q.current = null
+        return setSpeaking(false)
+      }
+      const it = c.items[c.pos]
+      if (it.first) c.onSection?.(it.section)
+      const u = new SpeechSynthesisUtterance(it.text)
+      u.lang = 'th-TH'
+      if (voice) u.voice = voice
+      u.rate = rate
+      u.onend = () => {
+        if (id !== run.current) return
+        c.pos++
+        next()
+      }
+      u.onerror = () => id === run.current && setSpeaking(false)
+      window.speechSynthesis.speak(u)
+    }
+    next()
+  }, [rate])
+
+  /** หยุดชั่วคราว: จำท่อนที่กำลังอ่านไว้ กดฟังต่อจะอ่านต่อจากท่อนนั้น */
+  const pause = useCallback(() => {
+    if (!q.current) return
     run.current++
     if (canSpeak()) window.speechSynthesis.cancel()
     setSpeaking(false)
+    setPaused(true)
   }, [])
+  const resume = useCallback(() => play(), [play])
 
   /** อ่านหลายส่วนต่อเนื่อง (เช่น พระคำ → เรื่องราว → คำอธิษฐาน) · onSection แจ้งเมื่อเริ่มส่วนใหม่ */
   const speakSections = useCallback(
     (sections: { id: string; text: string }[], onSection?: (id: string) => void) => {
       if (!canSpeak()) return setNoVoice(true)
       stop()
-      const id = ++run.current
-      const queue = sections.flatMap((sec) => chunks(sec.text).map((text, k) => ({ text, section: sec.id, first: k === 0 })))
-      if (!queue.length) return
-      const voice = thaiVoice()
-      setNoVoice(!voice && window.speechSynthesis.getVoices().length > 0)
-      setSpeaking(true)
-      let i = 0
-      const next = () => {
-        if (id !== run.current) return
-        if (i >= queue.length) return setSpeaking(false)
-        const q = queue[i++]
-        if (q.first) onSection?.(q.section)
-        const u = new SpeechSynthesisUtterance(q.text)
-        u.lang = 'th-TH'
-        if (voice) u.voice = voice
-        u.rate = rate
-        u.onend = next
-        u.onerror = () => id === run.current && setSpeaking(false)
-        window.speechSynthesis.speak(u)
-      }
-      next()
+      const items = sections.flatMap((sec) => chunks(sec.text).map((text, k) => ({ text, section: sec.id, first: k === 0 })))
+      if (!items.length) return
+      q.current = { items, pos: 0, onSection }
+      play()
     },
-    [rate, stop],
+    [play, stop],
   )
   const speak = useCallback((text: string) => speakSections([{ id: '', text }]), [speakSections])
 
@@ -112,5 +145,5 @@ export function useSpeech() {
     }
   }, [])
 
-  return { speak, speakSections, stop, speaking, rate, setRate, noVoice, supported: canSpeak() }
+  return { speak, speakSections, stop, pause, resume, speaking, paused, rate, setRate, noVoice, supported: canSpeak() }
 }
