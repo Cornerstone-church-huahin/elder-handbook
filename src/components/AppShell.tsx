@@ -37,6 +37,7 @@ export default function AppShell() {
             </button>
           </div>
         )}
+        <div id="topbar-slot" className="topbar__slot" />
         <Link to="/settings" className="icon-btn" aria-label="ตั้งค่า">
           <IconSettings />
         </Link>

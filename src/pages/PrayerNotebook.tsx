@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, useSearchParams } from 'react-router-dom'
 import { parseRef, refUrl } from '../data/bible'
 import { scoreNote, usePrayerNotebook, type NotePrayer } from '../lib/prayerNotebook'
@@ -43,7 +44,10 @@ export default function PrayerNotebookPage() {
     const id = flash ?? (query ? open : params.get('open'))
     if (!id) return
     const el = refs.current.get(id)
-    if (el) requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+    if (!el) return
+    // การ์ดแรกของรายการ: เลื่อนขึ้นบนสุด (เห็นหัวข้อหน้าและช่องค้นหาครบ) · การ์ดอื่น: เลื่อนให้การ์ดอยู่บนสุด
+    const first = el.parentElement?.querySelector('.nb-card') === el
+    requestAnimationFrame(() => (first ? window.scrollTo({ top: 0, behavior: 'smooth' }) : el.scrollIntoView({ behavior: 'smooth', block: 'start' })))
   }, [open, flash, list]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const onSearch = (v: string) => {
@@ -124,7 +128,6 @@ export default function PrayerNotebookPage() {
         </div>
       ) : (
         <div className="nb-list">
-          {query && <p className="source-note">พบ {shown.length} คำอธิษฐาน</p>}
           {shown.map((p) =>
             editing === p.id ? (
               <div key={p.id} ref={(el) => { if (el) refs.current.set(p.id, el) }}>
@@ -215,6 +218,8 @@ function NoteCard({
   const [notesSaved, setNotesSaved] = useState(false)
   useEffect(() => setNotes(p.notes), [p.notes])
   const tts = useSpeech()
+  const [slot, setSlot] = useState<HTMLElement | null>(null)
+  useEffect(() => setSlot(document.getElementById('topbar-slot')), [])
   const { stop } = tts
   const autoTab = useRef(false)
   useEffect(() => {
@@ -322,23 +327,18 @@ function NoteCard({
           </div>
           </div>
 
-          {tts.supported && (
+          {tts.supported && slot && createPortal(
             <div className="nb-fab" role="group" aria-label="ฟังเสียงอ่าน">
               {tts.speaking ? (
-                <button type="button" className="nb-fab__btn nb-fab__btn--stop" onClick={tts.stop} aria-label="หยุดอ่าน">
-                  <span aria-hidden="true">⏸</span><small>หยุด</small>
-                </button>
+                <button type="button" className="nb-fab__btn nb-fab__btn--stop" onClick={tts.stop} aria-label="หยุดอ่าน">⏸ หยุด</button>
               ) : (
                 <>
-                  <button type="button" className="nb-fab__btn" disabled={!listenText().trim()} onClick={() => tts.speak(listenText())} aria-label="ฟังหน้านี้">
-                    <span aria-hidden="true">🔊</span><small>หน้านี้</small>
-                  </button>
-                  <button type="button" className="nb-fab__btn" onClick={listenAll} aria-label="ฟังต่อเนื่อง พระคำ เรื่องราว อธิษฐาน">
-                    <span aria-hidden="true">▶️</span><small>ต่อเนื่อง</small>
-                  </button>
+                  <button type="button" className="nb-fab__btn" disabled={!listenText().trim()} onClick={() => tts.speak(listenText())} aria-label="ฟังหน้านี้">🔊 หน้านี้</button>
+                  <button type="button" className="nb-fab__btn" onClick={listenAll} aria-label="ฟังต่อเนื่อง พระคำ เรื่องราว อธิษฐาน">▶ ต่อเนื่อง</button>
                 </>
               )}
-            </div>
+            </div>,
+            slot,
           )}
 
           <div className="nb-card__actions">
