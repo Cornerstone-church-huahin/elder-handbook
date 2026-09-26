@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { parseRef, refUrl } from '../data/bible'
 import { scoreNote, usePrayerNotebook, type NotePrayer } from '../lib/prayerNotebook'
 import type { SyncStatus } from '../lib/sync'
-import { speakableRef, useSpeech, type Rate } from '../lib/speech'
+import { RATES, speakableRef, useSpeech } from '../lib/speech'
 import { PrayerMode, useVerseTexts } from './Prayer'
 
 type Draft = { title: string; category: string; ref1: string; ref2: string; story: string; text: string; notes: string }
@@ -264,13 +264,26 @@ function NoteCard({
               ) : (
                 <button type="button" className="btn btn--gold nb-listen__go" disabled={!listenText().trim()} onClick={() => tts.speak(listenText())}>🔊 ฟัง</button>
               )}
-              <div className="nb-listen__rate" role="radiogroup" aria-label="ความเร็วในการอ่าน">
-                {([[0.75, 'ช้า'], [1, 'ปกติ'], [1.25, 'เร็ว']] as [Rate, string][]).map(([r, l]) => (
-                  <button key={r} type="button" role="radio" aria-checked={tts.rate === r} onClick={() => { tts.setRate(r); tts.stop() }}>{l}</button>
-                ))}
-              </div>
             </div>
           )}
+          {tts.supported && (() => {
+            const i = Math.max(0, RATES.findIndex((r) => r.rate === tts.rate))
+            return (
+              <label className="nb-speed">
+                <span className="nb-speed__label">ความเร็ว: <b>{RATES[i].label}</b></span>
+                <input
+                  type="range"
+                  min={0}
+                  max={RATES.length - 1}
+                  step={1}
+                  value={i}
+                  aria-valuetext={RATES[i].label}
+                  onChange={(e) => { tts.setRate(RATES[+e.target.value].rate); tts.stop() }}
+                />
+                <span className="nb-speed__ends" aria-hidden="true"><span>🐢 ช้าที่สุด</span><span>ปกติ</span></span>
+              </label>
+            )
+          })()}
           {tts.noVoice && (
             <p className="nb-none">
               มือถือเครื่องนี้ยังไม่มีเสียงภาษาไทย · Android: ตั้งค่า › การจัดการทั่วไป › การอ่านออกเสียง (Text-to-speech) › Google › ติดตั้งข้อมูลเสียง › ไทย · iPhone: ตั้งค่า › การช่วยการเข้าถึง › เนื้อหาที่ถูกพูด › เสียง › ไทย

@@ -4,7 +4,15 @@ import { useCallback, useEffect, useRef, useState } from 'react'
  * อ่านออกเสียงภาษาไทยด้วยระบบของมือถือเอง (Web Speech API) — ฟรี ไม่ใช้บริการอื่น
  * Android: เสียง Google ภาษาไทย · iPhone/iPad: เสียงภาษาไทยของ Apple
  */
-export type Rate = 0.75 | 1 | 1.25
+/** ความเร็ว 5 ระดับ (ไม่มีเร็ว) — ระดับ 1 ช้ามากเป็นพิเศษสำหรับผู้สูงอายุ */
+export const RATES = [
+  { rate: 0.4, label: 'ช้าที่สุด' },
+  { rate: 0.55, label: 'ช้ามาก' },
+  { rate: 0.75, label: 'ช้า' },
+  { rate: 0.9, label: 'ช้าเล็กน้อย' },
+  { rate: 1, label: 'ปกติ' },
+] as const
+export type Rate = (typeof RATES)[number]['rate']
 const RATE_KEY = 'khatha.speechRate'
 
 export const canSpeak = () => typeof window !== 'undefined' && 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window
@@ -41,7 +49,7 @@ export function useSpeech() {
   const [rate, setRateState] = useState<Rate>(() => {
     try {
       const v = Number(localStorage.getItem(RATE_KEY))
-      return v === 0.75 || v === 1.25 ? v : 1
+      return (RATES.find((r) => r.rate === v)?.rate ?? (v > 1 ? 1 : 0.75)) as Rate
     } catch {
       return 1
     }
