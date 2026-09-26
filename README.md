@@ -34,5 +34,7 @@ node scripts/smoke-test.mjs   # ทดสอบหน้าจอมือถื
 - [x] ระเบียบปฏิบัติของธรรมนูญภาค 7 (2021): 210 ข้อ, สารบัญ, ค้นหา, ถาม AI แบบอ้างเลขข้อ
   - สร้างข้อมูลใหม่: `python3 scripts/parse_charter.py <pdf> public/data/charter-bylaws-2021.json`
   - ข้อความดึงอัตโนมัติ ต้องตรวจทานกับฉบับพิมพ์
+- [x] บุคคลในพระคัมภีร์ 100 คน: แยกพันธสัญญาเดิม/ใหม่ 9 ยุค, ป๊อปอัพเลือกชื่อ, ปุ่มสอน 5 แบบ (AI), เทียบสถานการณ์, เชื่อมกับ Kit
+  - สร้างข้อมูลใหม่: `python3 scripts/build_people.py <รายชื่อ.txt> public/data/bible-people.json`
 - [ ] A4 Login + Workspace
 - [ ] A5–A8

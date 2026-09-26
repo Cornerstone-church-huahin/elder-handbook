@@ -10,6 +10,7 @@ export const seedHomeActions: HomeAction[] = [
   { id: 'a06', kind: 'situation', situation_slug: 'conflict', icon: '🤝', label: 'ความขัดแย้ง / การให้อภัย' },
   { id: 'a07', kind: 'route', to: '/prayer', icon: '🙏', label: 'อธิษฐานเผื่อ' },
   { id: 'a08', kind: 'route', to: '/sermon', icon: '📖', label: 'เตรียมพระคำ' },
+  { id: 'a13', kind: 'route', to: '/people', icon: '👥', label: 'บุคคลในพระคัมภีร์ 100 คน' },
   { id: 'a09', kind: 'route', to: '/service', icon: '⛪', label: 'เตรียมพิธี' },
   { id: 'a10', kind: 'route', to: '/members', icon: '👤', label: 'สมาชิกและการติดตาม' },
   { id: 'a11', kind: 'route', to: '/constitution', icon: '📜', label: 'ธรรมนูญและระเบียบคริสตจักร' },

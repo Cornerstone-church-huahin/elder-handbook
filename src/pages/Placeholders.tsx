@@ -4,6 +4,7 @@ import { getSituation } from '../data/contentRepo'
 import type { Situation } from '../data/types'
 import AiKitPanel from '../components/AiKitPanel'
 import SafetyNote from '../components/SafetyNote'
+import { RelatedPeople } from './People'
 
 /**
  * หน้า Pastoral Kit ของสถานการณ์
@@ -28,6 +29,7 @@ export function KitPage() {
         <h1>{s.title}</h1>
         <p>{s.summary}</p>
       </div>
+      <RelatedPeople situation={s.slug} />
       <AiKitPanel key={s.slug} topic={`${s.title} — ${s.summary}`} />
       <SafetyNote />
     </>
@@ -46,6 +48,7 @@ export function AskPage() {
         <h1>{q}</h1>
         <p>คู่มือที่ผู้ช่วย AI เตรียมให้จากเรื่องที่คุณพิมพ์</p>
       </div>
+      <RelatedPeople text={q} />
       <AiKitPanel key={q} topic={q} />
       <SafetyNote />
     </>

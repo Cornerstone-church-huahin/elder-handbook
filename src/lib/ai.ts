@@ -30,7 +30,7 @@ export interface AiCallOptions {
 }
 
 export interface AiProvider {
-  generateKit(topic: string, opts: AiCallOptions): Promise<AiKit>
+  generateKit(topic: string, opts: AiCallOptions, roster?: string[]): Promise<AiKit>
   /** ถาม AI แล้วรับคำตอบเป็น JSON — ผู้เรียกต้องตรวจโครงสร้างเอง */
   json(prompt: string, opts: AiCallOptions): Promise<unknown>
 }
@@ -121,8 +121,8 @@ function claudeSampleProvider(sample: SampleFn): AiProvider {
   }
   return {
     json,
-    async generateKit(topic, opts) {
-      return normalize(await json(buildKitPrompt(topic), opts), topic)
+    async generateKit(topic, opts, roster) {
+      return normalize(await json(buildKitPrompt(topic, roster), opts), topic)
     },
   }
 }

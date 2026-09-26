@@ -4,7 +4,7 @@
  * - การอภิบาลไม่ทดแทนการแพทย์/สุขภาพจิต/เหตุฉุกเฉิน ต้องแนะนำส่งต่อเมื่อมีความเสี่ยง
  * - ภาษาสุภาพ อ่อนโยน ไม่ตัดสิน เหมาะกับผู้ปกครองคริสตจักรในประเทศไทย
  */
-export function buildKitPrompt(topic: string): string {
+export function buildKitPrompt(topic: string, roster?: string[]): string {
   const safeTopic = topic.replace(/\s+/g, ' ').trim().slice(0, 300)
   return `คุณเป็นผู้ช่วยเตรียมการอภิบาลสำหรับผู้ปกครองคริสตจักรโปรเตสแตนต์ในประเทศไทย (สภาคริสตจักรในประเทศไทย) ผู้ใช้อายุ 60 ปีขึ้นไป จะใช้คู่มือนี้ก่อนและระหว่างไปเยี่ยมสมาชิก
 
@@ -38,5 +38,5 @@ export function buildKitPrompt(topic: string): string {
   "safety": {"level": "none", "note": ""}
 }
 
-จำนวน: avoid_saying 3 ข้อ, scripture_refs 3-4 ข้อ, bible_characters 1-2 คน`
+จำนวน: avoid_saying 3 ข้อ, scripture_refs 3-4 ข้อ, bible_characters 1-2 คน${roster?.length ? `\n\nbible_characters ให้เลือกจากรายชื่อนี้ และเขียนชื่อให้ตรงตามรายชื่อ: ${roster.join(', ')}` : ''}`
 }

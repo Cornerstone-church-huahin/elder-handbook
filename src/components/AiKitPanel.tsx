@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { AiError, getAiProvider, type AiKit, type AiProvider } from '../lib/ai'
 import FieldMode from './FieldMode'
+import { Link } from 'react-router-dom'
+import { findPersonByName, loadPeople, type PeopleDoc } from '../data/people'
 
 type State =
   | { s: 'checking' }
@@ -21,6 +23,10 @@ const ERROR_COPY: Record<AiError['kind'], string> = {
 export default function AiKitPanel({ topic }: { topic: string }) {
   const [state, setState] = useState<State>({ s: 'checking' })
   const [field, setField] = useState(false)
+  const [peopleDoc, setPeopleDoc] = useState<PeopleDoc | null>(null)
+  useEffect(() => {
+    loadPeople().then(setPeopleDoc).catch(() => {})
+  }, [])
   const providerRef = useRef<AiProvider | null>(null)
   const ctlRef = useRef<AbortController | null>(null)
 
@@ -32,10 +38,16 @@ export default function AiKitPanel({ topic }: { topic: string }) {
     ctlRef.current = ctl
     setState({ s: 'loading', chars: 0 })
     try {
-      const kit = await provider.generateKit(topic, {
-        signal: ctl.signal,
-        onProgress: (chars) => !ctl.signal.aborted && setState({ s: 'loading', chars }),
-      })
+      // ให้ AI เลือกบุคคลจากรายชื่อ 100 คนเป็นหลัก เพื่อกดต่อไปดูประวัติได้
+      const people = await loadPeople().catch(() => null)
+      const kit = await provider.generateKit(
+        topic,
+        {
+          signal: ctl.signal,
+          onProgress: (chars) => !ctl.signal.aborted && setState({ s: 'loading', chars }),
+        },
+        people ? people.people.map((x) => x.th) : undefined,
+      )
       if (!ctl.signal.aborted) setState({ s: 'done', kit })
     } catch (e) {
       if (ctl.signal.aborted && ctlRef.current !== ctl) return // ถูกแทนที่ด้วยคำขอใหม่
@@ -159,9 +171,14 @@ export default function AiKitPanel({ topic }: { topic: string }) {
       {kit.bible_characters.length > 0 && (
         <KitSection n={6} title="บุคคลในพระคัมภีร์ที่เกี่ยวข้อง">
           <ul className="plain-list">
-            {kit.bible_characters.map((c, i) => (
-              <li key={i}><strong>{c.name}</strong> — {c.connection}</li>
-            ))}
+            {kit.bible_characters.map((c, i) => {
+              const p = peopleDoc ? findPersonByName(peopleDoc, c.name) : undefined
+              return (
+                <li key={i}>
+                  {p ? <Link to={`/people/${p.id}`}><strong>{c.name}</strong> ›</Link> : <strong>{c.name}</strong>} — {c.connection}
+                </li>
+              )
+            })}
           </ul>
         </KitSection>
       )}

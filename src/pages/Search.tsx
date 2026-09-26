@@ -4,6 +4,7 @@ import { search } from '../data/contentRepo'
 import { loadCharter, searchCharter } from '../data/charter'
 import type { SearchResult, SourceType } from '../data/types'
 import { IconSearch } from '../components/Icons'
+import { RelatedPeople } from './People'
 
 // Source Badge ตาม Blueprint ข้อ 16 — ผู้ใช้ต้องรู้เสมอว่าผลลัพธ์มาจากแหล่งใด
 const BADGE: Record<SourceType, string> = {
@@ -104,6 +105,8 @@ export default function Search() {
           )}
         </section>
       )}
+
+      {initial && <RelatedPeople text={initial} />}
     </>
   )
 }
