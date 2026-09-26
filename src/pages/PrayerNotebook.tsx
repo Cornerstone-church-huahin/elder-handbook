@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { parseRef, refUrl } from '../data/bible'
 import { scoreNote, usePrayerNotebook, type NotePrayer } from '../lib/prayerNotebook'
 import type { SyncStatus } from '../lib/sync'
-import { RATES, speakableRef, useSpeech } from '../lib/speech'
+import { speakableRef, useSpeech } from '../lib/speech'
 import { PrayerMode, useVerseTexts } from './Prayer'
 
 type Draft = { title: string; category: string; ref1: string; ref2: string; story: string; text: string; notes: string }
@@ -109,7 +109,6 @@ export default function PrayerNotebookPage() {
         {editing !== 'new' && <button type="button" className="btn btn--gold nb-add" onClick={startNew}>＋ เพิ่ม</button>}
       </div>
 
-      <SyncLine sync={sync} onRetry={syncNow} list={list ?? []} />
       {!saved && <p className="empty">เครื่องนี้บันทึกข้อมูลไม่ได้ (อาจเปิดแบบส่วนตัว) สิ่งที่แก้ไขจะหายเมื่อปิดหน้า</p>}
 
       {editing === 'new' && (
@@ -152,6 +151,8 @@ export default function PrayerNotebookPage() {
           )}
         </div>
       )}
+
+      <SyncLine sync={sync} onRetry={syncNow} list={list ?? []} />
 
       {list && !query && (
         <button type="button" className="btn btn--ghost nb-restore" onClick={() => restoreDefaults()}>↺ นำคำอธิษฐานตั้งต้นที่ลบไปกลับมา</button>
@@ -215,16 +216,11 @@ function NoteCard({
   useEffect(() => setNotes(p.notes), [p.notes])
   const tts = useSpeech()
   const { stop } = tts
-  const [allMode, setAllMode] = useState(false) // กำลังฟังต่อเนื่องทั้งหมด
   const autoTab = useRef(false)
   useEffect(() => {
     if (autoTab.current) return void (autoTab.current = false) // แท็บเปลี่ยนเพราะการฟังต่อเนื่อง → อ่านต่อ
     stop()
-    setAllMode(false)
   }, [tab, open, stop]) // ผู้ใช้เปลี่ยนแท็บหรือพับการ์ด → หยุดอ่าน
-  useEffect(() => {
-    if (!tts.speaking) setAllMode(false)
-  }, [tts.speaking])
   const versesText = () =>
     refs
         .map((r) => {
@@ -245,7 +241,6 @@ function NoteCard({
       { id: 'story', text: p.story ? `เรื่องราว. ${p.story}` : '' },
       { id: 'prayer', text: p.text ? `คำอธิษฐาน. ${p.text}` : '' },
     ].filter((x) => x.text)
-    setAllMode(true)
     tts.speakSections(secs, (id) => {
       if (id !== tab) autoTab.current = true
       setTab(id as Tab)
@@ -279,36 +274,6 @@ function NoteCard({
             ))}
           </div>
 
-          {tts.supported && (
-            <div className="nb-listen">
-              {tts.speaking ? (
-                <button type="button" className="btn btn--gold nb-listen__go" onClick={tts.stop}>⏸ หยุด{allMode ? 'ฟังต่อเนื่อง' : ''}</button>
-              ) : (
-                <>
-                  <button type="button" className="btn btn--gold nb-listen__go" disabled={!listenText().trim()} onClick={() => tts.speak(listenText())}>🔊 ฟังหน้านี้</button>
-                  <button type="button" className="btn btn--ghost nb-listen__all" onClick={listenAll}>▶️ ฟังต่อเนื่อง</button>
-                </>
-              )}
-            </div>
-          )}
-          {tts.supported && (() => {
-            const i = Math.max(0, RATES.findIndex((r) => r.rate === tts.rate))
-            return (
-              <label className="nb-speed">
-                <span className="nb-speed__label">ความเร็ว: <b>{RATES[i].label}</b></span>
-                <input
-                  type="range"
-                  min={0}
-                  max={RATES.length - 1}
-                  step={1}
-                  value={i}
-                  aria-valuetext={RATES[i].label}
-                  onChange={(e) => { tts.setRate(RATES[+e.target.value].rate); tts.stop() }}
-                />
-                <span className="nb-speed__ends" aria-hidden="true"><span>🐢 ช้าที่สุด</span><span>ปกติ</span></span>
-              </label>
-            )
-          })()}
           {tts.noVoice && (
             <p className="nb-none">
               มือถือเครื่องนี้ยังไม่มีเสียงภาษาไทย · Android: ตั้งค่า › การจัดการทั่วไป › การอ่านออกเสียง (Text-to-speech) › Google › ติดตั้งข้อมูลเสียง › ไทย · iPhone: ตั้งค่า › การช่วยการเข้าถึง › เนื้อหาที่ถูกพูด › เสียง › ไทย
@@ -347,7 +312,34 @@ function NoteCard({
                 {notesSaved && notes === p.notes && <p className="source-note">บันทึกแล้ว</p>}
               </div>
             )}
+            <div className="nb-foot">
+            {p.keywords.length > 0 && (
+              <p className="nb-tags" aria-label="แท็กสำหรับค้นหา">
+                🏷 {p.keywords.map((k) => <button key={k} type="button" onClick={() => onTag(k)}>#{k}</button>)}
+              </p>
+            )}
+            {p.by && p.updated > 0 && <p className="nb-by">แก้ไขล่าสุดโดย {p.by} · {new Date(p.updated).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}</p>}
           </div>
+          </div>
+
+          {tts.supported && (
+            <div className="nb-fab" role="group" aria-label="ฟังเสียงอ่าน">
+              {tts.speaking ? (
+                <button type="button" className="nb-fab__btn nb-fab__btn--stop" onClick={tts.stop} aria-label="หยุดอ่าน">
+                  <span aria-hidden="true">⏸</span><small>หยุด</small>
+                </button>
+              ) : (
+                <>
+                  <button type="button" className="nb-fab__btn" disabled={!listenText().trim()} onClick={() => tts.speak(listenText())} aria-label="ฟังหน้านี้">
+                    <span aria-hidden="true">🔊</span><small>หน้านี้</small>
+                  </button>
+                  <button type="button" className="nb-fab__btn" onClick={listenAll} aria-label="ฟังต่อเนื่อง พระคำ เรื่องราว อธิษฐาน">
+                    <span aria-hidden="true">▶️</span><small>ต่อเนื่อง</small>
+                  </button>
+                </>
+              )}
+            </div>
+          )}
 
           <div className="nb-card__actions">
             <button type="button" className="btn btn--gold" onClick={onBig}>🔠 ตัวใหญ่</button>
@@ -363,14 +355,6 @@ function NoteCard({
               <button type="button" className="btn btn--ghost" onClick={onCancelDelete}>ไม่ลบ</button>
             </div>
           )}
-          <div className="nb-foot">
-            {p.keywords.length > 0 && (
-              <p className="nb-tags" aria-label="แท็กสำหรับค้นหา">
-                🏷 {p.keywords.map((k) => <button key={k} type="button" onClick={() => onTag(k)}>#{k}</button>)}
-              </p>
-            )}
-            {p.by && p.updated > 0 && <p className="nb-by">แก้ไขล่าสุดโดย {p.by} · {new Date(p.updated).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}</p>}
-          </div>
         </div>
       )}
     </article>

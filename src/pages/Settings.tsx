@@ -3,6 +3,7 @@ import { FONT_SCALES, useFontScale } from '../lib/prefs'
 import { useElderDuties } from '../lib/elderDuties'
 import { useState } from 'react'
 import { DEFAULT_REPO, getSync, saveSync, testSync } from '../lib/sync'
+import { RATES, useSpeech } from '../lib/speech'
 import { getAiSettings, isStandaloneSite, saveAiSettings, testAiKey, VENDORS, type AiSettings, type AiVendor } from '../lib/ai'
 
 export default function Settings() {
@@ -34,6 +35,8 @@ export default function Settings() {
           ))}
         </div>
       </section>
+
+      <SpeechSettings />
 
       <Link to="/settings/duties" className="result settings-row">
         <span className="result__icon" aria-hidden="true">📋</span>
@@ -202,5 +205,38 @@ function InviteLink() {
       <p className="source-note">เปิดลิงก์ครั้งเดียวบนเครื่องนั้น ใส่ชื่อ แล้วใช้ร่วมกันได้ทันที ส่งเฉพาะแชตส่วนตัว อย่าโพสต์ในกลุ่ม</p>
       {note && <p className="ai-keys__ok">{note}</p>}
     </div>
+  )
+}
+
+/** ความเร็วเสียงอ่าน: ตั้งครั้งเดียว ใช้กับการฟังทุกที่ในแอป */
+function SpeechSettings() {
+  const tts = useSpeech()
+  if (!tts.supported) return null
+  const i = Math.max(0, RATES.findIndex((r) => r.rate === tts.rate))
+  return (
+    <section className="card">
+      <h2 style={{ fontSize: '1.1rem' }}>🔊 ความเร็วเสียงอ่าน</h2>
+      <label className="nb-speed">
+        <span className="nb-speed__label">ความเร็ว: <b>{RATES[i].label}</b></span>
+        <input
+          id="speech-rate"
+          type="range"
+          min={0}
+          max={RATES.length - 1}
+          step={1}
+          value={i}
+          aria-valuetext={RATES[i].label}
+          onChange={(e) => { tts.setRate(RATES[+e.target.value].rate); tts.stop() }}
+        />
+        <span className="nb-speed__ends" aria-hidden="true"><span>🐢 ช้าที่สุด</span><span>ปกติ</span></span>
+      </label>
+      {tts.speaking ? (
+        <button type="button" className="btn btn--ghost" onClick={tts.stop}>⏸ หยุด</button>
+      ) : (
+        <button type="button" className="btn btn--ghost" onClick={() => tts.speak('ข้าแต่พระบิดาเจ้า ขอบพระคุณที่ทรงอยู่กับข้าพระองค์ทุกวัน ในพระนามพระเยซูคริสต์ อาเมน')}>▶️ ทดลองฟัง</button>
+      )}
+      <p className="source-note">ใช้กับการฟังทุกที่ในแอป · เครื่องนี้เท่านั้น</p>
+      {tts.noVoice && <p className="ai-keys__err">มือถือเครื่องนี้ยังไม่มีเสียงภาษาไทย · Android: ตั้งค่า › การจัดการทั่วไป › การอ่านออกเสียง › Google › ติดตั้งข้อมูลเสียง › ไทย · iPhone: ตั้งค่า › การช่วยการเข้าถึง › เนื้อหาที่ถูกพูด › เสียง › ไทย</p>}
+    </section>
   )
 }
