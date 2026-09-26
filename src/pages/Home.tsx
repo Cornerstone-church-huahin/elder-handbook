@@ -50,11 +50,6 @@ export default function Home() {
       </section>
 
       <section className="section">
-        <h2 className="section__title">สิ่งที่ควรติดตาม</h2>
-        <p className="empty">ยังไม่มีรายการติดตาม เมื่อบันทึกการเยี่ยมและเลือกวันติดตามแล้ว รายการจะแสดงที่นี่</p>
-      </section>
-
-      <section className="section">
         <h2 className="section__title">เมนู</h2>
         <ul className="actions">
           {actions.map((a) => (

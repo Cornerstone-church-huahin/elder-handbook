@@ -32,7 +32,7 @@ await p.goto(URL + '#/')
 const minH = await p.$$eval('.action, .bottomnav a, .search button', els => Math.min(...els.map(e => e.getBoundingClientRect().height)))
 check(minH >= 44, `touch targets ≥44px (min ${minH})`)
 // การ์ดนำไปหน้า Kit
-check(await p.locator('.action').count() === 8 && await p.locator('.chip').count() === 0, 'home: 8 menu cards, no situation cards or example chips')
+check(await p.locator('.action').count() === 9 && await p.locator('.chip').count() === 0 && await p.locator('text=ยังไม่มีรายการติดตาม').count() === 0, 'home: 9 menu cards incl. follow-ups, no big sections')
 await p.click('.action:has-text("อธิษฐานเผื่อ")'); await p.waitForTimeout(200)
 check((await p.locator('h1').textContent()).includes('อธิษฐานเผื่อ'), 'prayer menu card opens prayer page')
 await b.close()
