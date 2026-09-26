@@ -1002,3 +1002,18 @@ a.chip { display: inline-flex; align-items: center; text-decoration: none; }
 .nb-card__actions { gap: 0.3rem; }
 .nb-card__actions .btn { min-height: 40px; padding-block: 0.2rem; }
 .nb-sync { margin-top: 0; }
+/* ---------- โหมดอ่าน: กางการ์ด → ซ่อนหัวข้อหน้าและเมนูล่าง ปุ่มคำสั่งอยู่ในเมนู ⋯ ---------- */
+body.reading .bottomnav, body.reading .nb-page-head { display: none; }
+body.reading .main { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.5rem); }
+body.reading .nb-card--open .nb-card__body { height: calc(100dvh - 11.3rem - env(safe-area-inset-bottom, 0px)); min-height: 18rem; }
+.nb-card__top { position: relative; display: flex; align-items: stretch; }
+.nb-card__top .nb-card__head { flex: 1; min-width: 0; }
+.nb-card__more { flex: none; width: 46px; border: 0; background: none; color: var(--ink); font-size: 1.5rem; font-weight: 700; line-height: 1; cursor: pointer; border-radius: 0.6rem; }
+.nb-card__more[aria-expanded='true'] { background: var(--surface-2); }
+.nb-menu { position: absolute; right: 6px; top: calc(100% - 4px); z-index: 30; min-width: 13rem; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 8px 24px rgba(26, 43, 76, 0.22); padding: 0.3rem; }
+.nb-menu > button { min-height: 44px; text-align: left; border: 0; background: none; color: var(--ink); font: inherit; font-size: 0.95rem; padding: 0 0.7rem; border-radius: 0.5rem; cursor: pointer; }
+.nb-menu > button:active { background: var(--surface-2); }
+.nb-menu__danger { color: #b3261e !important; }
+.nb-menu__note { font-size: 0.8rem; color: #1e6b34; padding: 0.3rem 0.7rem; }
+.nb-menu .duty__btns--warn { margin: 0.2rem; }
+.install-steps { margin: 0; padding-left: 1.3rem; display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.9rem; }

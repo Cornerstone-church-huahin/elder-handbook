@@ -24,6 +24,12 @@ export default function PrayerNotebookPage() {
   const refs = useRef(new Map<string, HTMLElement>())
 
   const query = q.trim()
+  // โหมดอ่าน: กางการ์ดหรือกำลังเขียน → ซ่อนหัวข้อหน้าและเมนูล่าง ได้พื้นที่อ่านมากขึ้น
+  const reading = !!open || !!editing
+  useEffect(() => {
+    document.body.classList.toggle('reading', reading)
+    return () => document.body.classList.remove('reading')
+  }, [reading])
   const shown = useMemo(() => {
     const all = list ?? []
     if (!query) return all
@@ -99,7 +105,7 @@ export default function PrayerNotebookPage() {
 
   return (
     <>
-      <div className="page-head">
+      <div className="page-head nb-page-head">
         <span className="page-icon" aria-hidden="true">🙏</span>
         <h1>เตรียมคำอธิษฐาน</h1>
       </div>
@@ -256,21 +262,46 @@ function NoteCard({
     try {
       await navigator.clipboard.writeText(`🙏 ${p.title}\n\n${vs ? vs + '\n\n' : ''}${p.text}`)
       setCopied('คัดลอกแล้ว วางในแชต Line ได้เลย')
+      setTimeout(() => { setCopied(''); setMenu(false) }, 1500)
     } catch {
       setCopied('คัดลอกไม่ได้ กดค้างที่ข้อความเพื่อคัดลอกเอง')
     }
   }
+  const [menu, setMenu] = useState(false)
+  useEffect(() => { if (!open) setMenu(false) }, [open])
   const preview = p.text.replace(/\s+/g, ' ').slice(0, 70)
   return (
     <article ref={elRef} className={`nb-card${open ? ' nb-card--open' : ''}${flash ? ' nb-card--flash' : ''}`}>
-      <button type="button" className="nb-card__head" onClick={onToggle} aria-expanded={open}>
-        <span className="nb-card__icon" aria-hidden="true">{p.icon}</span>
-        <span className="nb-card__main">
-          <span className="nb-card__title">{p.title}</span>
-          {!open && <span className="nb-card__sub">{p.category ? `${p.category} · ` : ''}{preview}…</span>}
-        </span>
-        <span className="nb-card__chev" aria-hidden="true">{open ? '▲' : '▼'}</span>
-      </button>
+      <div className="nb-card__top">
+        <button type="button" className="nb-card__head" onClick={onToggle} aria-expanded={open}>
+          <span className="nb-card__icon" aria-hidden="true">{p.icon}</span>
+          <span className="nb-card__main">
+            <span className="nb-card__title">{p.title}</span>
+            {!open && <span className="nb-card__sub">{p.category ? `${p.category} · ` : ''}{preview}…</span>}
+          </span>
+          {!open && <span className="nb-card__chev" aria-hidden="true">▼</span>}
+        </button>
+        {open && (
+          <button type="button" className="nb-card__more" aria-label="เมนู ตัวใหญ่ คัดลอก แก้ไข ลบ" aria-expanded={menu} onClick={() => { setMenu(!menu); onCancelDelete() }}>⋯</button>
+        )}
+        {open && menu && (
+          <div className="nb-menu" role="menu">
+            <button type="button" role="menuitem" onClick={() => { setMenu(false); onBig() }}>🔠 ตัวอักษรใหญ่</button>
+            <button type="button" role="menuitem" onClick={copy}>📋 คัดลอกไปส่ง Line</button>
+            <button type="button" role="menuitem" onClick={() => { setMenu(false); onEdit() }}>✏️ แก้ไข</button>
+            <button type="button" role="menuitem" className="nb-menu__danger" onClick={onAskDelete}>🗑️ ลบ</button>
+            <button type="button" role="menuitem" onClick={() => { setMenu(false); onToggle() }}>▲ พับการ์ด</button>
+            {copied && <p className="nb-menu__note">{copied}</p>}
+            {confirming && (
+              <div className="duty__btns duty__btns--warn">
+                <span>ลบคำอธิษฐานนี้?</span>
+                <button type="button" className="btn btn--danger" onClick={() => { setMenu(false); onDelete() }}>ลบ</button>
+                <button type="button" className="btn btn--ghost" onClick={onCancelDelete}>ไม่ลบ</button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
       {open && (
         <div className="nb-card__body">
           <div className="nb-tabs" role="tablist">
@@ -346,20 +377,6 @@ function NoteCard({
             slot,
           )}
 
-          <div className="nb-card__actions">
-            <button type="button" className="btn btn--gold" onClick={onBig}>🔠 ตัวใหญ่</button>
-            <button type="button" className="btn btn--ghost" onClick={copy}>📋 คัดลอก</button>
-            <button type="button" className="btn btn--ghost" onClick={onEdit}>✏️ แก้ไข</button>
-            <button type="button" className="btn btn--ghost" onClick={onAskDelete}>🗑️ ลบ</button>
-          </div>
-          {copied && <p className="source-note">{copied}</p>}
-          {confirming && (
-            <div className="duty__btns duty__btns--warn">
-              <span>ลบคำอธิษฐานนี้?</span>
-              <button type="button" className="btn btn--danger" onClick={onDelete}>ลบ</button>
-              <button type="button" className="btn btn--ghost" onClick={onCancelDelete}>ไม่ลบ</button>
-            </div>
-          )}
         </div>
       )}
     </article>

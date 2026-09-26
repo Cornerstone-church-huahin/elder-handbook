@@ -4,6 +4,8 @@ import { useElderDuties } from '../lib/elderDuties'
 import { useState } from 'react'
 import { DEFAULT_REPO, getSync, saveSync, testSync } from '../lib/sync'
 import { RATES, useSpeech } from '../lib/speech'
+import { canInstall, install, isInstalled, isIOS, onInstallChange } from '../lib/install'
+import { useEffect } from 'react'
 import { getAiSettings, isStandaloneSite, saveAiSettings, testAiKey, VENDORS, type AiSettings, type AiVendor } from '../lib/ai'
 
 export default function Settings() {
@@ -36,6 +38,7 @@ export default function Settings() {
         </div>
       </section>
 
+      <InstallSettings />
       <SpeechSettings />
 
       <Link to="/settings/duties" className="result settings-row">
@@ -238,5 +241,59 @@ function SpeechSettings() {
       <p className="source-note">ใช้กับการฟังทุกที่ในแอป · เครื่องนี้เท่านั้น</p>
       {tts.noVoice && <p className="ai-keys__err">มือถือเครื่องนี้ยังไม่มีเสียงภาษาไทย · Android: ตั้งค่า › การจัดการทั่วไป › การอ่านออกเสียง › Google › ติดตั้งข้อมูลเสียง › ไทย · iPhone: ตั้งค่า › การช่วยการเข้าถึง › เนื้อหาที่ถูกพูด › เสียง › ไทย</p>}
     </section>
+  )
+}
+
+/** ใช้แบบแอปเต็มจอ: ติดตั้งบนหน้าจอหลัก + วิธีซ่อนปุ่มระบบของมือถือ */
+function InstallSettings() {
+  const [, force] = useState(0)
+  useEffect(() => {
+    const off = onInstallChange(() => force((n) => n + 1))
+    return () => { off() }
+  }, [])
+  const [msg, setMsg] = useState('')
+  if (isInstalled())
+    return (
+      <section className="card">
+        <h2 style={{ fontSize: '1.1rem' }}>📲 ใช้แบบแอปเต็มจอ</h2>
+        <p className="ai-keys__ok">✓ เปิดแบบแอปอยู่แล้ว (ไม่มีแถบเว็บ)</p>
+        <GestureTip />
+      </section>
+    )
+  return (
+    <section className="card">
+      <h2 style={{ fontSize: '1.1rem' }}>📲 ใช้แบบแอปเต็มจอ</h2>
+      <p className="source-note">ติดตั้งไว้บนหน้าจอหลัก เปิดแล้วเต็มจอเหมือนแอป ไม่มีแถบที่อยู่เว็บ ได้พื้นที่อ่านมากขึ้น</p>
+      {canInstall() ? (
+        <button type="button" className="btn btn--gold" onClick={async () => setMsg((await install()) ? 'ติดตั้งแล้ว ✓ เปิดจากไอคอนบนหน้าจอหลักได้เลย' : '')}>📲 ติดตั้งแอปบนหน้าจอหลัก</button>
+      ) : isIOS() ? (
+        <ol className="install-steps">
+          <li>เปิดหน้านี้ใน Safari</li>
+          <li>แตะปุ่มแชร์ (สี่เหลี่ยมมีลูกศรชี้ขึ้น) ด้านล่าง</li>
+          <li>เลือก “เพิ่มไปยังหน้าจอโฮม” แล้วแตะ “เพิ่ม”</li>
+        </ol>
+      ) : (
+        <ol className="install-steps">
+          <li>เปิดหน้านี้ใน Chrome</li>
+          <li>แตะ ⋮ มุมขวาบน</li>
+          <li>เลือก “ติดตั้งแอป” หรือ “เพิ่มลงในหน้าจอหลัก”</li>
+        </ol>
+      )}
+      {msg && <p className="ai-keys__ok">{msg}</p>}
+      <GestureTip />
+    </section>
+  )
+}
+
+function GestureTip() {
+  return (
+    <details className="ai-keys__adv">
+      <summary>ซ่อนปุ่ม III ○ ‹ ด้านล่างของมือถือ (Samsung)</summary>
+      <ol className="install-steps">
+        <li>เปิด “การตั้งค่า” ของมือถือ</li>
+        <li>เลือก “จอแสดงผล” แล้ว “แถบนำทาง”</li>
+        <li>เลือก “ท่าทางการปัด” — ปุ่มจะเหลือเป็นเส้นบาง ๆ ปัดขึ้นจากขอบล่างเพื่อกลับหน้าหลัก</li>
+      </ol>
+    </details>
   )
 }
