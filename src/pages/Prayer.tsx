@@ -4,6 +4,7 @@ import { loadPeople, peopleForText, type PeopleDoc } from '../data/people'
 import { search } from '../data/contentRepo'
 import type { SearchResult } from '../data/types'
 import { AiError, getAiProvider } from '../lib/ai'
+import { buildLocalPrayer } from '../lib/prayerLocal'
 import { generatePrayer, withName, type PrayerSet } from '../lib/prayerAi'
 import SafetyNote from '../components/SafetyNote'
 
@@ -24,7 +25,7 @@ const OPENINGS: { id: Opening; label: string }[] = [
 ]
 
 const AI_ERR: Record<AiError['kind'], string> = {
-  unavailable: 'ผู้ช่วย AI ยังไม่เปิดใช้บนเว็บนี้ ตอนนี้ใช้ได้เมื่อเปิดแอปผ่านลิงก์ของ Claude',
+  unavailable: 'ยังไม่ได้ใส่คีย์ผู้ช่วย AI (ใส่ได้ที่ ตั้งค่า)',
   declined: 'ยังไม่ได้อนุญาตให้ใช้ผู้ช่วย AI',
   locked: 'ต้องใส่รหัสเข้าใช้ผู้ช่วย AI ก่อน ไปที่ ⚙️ ตั้งค่า › รหัสเข้าใช้ผู้ช่วย AI แล้วกลับมากดลองอีกครั้ง',
   busy: 'ผู้ช่วย AI ใช้งานมากเกินไปในขณะนี้ กรุณาลองใหม่อีกสักครู่',
@@ -33,7 +34,7 @@ const AI_ERR: Record<AiError['kind'], string> = {
   cancelled: 'หยุดแล้ว',
 }
 
-type State = { s: 'idle' } | { s: 'loading'; chars: number } | { s: 'no-ai' } | { s: 'error'; kind: AiError['kind'] } | { s: 'done'; set: PrayerSet }
+type State = { s: 'idle' } | { s: 'loading'; chars: number } | { s: 'error'; kind: AiError['kind'] } | { s: 'done'; set: PrayerSet; local?: boolean; why?: string }
 
 export default function PrayerPage() {
   const [params, setParams] = useSearchParams()
@@ -51,14 +52,15 @@ export default function PrayerPage() {
   const run = useCallback(
     async (request: string, fresh = false) => {
       if (!request) return
-      const ai = await getAiProvider()
-      if (!ai) return setState({ s: 'no-ai' })
       ctl.current?.abort()
+      const pdoc = await loadPeople().catch(() => null)
+      const local = (why?: string) => setState({ s: 'done', set: buildLocalPrayer(request, pdoc), local: true, why })
+      const ai = await getAiProvider()
+      if (!ai) return local() // ไม่มี AI → สร้างจากข้อมูลในแอปทันที ไม่เด้งกลับ
       const c = new AbortController()
       ctl.current = c
       setState({ s: 'loading', chars: 0 })
       try {
-        const pdoc = await loadPeople().catch(() => null)
         const hints = pdoc ? peopleForText(pdoc, request, 5) : []
         const set = await generatePrayer(ai, pdoc, request, hints, {
           signal: c.signal,
@@ -67,7 +69,10 @@ export default function PrayerPage() {
         })
         if (!c.signal.aborted) setState({ s: 'done', set })
       } catch (e) {
-        if (!c.signal.aborted) setState({ s: 'error', kind: e instanceof AiError ? e.kind : 'failed' })
+        if (c.signal.aborted) return
+        const kind = e instanceof AiError ? e.kind : 'failed'
+        if (kind === 'cancelled') return setState({ s: 'idle' })
+        local(AI_ERR[kind]) // AI ขัดข้อง → ใช้คำอธิษฐานจากข้อมูลในแอปแทน
       }
     },
     [],
@@ -131,15 +136,17 @@ export default function PrayerPage() {
           <button type="button" className="btn btn--ghost" onClick={() => ctl.current?.abort()}>หยุด</button>
         </div>
       )}
-      {state.s === 'no-ai' && <p className="empty">ผู้ช่วย AI ใช้ได้เมื่อเปิดแอปผ่านลิงก์ของ Claude</p>}
       {state.s === 'error' && (
         <div className="card">
           <p>{AI_ERR[state.kind]}</p>
           {state.kind !== 'declined' && <button type="button" className="btn" onClick={() => run(q || text.trim())}>ลองอีกครั้ง</button>}
         </div>
       )}
+      {state.s === 'done' && state.local && (
+        <p className="source-note prayer-local-note">📖 เตรียมจากข้อมูลในแอป{state.why ? ` (${state.why})` : ''}</p>
+      )}
       {state.s === 'done' && (
-        <PrayerResult key={q} set={state.set} name={name} people={people} request={q || text} onRegenerate={() => run(q || text.trim(), true)} />
+        <PrayerResult key={q} local={state.local} set={state.set} name={name} people={people} request={q || text} onRegenerate={() => run(q || text.trim(), true)} />
       )}
 
       <SafetyNote />
@@ -148,8 +155,8 @@ export default function PrayerPage() {
 }
 
 function PrayerResult({
-  set, name, people, request, onRegenerate,
-}: { set: PrayerSet; name: string; people: PeopleDoc | null; request: string; onRegenerate: () => void }) {
+  set, name, people, request, onRegenerate, local = false,
+}: { local?: boolean; set: PrayerSet; name: string; people: PeopleDoc | null; request: string; onRegenerate: () => void }) {
   const [tab, setTab] = useState<'intercede' | 'self'>('intercede')
   const [opening, setOpening] = useState<Opening>(set.people.length ? 'person' : 'scripture')
   const [big, setBig] = useState(false)
@@ -199,7 +206,7 @@ function PrayerResult({
       )}
 
       <section className="prayer-head">
-        <p className="eyebrow">🤖 ร่างโดย AI · ใช้เป็นแนวทาง อธิษฐานด้วยถ้อยคำของท่านเองได้เสมอ</p>
+        <p className="eyebrow">{local ? '📖 จากข้อมูลในแอป' : '🤖 ร่างโดย AI'} · ใช้เป็นแนวทาง อธิษฐานด้วยถ้อยคำของท่านเองได้เสมอ</p>
         <h2>{set.title}</h2>
         {set.keys.length > 0 && (
           <div className="prayer-keys" aria-label="คำสำคัญช่วยจำ">

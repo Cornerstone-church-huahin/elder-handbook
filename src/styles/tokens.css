@@ -23,9 +23,9 @@
   --font-body: 'Sarabun', 'Noto Sans Thai', 'Leelawadee UI', 'Thonburi', sans-serif;
   --font-display: 'Pridi', 'Sarabun', 'Noto Serif Thai', serif;
 
-  --radius: 0.9rem;
-  --tap: 3.5rem;           /* ความสูงปุ่มขั้นต่ำ (70px ที่ 100%) */
-  --gutter: 1rem;
+  --radius: 0.8rem;
+  --tap: 2.75rem;          /* ความสูงปุ่มขั้นต่ำ (~47px ที่ 100%) มาตรฐานนิ้วกดง่าย */
+  --gutter: 16px;
   --maxw: 46rem;
 }
 
@@ -56,7 +56,8 @@
   --shadow: none;
 }
 
-/* ขนาดตัวอักษร: ฐาน 20px (ใหญ่กว่ามือถือทั่วไปที่ 16px) */
-html { font-size: 20px; }
-html[data-scale='125'] { font-size: 25px; }
-html[data-scale='150'] { font-size: 30px; }
+/* ขนาดตัวอักษร (Mobile First): ฐาน 16px อ่านสบายบนมือถือ ใหญ่กว่าเว็บทั่วไปเล็กน้อย
+   ผู้ใช้เลือกขยายได้ 125% / 150% ในหน้าตั้งค่า */
+html { font-size: 16px; }
+html[data-scale='125'] { font-size: 19px; }
+html[data-scale='150'] { font-size: 22px; }

@@ -43,7 +43,7 @@ async function open(mode) {
   check(errs.length === 0, 'no JS errors ' + errs.join(';')) }
 { const { p } = await open('none')
   await p.fill('#home-search', 'ป่วย'); await p.press('#home-search', 'Enter'); await p.click('.result >> nth=0'); await p.waitForTimeout(300)
-  check(await p.locator('text=ผู้ช่วย AI ใช้ได้เมื่อเปิดแอปผ่านลิงก์ของ Claude').count() === 1, 'no-AI message when opened as plain file') }
+  check(await p.locator('text=ผู้ช่วย AI ใช้ได้เมื่อใส่คีย์ในหน้าตั้งค่า').count() === 1, 'no-AI message when opened as plain file') }
 { const { p } = await open('deny')
   await p.fill('#home-search', 'ป่วย'); await p.press('#home-search', 'Enter'); await p.click('.result >> nth=0'); await p.waitForTimeout(500)
   check(await p.locator('text=ยังไม่ได้อนุญาต').count() === 1, 'declined consent message') }

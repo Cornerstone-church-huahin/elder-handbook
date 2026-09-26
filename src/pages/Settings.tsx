@@ -2,12 +2,12 @@ import { Link } from 'react-router-dom'
 import { FONT_SCALES, useFontScale } from '../lib/prefs'
 import { useElderDuties } from '../lib/elderDuties'
 import { useState } from 'react'
-import { getAccessCode, isStandaloneSite, setAccessCode } from '../lib/ai'
+import { getApiKey, isStandaloneSite, setApiKey } from '../lib/ai'
 
 export default function Settings() {
   const { scale, setScale } = useFontScale()
   const { list } = useElderDuties()
-  const [code, setCode] = useState(getAccessCode)
+  const [code, setCode] = useState(getApiKey)
   const [savedCode, setSavedCode] = useState(false)
 
   return (
@@ -50,25 +50,26 @@ export default function Settings() {
           className="card"
           onSubmit={(e) => {
             e.preventDefault()
-            setAccessCode(code)
+            setApiKey(code)
             setSavedCode(true)
           }}
         >
-          <label htmlFor="ai-code" style={{ fontSize: '1.2rem', fontWeight: 700 }}>🔑 รหัสเข้าใช้ผู้ช่วย AI</label>
-          <p style={{ color: 'var(--ink-soft)' }}>ใส่ครั้งเดียวต่อเครื่อง ขอรหัสจากผู้ดูแลระบบของคริสตจักร</p>
+          <label htmlFor="ai-code" style={{ fontSize: '1.2rem', fontWeight: 700 }}>🔑 คีย์ผู้ช่วย AI (ไม่บังคับ)</label>
+          <p style={{ color: 'var(--ink-soft)' }}>ไม่ใส่ก็สร้างคำอธิษฐานได้จากข้อมูลในแอป ถ้าใส่คีย์ Claude API คำอธิษฐานจะเขียนเฉพาะเรื่องมากขึ้น คีย์เก็บในเครื่องนี้เท่านั้น</p>
           <input
             id="ai-code"
             className="code-input"
             type="password"
             autoComplete="off"
+            placeholder="sk-ant-..."
             value={code}
             onChange={(e) => {
               setCode(e.target.value)
               setSavedCode(false)
             }}
           />
-          <button type="submit" className="btn">บันทึกรหัส</button>
-          {savedCode && <p className="source-note">บันทึกแล้ว ใช้ผู้ช่วย AI ได้ทุกหน้า</p>}
+          <button type="submit" className="btn">บันทึกคีย์</button>
+          {savedCode && <p className="source-note">{code.trim() ? 'บันทึกแล้ว ใช้ผู้ช่วย AI ได้ทุกหน้า' : 'ลบคีย์แล้ว'}</p>}
         </form>
       )}
 

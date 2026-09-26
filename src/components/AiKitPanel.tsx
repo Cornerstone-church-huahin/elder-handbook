@@ -12,7 +12,7 @@ type State =
   | { s: 'error'; kind: AiError['kind'] }
 
 const ERROR_COPY: Record<AiError['kind'], string> = {
-  unavailable: 'ผู้ช่วย AI ยังไม่เปิดใช้บนเว็บนี้ ตอนนี้ใช้ได้เมื่อเปิดแอปผ่านลิงก์ของ Claude',
+  unavailable: 'ยังไม่ได้ใส่คีย์ผู้ช่วย AI (ใส่ได้ที่ ตั้งค่า)',
   declined: 'ยังไม่ได้อนุญาตให้ใช้ผู้ช่วย AI จึงแสดงคู่มือไม่ได้ในตอนนี้',
   locked: 'ต้องใส่รหัสเข้าใช้ผู้ช่วย AI ก่อน ไปที่ ⚙️ ตั้งค่า › รหัสเข้าใช้ผู้ช่วย AI แล้วกลับมากดลองอีกครั้ง',
   busy: 'ผู้ช่วย AI ใช้งานมากเกินไปในขณะนี้ กรุณาลองใหม่อีกสักครู่',
@@ -75,7 +75,7 @@ export default function AiKitPanel({ topic }: { topic: string }) {
   if (state.s === 'no-ai')
     return (
       <div className="card">
-        <p><strong>ผู้ช่วย AI ใช้ได้เมื่อเปิดแอปผ่านลิงก์ของ Claude</strong></p>
+        <p><strong>ผู้ช่วย AI ใช้ได้เมื่อใส่คีย์ในหน้าตั้งค่า</strong></p>
         <p style={{ color: 'var(--ink-soft)' }}>
           หน้านี้เปิดจากไฟล์โดยตรง จึงยังเชื่อมต่อ AI ไม่ได้ กรุณาเปิดจากการ์ด “คู่มือผู้ปกครองคริสตจักร” ในแชต
         </p>

@@ -3,8 +3,8 @@
  *
  * หน้าจอเรียกผ่าน getAiProvider() เท่านั้น ไม่ผูกกับผู้ให้บริการ AI รายใด
  * - เปิดผ่าน Claude (พรีวิว): ใช้ Claude ของผู้เปิดดู (capability "sample")
- * - เว็บจริง: เรียก /api/ai (functions/api/ai.ts บน Cloudflare Pages) พร้อมรหัสเข้าใช้
- *   Step A4: เปลี่ยนรหัสเข้าใช้เป็นการตรวจ Login
+ * - เว็บจริง (GitHub Pages): เรียก Claude API โดยตรง ด้วยคีย์ที่ผู้ใช้ใส่ในหน้าตั้งค่า (เก็บในเครื่อง)
+ * - ไม่มี AI: หน้าอธิษฐานใช้ prayerLocal.ts สร้างคำอธิษฐานจากข้อมูลในแอปแทน
  */
 import { buildKitPrompt } from './aiPrompt'
 
@@ -130,23 +130,27 @@ function claudeSampleProvider(sample: SampleFn): AiProvider {
   })
 }
 
-// ---------- เว็บจริง: /api/ai ----------
-const CODE_KEY = 'khatha.aiAccessCode'
-export function getAccessCode(): string {
+// ---------- เว็บจริง (GitHub Pages): เรียก Claude API โดยตรงด้วยคีย์ที่ผู้ใช้ใส่เองในเครื่อง ----------
+// คีย์ไม่ได้อยู่ในโค้ดหรือบน GitHub — เก็บใน localStorage ของเครื่องที่ใส่เท่านั้น
+const KEY_STORE = 'khatha.anthropicKey'
+const MODEL = 'claude-sonnet-5'
+export function getApiKey(): string {
   try {
-    return localStorage.getItem(CODE_KEY) ?? ''
+    return localStorage.getItem(KEY_STORE) ?? ''
   } catch {
     return ''
   }
 }
-export function setAccessCode(code: string) {
+export function setApiKey(key: string) {
   try {
-    localStorage.setItem(CODE_KEY, code.trim())
+    if (key.trim()) localStorage.setItem(KEY_STORE, key.trim())
+    else localStorage.removeItem(KEY_STORE)
   } catch {
     /* ignore */
   }
+  providerPromise = null // ให้เลือกผู้ให้บริการใหม่ตามคีย์ล่าสุด
 }
-/** true เมื่อแอปเปิดเป็นเว็บจริง (ไม่ได้เปิดผ่าน Claude) — ใช้ตัดสินว่าจะแสดงช่องรหัสเข้าใช้หรือไม่ */
+/** true เมื่อแอปเปิดเป็นเว็บจริง (ไม่ได้เปิดผ่าน Claude) — ใช้ตัดสินว่าจะแสดงช่องใส่คีย์หรือไม่ */
 export const isStandaloneSite = () => typeof window.claude?.use !== 'function' && /^https?:$/.test(location.protocol)
 
 /** อ่าน JSON จากคำตอบแบบผ่อนปรน: ทั้งก้อน → ในบล็อกโค้ด → ตั้งแต่ { หรือ [ แรกถึงตัวปิดสุดท้าย */
@@ -174,12 +178,12 @@ function hash(s: string): string {
   return (h >>> 0).toString(36) + s.length.toString(36)
 }
 
-function serverProvider(): AiProvider {
+function directProvider(apiKey: string): AiProvider {
   return makeProvider(async (prompt, { signal, onProgress, cacheHours = 24 }) => {
-    const key = `khatha.ai.${hash(prompt)}`
+    const ck = `khatha.ai.${hash(prompt)}`
     if (cacheHours > 0) {
       try {
-        const hit = JSON.parse(localStorage.getItem(key) ?? 'null') as { at: number; text: string } | null
+        const hit = JSON.parse(localStorage.getItem(ck) ?? 'null') as { at: number; text: string } | null
         if (hit && Date.now() - hit.at < cacheHours * 3600_000) return parseJsonLoose(hit.text)
       } catch {
         /* no cache */
@@ -187,27 +191,38 @@ function serverProvider(): AiProvider {
     }
     let r: Response
     try {
-      r = await fetch('./api/ai', {
+      r = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-access-code': getAccessCode() },
-        body: JSON.stringify({ prompt }),
+        headers: {
+          'content-type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          max_tokens: 4096,
+          system: 'Reply with exactly one JSON value and nothing else. The reply will be machine-parsed.',
+          messages: [{ role: 'user', content: prompt }],
+        }),
         signal,
       })
     } catch (e) {
       if (signal.aborted) throw new AiError('cancelled')
       throw new AiError('failed', String(e))
     }
-    const body = (await r.json().catch(() => ({}))) as { text?: string; code?: string }
-    if (r.status === 401) throw new AiError('locked')
-    if (r.status === 404 || r.status === 503) throw new AiError('unavailable', body.code)
-    if (r.status === 429) throw new AiError('busy')
-    if (body.code === 'refused') throw new AiError('refused')
-    if (!r.ok || !body.text) throw new AiError('failed', body.code ?? `HTTP ${r.status}`)
-    onProgress?.(body.text.length)
-    const value = parseJsonLoose(body.text)
+    const body = (await r.json().catch(() => ({}))) as { content?: { type: string; text?: string }[]; stop_reason?: string; error?: { type?: string } }
+    if (r.status === 401 || r.status === 403) throw new AiError('locked', body.error?.type)
+    if (r.status === 429 || r.status === 529) throw new AiError('busy')
+    if (!r.ok) throw new AiError('failed', body.error?.type ?? `HTTP ${r.status}`)
+    if (body.stop_reason === 'refusal') throw new AiError('refused')
+    const text = (body.content ?? []).filter((c) => c.type === 'text').map((c) => c.text ?? '').join('')
+    if (!text.trim()) throw new AiError('refused', 'empty')
+    onProgress?.(text.length)
+    const value = parseJsonLoose(text)
     if (cacheHours > 0) {
       try {
-        localStorage.setItem(key, JSON.stringify({ at: Date.now(), text: body.text }))
+        localStorage.setItem(ck, JSON.stringify({ at: Date.now(), text }))
       } catch {
         /* ignore */
       }
@@ -223,7 +238,10 @@ export function getAiProvider(): Promise<AiProvider | null> {
   if (!providerPromise) {
     providerPromise = (async () => {
       const use = window.claude?.use
-      if (typeof use !== 'function') return isStandaloneSite() ? serverProvider() : null
+      if (typeof use !== 'function') {
+        const key = getApiKey()
+        return key ? directProvider(key) : null
+      }
       try {
         const sample = (await use.call(window.claude, 'sample')) as SampleFn | null
         return sample && typeof sample.json === 'function' ? claudeSampleProvider(sample) : null

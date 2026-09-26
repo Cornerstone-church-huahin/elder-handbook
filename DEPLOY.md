@@ -1,14 +1,9 @@
-# นำขึ้นเว็บ (Cloudflare Pages + GitHub)
+# การเผยแพร่ (GitHub Pages)
 
-Repo: `Cornerstone-church-huahin/elder-handbook`
+- push ขึ้น `main` → GitHub Actions (`.github/workflows/pages.yml`) build และเผยแพร่อัตโนมัติ
+- ที่อยู่เว็บ: https://cornerstone-church-huahin.github.io/elder-handbook/
 
-## Cloudflare Pages
-- Framework preset: None · Build command: `npm run build` · Build output directory: `dist`
-- Environment variable (Build): `NODE_VERSION = 22`
-- ลิงก์: `https://elder-handbook.pages.dev`
-
-## ผู้ช่วย AI บนเว็บจริง (functions/api/ai.ts)
-ตั้งใน Settings › Variables and Secrets (ชนิด Secret):
-- `ANTHROPIC_API_KEY` — คีย์จาก console.anthropic.com (คิดค่าใช้จ่ายตามการใช้งาน)
-- `ACCESS_CODE` — รหัสเข้าใช้ที่แจกเฉพาะผู้ปกครอง แล้วใส่ใน แอป › ⚙️ ตั้งค่า › รหัสเข้าใช้ผู้ช่วย AI
-- `AI_MODEL` (ไม่บังคับ) — ค่าเริ่มต้น `claude-sonnet-5`
+## ผู้ช่วย AI (ไม่บังคับ)
+- ไม่มีคีย์: หน้าอธิษฐานสร้างคำอธิษฐานจากข้อมูลในแอป (`src/lib/prayerLocal.ts`) ได้ทันที
+- มีคีย์: ใส่ Claude API key ที่ **ตั้งค่า › คีย์ผู้ช่วย AI** — เก็บใน localStorage ของเครื่องนั้นเท่านั้น
+- ห้ามใส่คีย์ลงในโค้ดหรือ repo นี้ (repo เป็นสาธารณะ)

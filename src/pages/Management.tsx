@@ -218,7 +218,7 @@ export function ManagementTopic() {
 
 // ---------- ถาม AI ----------
 const AI_ERR: Record<AiError['kind'], string> = {
-  unavailable: 'ผู้ช่วย AI ยังไม่เปิดใช้บนเว็บนี้ ตอนนี้ใช้ได้เมื่อเปิดแอปผ่านลิงก์ของ Claude',
+  unavailable: 'ยังไม่ได้ใส่คีย์ผู้ช่วย AI (ใส่ได้ที่ ตั้งค่า)',
   declined: 'ยังไม่ได้อนุญาตให้ใช้ผู้ช่วย AI',
   locked: 'ต้องใส่รหัสเข้าใช้ผู้ช่วย AI ก่อน ไปที่ ⚙️ ตั้งค่า › รหัสเข้าใช้ผู้ช่วย AI แล้วกลับมากดลองอีกครั้ง',
   busy: 'ผู้ช่วย AI ใช้งานมากเกินไปในขณะนี้ กรุณาลองใหม่อีกสักครู่',
@@ -293,7 +293,7 @@ export function ManagementAsk() {
           <button type="button" className="btn btn--ghost" onClick={() => ctl.current?.abort()}>หยุด</button>
         </div>
       )}
-      {state === 'no-ai' && <p className="empty">ผู้ช่วย AI ใช้ได้เมื่อเปิดแอปผ่านลิงก์ของ Claude — ดูหัวข้อที่เกี่ยวข้องด้านล่าง</p>}
+      {state === 'no-ai' && <p className="empty">ผู้ช่วย AI ใช้ได้เมื่อใส่คีย์ในหน้าตั้งค่า — ดูหัวข้อที่เกี่ยวข้องด้านล่าง</p>}
       {typeof state === 'object' && 'err' in state && (
         <div className="card">
           <p>{AI_ERR[state.err]}</p>
