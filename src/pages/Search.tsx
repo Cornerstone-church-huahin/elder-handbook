@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { search } from '../data/contentRepo'
+import { loadCharter, searchCharter } from '../data/charter'
 import type { SearchResult, SourceType } from '../data/types'
 import { IconSearch } from '../components/Icons'
 
@@ -21,7 +22,25 @@ export default function Search() {
 
   useEffect(() => {
     setQ(initial)
-    search(initial).then(setResults)
+    let alive = true
+    // รวมผลจากคู่มืออภิบาลและระเบียบปฏิบัติฯ โดยแยก Source Badge ชัดเจน
+    Promise.all([
+      search(initial),
+      loadCharter()
+        .then((doc) =>
+          searchCharter(doc, initial, 5).map((h): SearchResult => ({
+            type: 'constitution',
+            id: String(h.article.no),
+            title: `ข้อ ${h.article.no} ${h.article.text.split('\n')[0].replace(/^(ข้อ|ช้อ)\s*\d+\s*/, '').slice(0, 80)}`,
+            icon: '📜',
+            href: `/constitution/a/${h.article.no}`,
+          })),
+        )
+        .catch(() => [] as SearchResult[]),
+    ]).then(([a, b]) => alive && setResults([...a, ...b]))
+    return () => {
+      alive = false
+    }
   }, [initial])
 
   const onSubmit = (e: FormEvent) => {
@@ -65,7 +84,7 @@ export default function Search() {
         <section className="section" aria-live="polite">
           {results.length > 0 ? (
             <>
-              <h2 className="section__title">คู่มือที่เกี่ยวข้อง</h2>
+              <h2 className="section__title">ผลการค้นหา</h2>
               <ul className="results">
                 {results.map((r) => (
                   <li key={`${r.type}-${r.id}`}>

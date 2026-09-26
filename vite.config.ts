@@ -29,7 +29,7 @@ export default defineConfig({
       workbox: {
         // cache เฉพาะตัวแอปและฟอนต์
         // ห้ามเพิ่ม runtimeCaching สำหรับ API ข้อมูลสมาชิก/การเยี่ยม (ต้องออนไลน์เท่านั้น)
-        globPatterns: ['**/*.{js,css,html,svg,png}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,json}'], // รวมระเบียบปฏิบัติฯ (json) ให้อ่านได้แม้ออฟไลน์
         navigateFallback: 'index.html',
         runtimeCaching: [
           {

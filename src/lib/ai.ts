@@ -22,8 +22,17 @@ export interface AiKit {
   safety: { level: 'none' | 'refer' | 'urgent'; note: string }
 }
 
+export interface AiCallOptions {
+  signal: AbortSignal
+  onProgress?: (chars: number) => void
+  /** เก็บคำตอบเดิมไว้ใช้ซ้ำกี่ชั่วโมง (0 = ถามใหม่ทุกครั้ง) */
+  cacheHours?: number
+}
+
 export interface AiProvider {
-  generateKit(topic: string, opts: { signal: AbortSignal; onProgress?: (chars: number) => void }): Promise<AiKit>
+  generateKit(topic: string, opts: AiCallOptions): Promise<AiKit>
+  /** ถาม AI แล้วรับคำตอบเป็น JSON — ผู้เรียกต้องตรวจโครงสร้างเอง */
+  json(prompt: string, opts: AiCallOptions): Promise<unknown>
 }
 
 export type AiErrorKind = 'unavailable' | 'declined' | 'busy' | 'refused' | 'failed' | 'cancelled'
@@ -97,19 +106,23 @@ function normalize(raw: unknown, topic: string): AiKit {
 }
 
 function claudeSampleProvider(sample: SampleFn): AiProvider {
+  const json = async (prompt: string, { signal, onProgress, cacheHours = 24 }: AiCallOptions) => {
+    try {
+      return await sample.json<unknown>(prompt, {
+        signal,
+        modelTier: 'default',
+        // คำถามเดิมภายในเวลาที่กำหนด ไม่ต้องเรียก AI ซ้ำ
+        cache: cacheHours > 0 ? { gcTime: cacheHours * 60 * 60 * 1000 } : false,
+        onText: ({ text }) => onProgress?.(text.length),
+      })
+    } catch (e) {
+      throw e instanceof AiError ? e : mapError(e)
+    }
+  }
   return {
-    async generateKit(topic, { signal, onProgress }) {
-      try {
-        const raw = await sample.json<unknown>(buildKitPrompt(topic), {
-          signal,
-          modelTier: 'default',
-          cache: { gcTime: 24 * 60 * 60 * 1000 }, // หัวข้อเดิมภายใน 24 ชม. ไม่ต้องเรียก AI ซ้ำ
-          onText: ({ text }) => onProgress?.(text.length),
-        })
-        return normalize(raw, topic)
-      } catch (e) {
-        throw e instanceof AiError ? e : mapError(e)
-      }
+    json,
+    async generateKit(topic, opts) {
+      return normalize(await json(buildKitPrompt(topic), opts), topic)
     },
   }
 }

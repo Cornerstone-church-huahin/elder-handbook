@@ -31,5 +31,8 @@ node scripts/smoke-test.mjs   # ทดสอบหน้าจอมือถื
 - [ ] A2 Database + seed 10 สถานการณ์
 - [~] A3 Pastoral Kit + Field Mode (มีแล้วแบบร่างโดย AI; รอเนื้อหาที่อนุมัติจาก DB)
 - [x] ทดลอง AI: src/lib/ai.ts (ตอนนี้ใช้ Claude ของผู้เปิดดูในพรีวิว, อนาคตเปลี่ยนเป็น Supabase Edge Function)
+- [x] ระเบียบปฏิบัติของธรรมนูญภาค 7 (2021): 210 ข้อ, สารบัญ, ค้นหา, ถาม AI แบบอ้างเลขข้อ
+  - สร้างข้อมูลใหม่: `python3 scripts/parse_charter.py <pdf> public/data/charter-bylaws-2021.json`
+  - ข้อความดึงอัตโนมัติ ต้องตรวจทานกับฉบับพิมพ์
 - [ ] A4 Login + Workspace
 - [ ] A5–A8

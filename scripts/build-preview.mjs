@@ -37,4 +37,5 @@ ${guard}<div id="root" data-booting><p style="padding:24px;font:18px sans-serif;
 <script src="app.js"></script>
 `
 fs.writeFileSync('artifact/index.html', page)
+fs.cpSync('public/data', 'artifact/data', { recursive: true }) // ข้อมูลอ้างอิง (ธรรมนูญ ฯลฯ) โหลดแยกไฟล์
 console.log('preview.html', (html.length / 1024).toFixed(0), 'KB')

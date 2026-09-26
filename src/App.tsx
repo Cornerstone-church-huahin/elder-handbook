@@ -4,6 +4,7 @@ import Home from './pages/Home'
 import Search from './pages/Search'
 import Settings from './pages/Settings'
 import { AskPage, ComingSoon, KitPage } from './pages/Placeholders'
+import { CharterArticlePage, CharterAsk, CharterHome } from './pages/Charter'
 
 // HashRouter: ใช้ได้บนทุก Static Hosting โดยไม่ต้องตั้งค่า rewrite
 // MemoryRouter: ใช้เฉพาะไฟล์พรีวิว (npm run build:preview) ที่เปิดในกรอบซึ่งไม่มี URL จริง
@@ -24,7 +25,9 @@ export default function App() {
           <Route path="prayer" element={<ComingSoon icon="🙏" title="อธิษฐานเผื่อ" />} />
           <Route path="sermon" element={<ComingSoon icon="📖" title="เตรียมพระคำ" />} />
           <Route path="service" element={<ComingSoon icon="⛪" title="เตรียมพิธี" />} />
-          <Route path="constitution" element={<ComingSoon icon="📜" title="ธรรมนูญและระเบียบคริสตจักร" note="จะเปิดใช้หลังได้รับไฟล์ธรรมนูญคริสตจักรภาค 7 และตรวจทานข้อความครบถ้วน" />} />
+          <Route path="constitution" element={<CharterHome />} />
+          <Route path="constitution/a/:no" element={<CharterArticlePage />} />
+          <Route path="constitution/ask" element={<CharterAsk />} />
           <Route path="*" element={<ComingSoon icon="🔍" title="ไม่พบหน้านี้" note="กดปุ่มหน้าแรกด้านล่างเพื่อกลับ" />} />
         </Route>
       </Routes>
