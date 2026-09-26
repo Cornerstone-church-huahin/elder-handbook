@@ -134,7 +134,7 @@ function claudeSampleProvider(sample: SampleFn): AiProvider {
 // รองรับ Claude · Gemini · ChatGPT — คีย์ไม่ได้อยู่ในโค้ดหรือบน GitHub เก็บใน localStorage ของเครื่องที่ใส่เท่านั้น
 export type AiVendor = 'claude' | 'gemini' | 'openai'
 export const VENDORS: { id: AiVendor; label: string; model: string; hint: string; keyUrl: string }[] = [
-  { id: 'claude', label: 'Claude', model: 'claude-sonnet-5', hint: 'sk-ant-...', keyUrl: 'https://console.anthropic.com/settings/keys' },
+  { id: 'claude', label: 'Claude', model: 'claude-sonnet-5', hint: 'sk-ant-...', keyUrl: 'https://platform.claude.com/settings/keys' },
   { id: 'gemini', label: 'Gemini (Google)', model: 'gemini-3.8-flash', hint: 'AIza...', keyUrl: 'https://aistudio.google.com/apikey' },
   { id: 'openai', label: 'ChatGPT (OpenAI)', model: 'gpt-6-astra', hint: 'sk-...', keyUrl: 'https://platform.openai.com/api-keys' },
 ]
