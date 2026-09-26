@@ -18,11 +18,13 @@ PART = re.compile(r'^ส่วนที่\s*(\d+)\s*(.*)$')
 SUB = re.compile(r'^(\d+\.\d+|\(\d+\))\s')
 THAI = re.compile(r'[฀-๿]')
 
+# ข้อความท้ายหน้า (header/footer) ที่ pdftotext -raw บางครั้งต่อติดท้ายบรรทัดเนื้อหา
+INLINE_FOOTER = re.compile(r'\s*ระเบียบปฏิบ\S*\s*\S*รรมนูญคริสตจักรภาค 7\s*หน้า\s*\d+\s*$')
 lines = []  # (printed_page, text)
 for i in range(3, n_pages + 1):  # หน้า 1-2 ของ PDF คือปกและสารบัญ
     txt = subprocess.run(['pdftotext', '-raw', '-f', str(i), '-l', str(i), pdf, '-'], capture_output=True, text=True).stdout
     for ln in txt.splitlines():
-        ln = ln.strip()
+        ln = INLINE_FOOTER.sub('', ln).strip()  # ท้ายหน้าที่ต่อติดกับบรรทัดเนื้อหา
         if ln and not FOOTER.match(ln):
             lines.append((i - 1, ln))
 
@@ -92,6 +94,7 @@ for page, ln in lines[idx:]:
 
 for a in articles:
     a['text'] = join(a.pop('_lines'))
+    assert 'รรมนูญคริสตจักรภาค 7 หน้า' not in a['text'], a['no']
 
 nums = [a['no'] for a in articles]
 missing = sorted(set(range(1, max(nums) + 1)) - set(nums))

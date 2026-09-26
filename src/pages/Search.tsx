@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { search } from '../data/contentRepo'
 import { loadCharter, searchCharter } from '../data/charter'
+import { loadManagement, matchTopics } from '../data/management'
 import type { SearchResult, SourceType } from '../data/types'
 import { IconSearch } from '../components/Icons'
 import { RelatedPeople } from './People'
@@ -13,6 +14,7 @@ const BADGE: Record<SourceType, string> = {
   prayer: '🙏 คำอธิษฐาน',
   constitution: '📜 ธรรมนูญ',
   member: '👤 สมาชิก',
+  management: '🏛️ การบริหาร',
 }
 
 export default function Search() {
@@ -38,7 +40,14 @@ export default function Search() {
           })),
         )
         .catch(() => [] as SearchResult[]),
-    ]).then(([a, b]) => alive && setResults([...a, ...b]))
+      loadManagement()
+        .then((m) =>
+          matchTopics(m, initial, 2).map((t): SearchResult => ({
+            type: 'management', id: t.id, title: t.title, icon: t.icon, href: `/manage/${t.id}`,
+          })),
+        )
+        .catch(() => [] as SearchResult[]),
+    ]).then(([a, b, c]) => alive && setResults([...a, ...c, ...b]))
     return () => {
       alive = false
     }

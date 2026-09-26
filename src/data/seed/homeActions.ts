@@ -14,5 +14,6 @@ export const seedHomeActions: HomeAction[] = [
   { id: 'a09', kind: 'route', to: '/service', icon: '⛪', label: 'เตรียมพิธี' },
   { id: 'a10', kind: 'route', to: '/members', icon: '👤', label: 'สมาชิกและการติดตาม' },
   { id: 'a11', kind: 'route', to: '/constitution', icon: '📜', label: 'ธรรมนูญและระเบียบคริสตจักร' },
+  { id: 'a14', kind: 'route', to: '/manage', icon: '🏛️', label: 'การบริหารจัดการคริสตจักร' },
   { id: 'a12', kind: 'route', to: '/search', icon: '🔍', label: 'ค้นหาทุกอย่าง' },
 ]

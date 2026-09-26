@@ -134,6 +134,7 @@ export function CharterHome() {
       )}
 
       {!q && <OfficialBadge doc={doc} />}
+      {!q && <Link to="/manage" className="btn btn--ghost">🏛️ อ่านแบบเป็นหัวข้อ: การบริหารจัดการคริสตจักร</Link>}
 
       {!q && (
         <section className="section">
@@ -187,7 +188,7 @@ function TocItem({ a }: { a: CharterArticle }) {
 }
 
 // ---------- ข้อความทางการ 1 ข้อ ----------
-function OfficialText({ a, doc, compact }: { a: CharterArticle; doc: CharterDoc; compact?: boolean }) {
+export function OfficialText({ a, doc, compact }: { a: CharterArticle; doc: CharterDoc; compact?: boolean }) {
   return (
     <article className="official-text">
       <header>
