@@ -2,13 +2,11 @@ import { Link } from 'react-router-dom'
 import { FONT_SCALES, useFontScale } from '../lib/prefs'
 import { useElderDuties } from '../lib/elderDuties'
 import { useState } from 'react'
-import { getApiKey, isStandaloneSite, setApiKey } from '../lib/ai'
+import { getAiSettings, isStandaloneSite, saveAiSettings, testAiKey, VENDORS, type AiSettings, type AiVendor } from '../lib/ai'
 
 export default function Settings() {
   const { scale, setScale } = useFontScale()
   const { list } = useElderDuties()
-  const [code, setCode] = useState(getApiKey)
-  const [savedCode, setSavedCode] = useState(false)
 
   return (
     <>
@@ -45,33 +43,7 @@ export default function Settings() {
         <span aria-hidden="true" className="settings-row__go">›</span>
       </Link>
 
-      {isStandaloneSite() && (
-        <form
-          className="card"
-          onSubmit={(e) => {
-            e.preventDefault()
-            setApiKey(code)
-            setSavedCode(true)
-          }}
-        >
-          <label htmlFor="ai-code" style={{ fontSize: '1.2rem', fontWeight: 700 }}>🔑 คีย์ผู้ช่วย AI (ไม่บังคับ)</label>
-          <p style={{ color: 'var(--ink-soft)' }}>ไม่ใส่ก็สร้างคำอธิษฐานได้จากข้อมูลในแอป ถ้าใส่คีย์ Claude API คำอธิษฐานจะเขียนเฉพาะเรื่องมากขึ้น คีย์เก็บในเครื่องนี้เท่านั้น</p>
-          <input
-            id="ai-code"
-            className="code-input"
-            type="password"
-            autoComplete="off"
-            placeholder="sk-ant-..."
-            value={code}
-            onChange={(e) => {
-              setCode(e.target.value)
-              setSavedCode(false)
-            }}
-          />
-          <button type="submit" className="btn">บันทึกคีย์</button>
-          {savedCode && <p className="source-note">{code.trim() ? 'บันทึกแล้ว ใช้ผู้ช่วย AI ได้ทุกหน้า' : 'ลบคีย์แล้ว'}</p>}
-        </form>
-      )}
+      {isStandaloneSite() && <AiKeySettings />}
 
       <section className="card">
         <h2 style={{ fontSize: '1.2rem' }}>บัญชีผู้ใช้</h2>
@@ -80,5 +52,84 @@ export default function Settings() {
 
       <p className="disclaimer">คู่มือผู้ปกครองคริสตจักร (Church Elder's Handbook) รุ่น 0.1 (ทดลอง)</p>
     </>
+  )
+}
+
+/** ตั้งค่าคีย์ AI: เลือกได้ Claude · Gemini · ChatGPT เก็บคีย์ในเครื่องนี้เท่านั้น */
+function AiKeySettings() {
+  const [st, setSt] = useState<AiSettings>(getAiSettings)
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const [testing, setTesting] = useState(false)
+  const v = VENDORS.find((x) => x.id === st.vendor)!
+  const key = st.keys[st.vendor] ?? ''
+  const model = st.models[st.vendor] ?? ''
+  const edit = (patch: Partial<AiSettings>) => {
+    setSt((s) => ({ ...s, ...patch }))
+    setMsg(null)
+  }
+  const pick = (id: AiVendor) => edit({ vendor: id })
+  const save = () => {
+    saveAiSettings(st)
+    setMsg({ ok: true, text: key.trim() ? `บันทึกแล้ว ใช้ ${v.label} ทุกหน้า` : 'บันทึกแล้ว (ไม่มีคีย์ — ใช้ข้อมูลในแอป)' })
+  }
+  const test = async () => {
+    if (!key.trim()) return setMsg({ ok: false, text: 'ใส่คีย์ก่อน' })
+    setTesting(true)
+    setMsg(null)
+    const err = await testAiKey(st.vendor, key, model || v.model)
+    setTesting(false)
+    if (err) return setMsg({ ok: false, text: err })
+    saveAiSettings(st)
+    setMsg({ ok: true, text: `ใช้ได้ ✓ บันทึกแล้ว ใช้ ${v.label} ทุกหน้า` })
+  }
+
+  return (
+    <form className="card ai-keys" onSubmit={(e) => { e.preventDefault(); save() }}>
+      <h2 style={{ fontSize: '1.1rem' }}>🔑 ผู้ช่วย AI (ไม่บังคับ)</h2>
+      <p className="source-note">ไม่ใส่คีย์ก็สร้างคำอธิษฐานได้จากข้อมูลในแอป ใส่คีย์แล้วคำตอบจะเฉพาะเรื่องมากขึ้น คีย์เก็บในเครื่องนี้เท่านั้น ไม่ขึ้นไปที่ GitHub</p>
+
+      <div className="ai-vendors" role="radiogroup" aria-label="เลือกผู้ให้บริการ AI">
+        {VENDORS.map((x) => (
+          <button key={x.id} type="button" role="radio" aria-checked={st.vendor === x.id} className="ai-vendor" onClick={() => pick(x.id)}>
+            <span className="ai-vendor__name">{x.label}</span>
+            <span className="ai-vendor__state">{st.keys[x.id] ? '● มีคีย์' : '○ ยังไม่มี'}</span>
+          </button>
+        ))}
+      </div>
+
+      <label htmlFor="ai-key" className="ai-keys__label">คีย์ {v.label}</label>
+      <input
+        id="ai-key"
+        className="code-input"
+        type="password"
+        autoComplete="off"
+        spellCheck={false}
+        placeholder={v.hint}
+        value={key}
+        onChange={(e) => edit({ keys: { ...st.keys, [st.vendor]: e.target.value } })}
+      />
+      <a className="source-note" href={v.keyUrl} target="_blank" rel="noreferrer">ขอคีย์ {v.label} ได้ที่นี่ ›</a>
+
+      <details className="ai-keys__adv">
+        <summary>ขั้นสูง: ชื่อรุ่น AI</summary>
+        <input
+          id="ai-model"
+          className="code-input"
+          type="text"
+          autoComplete="off"
+          spellCheck={false}
+          placeholder={v.model}
+          value={model}
+          onChange={(e) => edit({ models: { ...st.models, [st.vendor]: e.target.value } })}
+        />
+        <p className="source-note">เว้นว่างเพื่อใช้ค่าตั้งต้น ({v.model})</p>
+      </details>
+
+      <div className="ai-keys__btns">
+        <button type="button" className="btn btn--gold" onClick={test} disabled={testing}>{testing ? 'กำลังทดสอบ…' : 'ทดสอบและบันทึก'}</button>
+        <button type="submit" className="btn btn--ghost">บันทึก</button>
+      </div>
+      {msg && <p className={msg.ok ? 'ai-keys__ok' : 'ai-keys__err'} role="status">{msg.text}</p>}
+    </form>
   )
 }

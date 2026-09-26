@@ -130,25 +130,44 @@ function claudeSampleProvider(sample: SampleFn): AiProvider {
   })
 }
 
-// ---------- เว็บจริง (GitHub Pages): เรียก Claude API โดยตรงด้วยคีย์ที่ผู้ใช้ใส่เองในเครื่อง ----------
-// คีย์ไม่ได้อยู่ในโค้ดหรือบน GitHub — เก็บใน localStorage ของเครื่องที่ใส่เท่านั้น
-const KEY_STORE = 'khatha.anthropicKey'
-const MODEL = 'claude-sonnet-5'
-export function getApiKey(): string {
+// ---------- เว็บจริง (GitHub Pages): เรียก AI โดยตรงด้วยคีย์ที่ผู้ใช้ใส่เองในเครื่อง ----------
+// รองรับ Claude · Gemini · ChatGPT — คีย์ไม่ได้อยู่ในโค้ดหรือบน GitHub เก็บใน localStorage ของเครื่องที่ใส่เท่านั้น
+export type AiVendor = 'claude' | 'gemini' | 'openai'
+export const VENDORS: { id: AiVendor; label: string; model: string; hint: string; keyUrl: string }[] = [
+  { id: 'claude', label: 'Claude', model: 'claude-sonnet-5', hint: 'sk-ant-...', keyUrl: 'https://console.anthropic.com/settings/keys' },
+  { id: 'gemini', label: 'Gemini (Google)', model: 'gemini-3.8-flash', hint: 'AIza...', keyUrl: 'https://aistudio.google.com/apikey' },
+  { id: 'openai', label: 'ChatGPT (OpenAI)', model: 'gpt-6-astra', hint: 'sk-...', keyUrl: 'https://platform.openai.com/api-keys' },
+]
+export interface AiSettings {
+  vendor: AiVendor
+  keys: Partial<Record<AiVendor, string>>
+  models: Partial<Record<AiVendor, string>>
+}
+const SETTINGS_STORE = 'khatha.aiSettings.v1'
+export function getAiSettings(): AiSettings {
+  const empty: AiSettings = { vendor: 'claude', keys: {}, models: {} }
   try {
-    return localStorage.getItem(KEY_STORE) ?? ''
+    const v = JSON.parse(localStorage.getItem(SETTINGS_STORE) ?? 'null') as AiSettings | null
+    if (v && VENDORS.some((x) => x.id === v.vendor)) return { vendor: v.vendor, keys: v.keys ?? {}, models: v.models ?? {} }
+    const old = localStorage.getItem('khatha.anthropicKey') // รุ่นก่อนเก็บเฉพาะคีย์ Claude
+    return old ? { ...empty, keys: { claude: old } } : empty
   } catch {
-    return ''
+    return empty
   }
 }
-export function setApiKey(key: string) {
+export function saveAiSettings(v: AiSettings) {
+  const clean: AiSettings = {
+    vendor: v.vendor,
+    keys: Object.fromEntries(Object.entries(v.keys).map(([k, x]) => [k, (x ?? '').trim()]).filter(([, x]) => x)),
+    models: Object.fromEntries(Object.entries(v.models).map(([k, x]) => [k, (x ?? '').trim()]).filter(([, x]) => x)),
+  }
   try {
-    if (key.trim()) localStorage.setItem(KEY_STORE, key.trim())
-    else localStorage.removeItem(KEY_STORE)
+    localStorage.setItem(SETTINGS_STORE, JSON.stringify(clean))
+    localStorage.removeItem('khatha.anthropicKey')
   } catch {
     /* ignore */
   }
-  providerPromise = null // ให้เลือกผู้ให้บริการใหม่ตามคีย์ล่าสุด
+  providerPromise = null // ให้เลือกผู้ให้บริการใหม่ตามค่าล่าสุด
 }
 /** true เมื่อแอปเปิดเป็นเว็บจริง (ไม่ได้เปิดผ่าน Claude) — ใช้ตัดสินว่าจะแสดงช่องใส่คีย์หรือไม่ */
 export const isStandaloneSite = () => typeof window.claude?.use !== 'function' && /^https?:$/.test(location.protocol)
@@ -178,9 +197,65 @@ function hash(s: string): string {
   return (h >>> 0).toString(36) + s.length.toString(36)
 }
 
-function directProvider(apiKey: string): AiProvider {
+const SYSTEM = 'Reply with exactly one JSON value and nothing else. The reply will be machine-parsed.'
+
+/** ส่งคำขอไปยังผู้ให้บริการที่เลือก แล้วคืนข้อความคำตอบ */
+async function callVendor(vendor: AiVendor, key: string, model: string, prompt: string, signal: AbortSignal): Promise<string> {
+  const req: { url: string; headers: Record<string, string>; body: unknown } =
+    vendor === 'claude'
+      ? {
+          url: 'https://api.anthropic.com/v1/messages',
+          headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+          body: { model, max_tokens: 4096, system: SYSTEM, messages: [{ role: 'user', content: prompt }] },
+        }
+      : vendor === 'gemini'
+        ? {
+            url: `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+            headers: { 'x-goog-api-key': key },
+            body: {
+              systemInstruction: { parts: [{ text: SYSTEM }] },
+              contents: [{ role: 'user', parts: [{ text: prompt }] }],
+              generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 8192 },
+            },
+          }
+        : {
+            url: 'https://api.openai.com/v1/chat/completions',
+            headers: { authorization: `Bearer ${key}` },
+            body: { model, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: prompt }] },
+          }
+  let r: Response
+  try {
+    r = await fetch(req.url, { method: 'POST', headers: { 'content-type': 'application/json', ...req.headers }, body: JSON.stringify(req.body), signal })
+  } catch (e) {
+    if (signal.aborted) throw new AiError('cancelled')
+    throw new AiError('failed', String(e))
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const body: any = await r.json().catch(() => ({}))
+  const detail = body?.error?.message ?? body?.error?.type ?? body?.error?.status
+  if (r.status === 401 || r.status === 403 || (r.status === 400 && /api.?key/i.test(String(detail)))) throw new AiError('locked', detail ? String(detail) : undefined)
+  if (r.status === 429 || r.status === 529 || r.status === 503) throw new AiError('busy', detail ? String(detail) : undefined)
+  if (!r.ok) throw new AiError('failed', detail ? String(detail) : `HTTP ${r.status}`)
+  let text = ''
+  if (vendor === 'claude') {
+    if (body.stop_reason === 'refusal') throw new AiError('refused')
+    text = (body.content ?? []).filter((c: { type: string }) => c.type === 'text').map((c: { text?: string }) => c.text ?? '').join('')
+  } else if (vendor === 'gemini') {
+    const cand = body.candidates?.[0]
+    if (!cand || cand.finishReason === 'SAFETY' || body.promptFeedback?.blockReason) throw new AiError('refused')
+    text = (cand.content?.parts ?? []).map((p: { text?: string }) => p.text ?? '').join('')
+  } else {
+    const msg = body.choices?.[0]?.message
+    if (msg?.refusal) throw new AiError('refused')
+    text = msg?.content ?? ''
+  }
+  if (!text.trim()) throw new AiError('refused', 'empty')
+  return text
+}
+
+function directProvider(vendor: AiVendor, apiKey: string, model: string): AiProvider {
   return makeProvider(async (prompt, { signal, onProgress, cacheHours = 24 }) => {
-    const ck = `khatha.ai.${hash(prompt)}`
+    const ck = `khatha.ai.${hash(vendor + model + prompt)}`
     if (cacheHours > 0) {
       try {
         const hit = JSON.parse(localStorage.getItem(ck) ?? 'null') as { at: number; text: string } | null
@@ -189,35 +264,7 @@ function directProvider(apiKey: string): AiProvider {
         /* no cache */
       }
     }
-    let r: Response
-    try {
-      r = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true',
-        },
-        body: JSON.stringify({
-          model: MODEL,
-          max_tokens: 4096,
-          system: 'Reply with exactly one JSON value and nothing else. The reply will be machine-parsed.',
-          messages: [{ role: 'user', content: prompt }],
-        }),
-        signal,
-      })
-    } catch (e) {
-      if (signal.aborted) throw new AiError('cancelled')
-      throw new AiError('failed', String(e))
-    }
-    const body = (await r.json().catch(() => ({}))) as { content?: { type: string; text?: string }[]; stop_reason?: string; error?: { type?: string } }
-    if (r.status === 401 || r.status === 403) throw new AiError('locked', body.error?.type)
-    if (r.status === 429 || r.status === 529) throw new AiError('busy')
-    if (!r.ok) throw new AiError('failed', body.error?.type ?? `HTTP ${r.status}`)
-    if (body.stop_reason === 'refusal') throw new AiError('refused')
-    const text = (body.content ?? []).filter((c) => c.type === 'text').map((c) => c.text ?? '').join('')
-    if (!text.trim()) throw new AiError('refused', 'empty')
+    const text = await callVendor(vendor, apiKey, model, prompt, signal)
     onProgress?.(text.length)
     const value = parseJsonLoose(text)
     if (cacheHours > 0) {
@@ -231,6 +278,27 @@ function directProvider(apiKey: string): AiProvider {
   })
 }
 
+/** ทดสอบคีย์จากหน้าตั้งค่า: คืน '' ถ้าใช้ได้ หรือข้อความสาเหตุ */
+export async function testAiKey(vendor: AiVendor, key: string, model: string): Promise<string> {
+  const c = new AbortController()
+  const t = setTimeout(() => c.abort(), 30000)
+  try {
+    const text = await callVendor(vendor, key.trim(), model.trim(), 'Reply with {"ok":true}', c.signal)
+    parseJsonLoose(text)
+    return ''
+  } catch (e) {
+    if (e instanceof AiError) {
+      if (e.kind === 'locked') return 'คีย์ไม่ถูกต้อง หรือยังไม่ได้เปิดใช้งาน'
+      if (e.kind === 'busy') return 'ใช้งานเกินโควตาหรือระบบไม่ว่าง (ตรวจเครดิต/การชำระเงินของบัญชี)'
+      if (e.kind === 'cancelled') return 'หมดเวลารอ'
+      return `เรียกไม่สำเร็จ${e.message && e.message !== e.kind ? ` (${e.message.slice(0, 120)})` : ''}`
+    }
+    return 'เรียกไม่สำเร็จ'
+  } finally {
+    clearTimeout(t)
+  }
+}
+
 let providerPromise: Promise<AiProvider | null> | null = null
 
 /** คืนค่า null เมื่อไม่มี AI ให้ใช้ในหน้าจอนี้ (เช่น เปิดไฟล์ตรง ๆ นอก Claude) */
@@ -239,8 +307,10 @@ export function getAiProvider(): Promise<AiProvider | null> {
     providerPromise = (async () => {
       const use = window.claude?.use
       if (typeof use !== 'function') {
-        const key = getApiKey()
-        return key ? directProvider(key) : null
+        const st = getAiSettings()
+        const v = VENDORS.find((x) => x.id === st.vendor)!
+        const key = st.keys[st.vendor]
+        return key ? directProvider(st.vendor, key, st.models[st.vendor] || v.model) : null
       }
       try {
         const sample = (await use.call(window.claude, 'sample')) as SampleFn | null

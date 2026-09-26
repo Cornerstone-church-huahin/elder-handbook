@@ -784,7 +784,7 @@ a.chip { display: inline-flex; align-items: center; text-decoration: none; }
   border-radius: 0.7rem; border: 2px solid var(--navy); background: var(--bg);
   font-size: 1rem; line-height: 1.6; resize: vertical;
 }
-.code-input { min-height: var(--tap); width: 100%; padding: 0 1rem; border-radius: var(--radius); border: 2px solid var(--navy); background: var(--surface); font-size: 1.1rem; letter-spacing: 0.15em; }
+.code-input { min-height: var(--tap); width: 100%; padding: 0 0.8rem; border-radius: var(--radius); border: 1.5px solid var(--navy); background: var(--surface); color: var(--ink); font-size: 1rem; }
 
 /* ---------- Mobile First: ขนาดที่พอดีจอมือถือ (ทับค่าข้างบน) ---------- */
 .main { gap: 1.25rem; padding-block: 1rem 6rem; }
@@ -849,3 +849,17 @@ a.chip { display: inline-flex; align-items: center; text-decoration: none; }
 /* ปุ่มกดต้องสูงอย่างน้อย 44px เพื่อให้ผู้สูงอายุกดง่าย แม้ตัวอักษรเล็กลง */
 .search button, .btn, .bottomnav a { min-height: 44px; }
 .bottomnav a { padding-block: 0.25rem; }
+/* ตั้งค่า › ผู้ช่วย AI */
+.ai-keys { display: flex; flex-direction: column; gap: 0.55rem; }
+.ai-vendors { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; }
+.ai-vendor { display: flex; flex-direction: column; align-items: center; gap: 0.15rem; min-height: 3.4rem; padding: 0.4rem 0.3rem; border-radius: var(--radius); border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; cursor: pointer; }
+.ai-vendor[aria-checked='true'] { border-color: var(--navy); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--navy); }
+.ai-vendor__name { font-weight: 700; font-size: 0.85rem; line-height: 1.25; text-align: center; }
+.ai-vendor__state { font-size: 0.72rem; color: var(--ink-soft); }
+.ai-keys__label { font-weight: 700; font-size: 0.95rem; }
+.ai-keys__adv summary { font-size: 0.85rem; color: var(--ink-soft); cursor: pointer; min-height: 44px; display: flex; align-items: center; }
+.ai-keys__adv { display: flex; flex-direction: column; gap: 0.4rem; }
+.ai-keys__btns { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.ai-keys__btns .btn { flex: 1 1 8rem; }
+.ai-keys__ok { color: #1e6b34; font-weight: 600; font-size: 0.9rem; }
+.ai-keys__err { color: #b3261e; font-weight: 600; font-size: 0.9rem; }
