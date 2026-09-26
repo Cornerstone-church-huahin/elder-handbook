@@ -91,6 +91,10 @@ export default function Search() {
       )}
 
       {initial && (
+        <Link to={`/prayer?q=${encodeURIComponent(initial)}`} className="btn btn--gold">🙏 สร้างคำอธิษฐานเผื่อเรื่องนี้</Link>
+      )}
+
+      {initial && (
         <section className="section" aria-live="polite">
           {results.length > 0 ? (
             <>

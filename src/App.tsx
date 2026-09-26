@@ -7,6 +7,7 @@ import { AskPage, ComingSoon, KitPage } from './pages/Placeholders'
 import { CharterArticlePage, CharterAsk, CharterHome } from './pages/Charter'
 import { PeopleCompare, PeopleHome, PersonPage } from './pages/People'
 import { ManagementAsk, ManagementHome, ManagementTopic } from './pages/Management'
+import PrayerPage from './pages/Prayer'
 
 // HashRouter: ใช้ได้บนทุก Static Hosting โดยไม่ต้องตั้งค่า rewrite
 // MemoryRouter: ใช้เฉพาะไฟล์พรีวิว (npm run build:preview) ที่เปิดในกรอบซึ่งไม่มี URL จริง
@@ -24,7 +25,7 @@ export default function App() {
           <Route path="ask" element={<AskPage />} />
           <Route path="members" element={<ComingSoon icon="👤" title="สมาชิก" note="รายชื่อสมาชิกและประวัติการอภิบาลจะเปิดใช้หลังระบบเข้าสู่ระบบพร้อม" />} />
           <Route path="followups" element={<ComingSoon icon="📅" title="สิ่งที่ต้องติดตาม" note="ยังไม่มีรายการติดตาม" />} />
-          <Route path="prayer" element={<ComingSoon icon="🙏" title="อธิษฐานเผื่อ" />} />
+          <Route path="prayer" element={<PrayerPage />} />
           <Route path="sermon" element={<ComingSoon icon="📖" title="เตรียมพระคำ" />} />
           <Route path="service" element={<ComingSoon icon="⛪" title="เตรียมพิธี" />} />
           <Route path="people" element={<PeopleHome />} />

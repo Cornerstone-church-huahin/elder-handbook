@@ -1,13 +1,8 @@
 import type { HomeAction } from '../types'
 
-// การ์ดหน้าแรกตาม Blueprint ข้อ 4 — ย้ายเข้าฐานข้อมูลได้ภายหลังโดยไม่ต้องแก้หน้าจอ
+// การ์ดหน้าแรก — การ์ดสถานการณ์ 6 ใบถูกนำออกตามที่เจ้าของโครงการขอ (26 ก.ย. 2026)
+// เพราะพิมพ์เรื่องในช่องอธิษฐานเผื่อ/ค้นหาแล้วระบบดึงคู่มือสถานการณ์ขึ้นมาเอง
 export const seedHomeActions: HomeAction[] = [
-  { id: 'a01', kind: 'situation', situation_slug: 'hospital', icon: '🏥', label: 'เยี่ยมผู้ป่วย' },
-  { id: 'a02', kind: 'situation', situation_slug: 'grief', icon: '💔', label: 'ปลอบใจผู้สูญเสีย' },
-  { id: 'a03', kind: 'situation', situation_slug: 'anxiety', icon: '😟', label: 'ความกังวลและความกลัว' },
-  { id: 'a04', kind: 'situation', situation_slug: 'family', icon: '👨‍👩‍👧', label: 'ปัญหาครอบครัว' },
-  { id: 'a05', kind: 'situation', situation_slug: 'finance', icon: '💰', label: 'การเงิน / หนี้สิน / ถูกเอาเปรียบ' },
-  { id: 'a06', kind: 'situation', situation_slug: 'conflict', icon: '🤝', label: 'ความขัดแย้ง / การให้อภัย' },
   { id: 'a07', kind: 'route', to: '/prayer', icon: '🙏', label: 'อธิษฐานเผื่อ' },
   { id: 'a08', kind: 'route', to: '/sermon', icon: '📖', label: 'เตรียมพระคำ' },
   { id: 'a13', kind: 'route', to: '/people', icon: '👥', label: 'บุคคลในพระคัมภีร์ 100 คน' },

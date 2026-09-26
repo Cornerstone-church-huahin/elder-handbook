@@ -23,7 +23,7 @@ async function open(mode) {
   return { p, errs }
 }
 { const { p, errs } = await open('ok')
-  await p.click('text=เยี่ยมผู้ป่วย'); await p.waitForTimeout(150)
+  await p.fill('#home-search', 'ป่วย'); await p.press('#home-search', 'Enter'); await p.click('.result >> nth=0'); await p.waitForTimeout(150)
   check(await p.locator('text=กำลังเตรียมคู่มือ').or(p.locator('text=กำลังเขียนคู่มือ')).count() > 0, 'loading state shows')
   await p.waitForSelector('.kit-section', { timeout: 5000 })
   check(await p.locator('.kit-section').count() === 8, `kit shows 8 sections (${await p.locator('.kit-section').count()})`)
@@ -42,9 +42,9 @@ async function open(mode) {
   check((await p.evaluate(() => window.__prompt)).includes('ลูกติดเกม'), 'free-text ask sends typed topic')
   check(errs.length === 0, 'no JS errors ' + errs.join(';')) }
 { const { p } = await open('none')
-  await p.click('text=เยี่ยมผู้ป่วย'); await p.waitForTimeout(300)
+  await p.fill('#home-search', 'ป่วย'); await p.press('#home-search', 'Enter'); await p.click('.result >> nth=0'); await p.waitForTimeout(300)
   check(await p.locator('text=ผู้ช่วย AI ใช้ได้เมื่อเปิดแอปผ่านลิงก์ของ Claude').count() === 1, 'no-AI message when opened as plain file') }
 { const { p } = await open('deny')
-  await p.click('text=เยี่ยมผู้ป่วย'); await p.waitForTimeout(500)
+  await p.fill('#home-search', 'ป่วย'); await p.press('#home-search', 'Enter'); await p.click('.result >> nth=0'); await p.waitForTimeout(500)
   check(await p.locator('text=ยังไม่ได้อนุญาต').count() === 1, 'declined consent message') }
 await b.close(); console.log(fail ? fail + ' FAILED' : 'ALL PASSED'); process.exit(fail ? 1 : 0)

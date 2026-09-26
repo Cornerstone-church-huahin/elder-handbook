@@ -5,7 +5,6 @@ import type { HomeAction } from '../data/types'
 import { IconSearch } from '../components/Icons'
 import SafetyNote from '../components/SafetyNote'
 
-const EXAMPLES = ['สมาชิกกลัวการผ่าตัด', 'สามีเสียชีวิต', 'ทะเลาะกับลูก', 'เป็นหนี้และเครียด']
 
 export default function Home() {
   const [actions, setActions] = useState<HomeAction[]>([])
@@ -48,14 +47,16 @@ export default function Home() {
           />
           <button type="submit">ค้นหา</button>
         </form>
-        <div className="search-hints">
-          {EXAMPLES.map((ex) => (
-            <button key={ex} type="button" className="chip" onClick={() => go(ex)}>
-              {ex}
-            </button>
-          ))}
-        </div>
       </section>
+
+      <Link to="/prayer" className="prayer-cta">
+        <span className="prayer-cta__icon" aria-hidden="true">🙏</span>
+        <span className="prayer-cta__body">
+          <strong>อธิษฐานเผื่อพี่น้อง</strong>
+          <span>พิมพ์เรื่องที่พี่น้องเผชิญ รับคำอธิษฐานพร้อมพระคำและบุคคลในพระคัมภีร์</span>
+        </span>
+        <span className="prayer-cta__go" aria-hidden="true">›</span>
+      </Link>
 
       <section className="section">
         <h2 className="section__title">สิ่งที่ควรติดตาม</h2>
@@ -63,13 +64,13 @@ export default function Home() {
       </section>
 
       <section className="section">
-        <h2 className="section__title">เลือกสถานการณ์</h2>
+        <h2 className="section__title">เมนู</h2>
         <ul className="actions">
           {actions.map((a) => (
             <li key={a.id}>
               <Link
                 to={a.kind === 'situation' ? `/kit/${a.situation_slug}` : a.to}
-                className={`action${a.kind === 'route' ? ' action--tool' : ''}`}
+                className="action"
               >
                 <span className="action__icon" aria-hidden="true">{a.icon}</span>
                 <span className="action__label">{a.label}</span>

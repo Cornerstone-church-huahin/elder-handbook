@@ -44,7 +44,7 @@ await p.goto(URL); await p.waitForTimeout(500); await p.click('text=บุคค
 await p.fill('#compare-q', 'อยากมีลูกแต่ไม่มีสักที'); await p.press('#compare-q', 'Enter'); await p.waitForSelector('.compare-card')
 check(await p.locator('.compare-card').count() === 1, 'compare shows only people from the list (unknown id dropped)')
 // Kit: บุคคลที่เกี่ยวข้อง + ลิงก์จาก AI
-await p.goto(URL); await p.waitForTimeout(500); await p.click('text=เยี่ยมผู้ป่วย'); await p.waitForSelector('.kit-section')
+await p.goto(URL); await p.waitForTimeout(500); await p.fill('#home-search', 'ป่วย'); await p.press('#home-search', 'Enter'); await p.click('.result >> nth=0'); await p.waitForSelector('.kit-section')
 check(await p.locator('.person-chip').count() > 0, 'kit page shows related people without AI')
 check(await p.locator('.kit-section a:has-text("เฮเซคียาห์")').count() === 1, 'AI-named character links to profile')
 check((await p.evaluate(() => window.__prompts.at(-1))).includes('เลือกจากรายชื่อนี้'), 'kit prompt grounded in the 100 list')

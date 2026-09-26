@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams, useSearchParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { getSituation } from '../data/contentRepo'
 import type { Situation } from '../data/types'
 import AiKitPanel from '../components/AiKitPanel'
@@ -29,6 +29,7 @@ export function KitPage() {
         <h1>{s.title}</h1>
         <p>{s.summary}</p>
       </div>
+      <Link to={`/prayer?q=${encodeURIComponent(s.title)}`} className="btn btn--gold">🙏 สร้างคำอธิษฐานเผื่อเรื่องนี้</Link>
       <RelatedPeople situation={s.slug} />
       <AiKitPanel key={s.slug} topic={`${s.title} — ${s.summary}`} />
       <SafetyNote />
@@ -48,6 +49,7 @@ export function AskPage() {
         <h1>{q}</h1>
         <p>คู่มือที่ผู้ช่วย AI เตรียมให้จากเรื่องที่คุณพิมพ์</p>
       </div>
+      <Link to={`/prayer?q=${encodeURIComponent(q)}`} className="btn btn--gold">🙏 สร้างคำอธิษฐานเผื่อเรื่องนี้</Link>
       <RelatedPeople text={q} />
       <AiKitPanel key={q} topic={q} />
       <SafetyNote />
