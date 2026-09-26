@@ -15,7 +15,9 @@ export default function AppShell() {
   const navigate = useNavigate()
   const isTabRoot = TAB_ROOTS.includes(pathname)
 
-  useEffect(() => window.scrollTo(0, 0), [pathname])
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [pathname])
 
   return (
     <div className="app">

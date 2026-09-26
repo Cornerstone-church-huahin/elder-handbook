@@ -24,7 +24,9 @@ export function initFontScale() {
 
 export function useFontScale() {
   const [scale, setScaleState] = useState<FontScale>(read)
-  useEffect(() => applyFontScale(scale), [scale])
+  useEffect(() => {
+    applyFontScale(scale)
+  }, [scale])
   const setScale = useCallback((s: FontScale) => {
     setScaleState(s)
     try {
