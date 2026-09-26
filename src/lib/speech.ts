@@ -63,20 +63,24 @@ export function useSpeech() {
     setSpeaking(false)
   }, [])
 
-  const speak = useCallback(
-    (text: string) => {
+  /** อ่านหลายส่วนต่อเนื่อง (เช่น พระคำ → เรื่องราว → คำอธิษฐาน) · onSection แจ้งเมื่อเริ่มส่วนใหม่ */
+  const speakSections = useCallback(
+    (sections: { id: string; text: string }[], onSection?: (id: string) => void) => {
       if (!canSpeak()) return setNoVoice(true)
       stop()
       const id = ++run.current
-      const parts = chunks(text)
+      const queue = sections.flatMap((sec) => chunks(sec.text).map((text, k) => ({ text, section: sec.id, first: k === 0 })))
+      if (!queue.length) return
       const voice = thaiVoice()
       setNoVoice(!voice && window.speechSynthesis.getVoices().length > 0)
       setSpeaking(true)
       let i = 0
       const next = () => {
         if (id !== run.current) return
-        if (i >= parts.length) return setSpeaking(false)
-        const u = new SpeechSynthesisUtterance(parts[i++])
+        if (i >= queue.length) return setSpeaking(false)
+        const q = queue[i++]
+        if (q.first) onSection?.(q.section)
+        const u = new SpeechSynthesisUtterance(q.text)
         u.lang = 'th-TH'
         if (voice) u.voice = voice
         u.rate = rate
@@ -88,6 +92,7 @@ export function useSpeech() {
     },
     [rate, stop],
   )
+  const speak = useCallback((text: string) => speakSections([{ id: '', text }]), [speakSections])
 
   const setRate = (r: Rate) => {
     setRateState(r)
@@ -107,5 +112,5 @@ export function useSpeech() {
     }
   }, [])
 
-  return { speak, stop, speaking, rate, setRate, noVoice, supported: canSpeak() }
+  return { speak, speakSections, stop, speaking, rate, setRate, noVoice, supported: canSpeak() }
 }

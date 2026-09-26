@@ -215,19 +215,41 @@ function NoteCard({
   useEffect(() => setNotes(p.notes), [p.notes])
   const tts = useSpeech()
   const { stop } = tts
-  useEffect(() => stop(), [tab, open, stop]) // เปลี่ยนแท็บหรือพับการ์ด → หยุดอ่าน
-  const listenText = (): string => {
-    if (tab === 'verses')
-      return refs
+  const [allMode, setAllMode] = useState(false) // กำลังฟังต่อเนื่องทั้งหมด
+  const autoTab = useRef(false)
+  useEffect(() => {
+    if (autoTab.current) return void (autoTab.current = false) // แท็บเปลี่ยนเพราะการฟังต่อเนื่อง → อ่านต่อ
+    stop()
+    setAllMode(false)
+  }, [tab, open, stop]) // ผู้ใช้เปลี่ยนแท็บหรือพับการ์ด → หยุดอ่าน
+  useEffect(() => {
+    if (!tts.speaking) setAllMode(false)
+  }, [tts.speaking])
+  const versesText = () =>
+    refs
         .map((r) => {
           const v = verses[r]
           const label = speakableRef(v?.ref?.label ?? r)
           return `${label}. ${v?.verses.map((x) => x.text).join(' ') ?? ''}`
         })
         .join('\n')
+  const listenText = (): string => {
+    if (tab === 'verses') return versesText()
     if (tab === 'story') return p.story
     if (tab === 'prayer') return p.text
     return notes
+  }
+  const listenAll = () => {
+    const secs = [
+      { id: 'verses', text: refs.length ? `พระคำ. ${versesText()}` : '' },
+      { id: 'story', text: p.story ? `เรื่องราว. ${p.story}` : '' },
+      { id: 'prayer', text: p.text ? `คำอธิษฐาน. ${p.text}` : '' },
+    ].filter((x) => x.text)
+    setAllMode(true)
+    tts.speakSections(secs, (id) => {
+      if (id !== tab) autoTab.current = true
+      setTab(id as Tab)
+    })
   }
   const copy = async () => {
     const vs = refs.map((r) => `📖 ${parseRef(r)?.label ?? r}`).join('\n')
@@ -260,9 +282,12 @@ function NoteCard({
           {tts.supported && (
             <div className="nb-listen">
               {tts.speaking ? (
-                <button type="button" className="btn btn--gold nb-listen__go" onClick={tts.stop}>⏸ หยุด</button>
+                <button type="button" className="btn btn--gold nb-listen__go" onClick={tts.stop}>⏸ หยุด{allMode ? 'ฟังต่อเนื่อง' : ''}</button>
               ) : (
-                <button type="button" className="btn btn--gold nb-listen__go" disabled={!listenText().trim()} onClick={() => tts.speak(listenText())}>🔊 ฟัง</button>
+                <>
+                  <button type="button" className="btn btn--gold nb-listen__go" disabled={!listenText().trim()} onClick={() => tts.speak(listenText())}>🔊 ฟังหน้านี้</button>
+                  <button type="button" className="btn btn--ghost nb-listen__all" onClick={listenAll}>▶️ ฟังต่อเนื่อง</button>
+                </>
               )}
             </div>
           )}
