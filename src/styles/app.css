@@ -1180,3 +1180,17 @@ html[data-scale='150'] body.reading .nb-card--open .nb-card__body { height: calc
 /* ไฮไลต์วิ่งตามเสียงอ่าน (ทุกหน้า) */
 .spoken-now { background: var(--gold); color: var(--navy); border-radius: 4px; padding: 0 .12em; box-decoration-break: clone; -webkit-box-decoration-break: clone; transition: background .15s; }
 .spoken-done { opacity: .6; }
+
+/* Gemini */
+.action--gemini { background: linear-gradient(135deg, #1a73e8 0%, #8e44ef 55%, #d96570 100%); color: #fff; border-color: transparent; }
+.action--gemini .action__label { color: #fff; }
+.gemini-btn { width: 100%; margin-top: .5rem; }
+.ai-apps { margin-top: .7rem; }
+.ai-apps__title { margin: 0 0 .35rem; font-size: .85rem; font-weight: 700; color: var(--ink-soft); }
+.ai-apps__row { display: grid; grid-template-columns: repeat(auto-fit, minmax(6.2rem, 1fr)); gap: .4rem; }
+.ai-app { min-width: 0; white-space: nowrap; }
+.ai-app { min-height: 46px; border-radius: .8rem; border: 0; color: #fff; font: inherit; font-weight: 700; font-size: .9rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: .3rem; }
+.ai-app--gemini { background: linear-gradient(135deg, #1a73e8, #8e44ef 60%, #d96570); }
+.ai-app--chatgpt { background: #10a37f; }
+.ai-app--claude { background: #c96442; }
+.ai-apps__hint { margin: .35rem 0 0; font-size: .75rem; color: var(--ink-soft); }

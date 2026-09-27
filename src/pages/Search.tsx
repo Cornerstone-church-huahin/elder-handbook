@@ -7,6 +7,7 @@ import { loadManagement, matchTopics } from '../data/management'
 import { loadNotebook, scoreNote } from '../lib/prayerNotebook'
 import type { SearchResult, SourceType } from '../data/types'
 import { IconSearch } from '../components/Icons'
+import AiApps from '../components/AiApps'
 import { RelatedPeople } from './People'
 import ScriptureResults, { scriptureCount, useScriptureSearch } from '../components/ScriptureResults'
 
@@ -131,6 +132,8 @@ export default function Search() {
       {initial && (
         <Link to={`/prayer?q=${encodeURIComponent(initial)}`} className="btn btn--gold">🙏 หาคำอธิษฐานเรื่องนี้</Link>
       )}
+
+      {initial && <AiApps text={initial} title="ถามเรื่องนี้กับแอป AI ที่สมัครไว้" />}
 
       {initial && (
         <div className="search-accs" key={initial}>

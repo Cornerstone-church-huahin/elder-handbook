@@ -1,3 +1,4 @@
+import AiApps from '../components/AiApps'
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { listHomeActions } from '../data/contentRepo'
@@ -64,6 +65,7 @@ export default function Home() {
             </li>
           ))}
         </ul>
+        <AiApps title="เปิดแอป AI ที่สมัครไว้ (ไม่เสียค่าโทเค็นเพิ่ม)" />
       </section>
 
       <SafetyNote />
