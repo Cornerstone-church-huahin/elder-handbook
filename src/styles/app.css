@@ -1221,3 +1221,13 @@ html[data-scale='150'] body.reading .nb-card--open .nb-card__body { height: calc
 .pron-list li span { flex: 1; min-width: 0; }
 .linkish { background: none; border: 0; color: var(--accent-ink); font: inherit; font-size: .85rem; padding: .3rem 0; cursor: pointer; }
 .spoken--tap { cursor: pointer; -webkit-tap-highlight-color: rgba(212, 167, 44, .25); }
+
+/* กดค้างที่คำเพื่อแก้คำอ่าน */
+.spoken--press { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.pron-sheet { gap: .7rem; }
+.pron-ctx { margin: 0; padding: .6rem .8rem; border-radius: .7rem; background: var(--surface-2); line-height: 1.8; }
+.pron-ctx mark { background: var(--gold); color: var(--navy); border-radius: 3px; padding: 0 .1em; }
+.pron-word { display: flex; align-items: center; justify-content: center; gap: .3rem; }
+.pron-word strong { font-size: 1.4rem; padding: 0 .5rem; }
+.pron-sheet input { min-height: 46px; border-radius: .6rem; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-size: 1.1rem; padding: 0 .7rem; }
+.pron-actions { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; }

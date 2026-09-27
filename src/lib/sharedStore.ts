@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { getSync, mergeItems, pullFile, pushFile, type SharedItem, type SyncStatus } from './sync'
+import { getSync, mergeItems, SYNC_EVENT, pullFile, pushFile, type SharedItem, type SyncStatus } from './sync'
 
 /**
  * ที่เก็บข้อมูลที่ใช้ร่วมกัน: บันทึกในเครื่องทันที แล้วซิงก์ขึ้น GitHub (repo ส่วนตัว) อัตโนมัติ
@@ -57,9 +57,11 @@ export function useSharedStore<T extends SharedItem>(opts: { localKey: string; f
     syncNow()
     const onVis = () => document.visibilityState === 'visible' && syncNow()
     document.addEventListener('visibilitychange', onVis)
+    window.addEventListener(SYNC_EVENT, syncNow)
     const t = window.setInterval(syncNow, 60_000)
     return () => {
       document.removeEventListener('visibilitychange', onVis)
+      window.removeEventListener(SYNC_EVENT, syncNow)
       window.clearInterval(t)
     }
   }, [syncNow])

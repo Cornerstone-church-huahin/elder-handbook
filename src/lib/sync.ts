@@ -33,7 +33,10 @@ export function saveSync(v: SyncConfig | null) {
   } catch {
     /* ignore */
   }
+  // เชื่อมต่อ/เปลี่ยนการเชื่อมต่อ → ทุกที่เก็บข้อมูลดึงข้อมูลออนไลน์ทันที
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(SYNC_EVENT))
 }
+export const SYNC_EVENT = 'khatha-sync-config'
 
 const b64encode = (s: string) => {
   const bytes = new TextEncoder().encode(s)

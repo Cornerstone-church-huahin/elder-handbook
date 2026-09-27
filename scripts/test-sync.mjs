@@ -5,6 +5,7 @@ const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
 let fail = 0; const check = (ok, m) => { console.log((ok ? 'PASS ' : 'FAIL ') + m); if (!ok) fail++ }
 const TOKEN = 'github_pat_TEST'
 let file = null, sha = 0, puts = 0, forceConflict = false
+const others = {}
 const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'GET,PUT', 'content-type': 'application/json' }
 async function gh(route) {
   const r = route.request()
@@ -12,6 +13,14 @@ async function gh(route) {
   if (r.headers()['authorization'] !== `Bearer ${TOKEN}`) return route.fulfill({ status: 401, headers: cors, body: '{}' })
   const url = new globalThis.URL(r.url())
   if (url.pathname.endsWith('/elder-handbook-data')) return route.fulfill({ status: 200, headers: cors, body: JSON.stringify({ private: true, permissions: { push: true } }) })
+  const path = url.pathname.split('/contents/')[1] ?? ''
+  if (path !== 'prayers.json') { // ไฟล์อื่น (หัวข้อ/หน้าที่/คำอ่าน ฯลฯ) — แยกเก็บ ไม่ปนกับสมุดคำอธิษฐาน
+    others[path] ??= { c: null, sha: 0 }
+    const o = others[path]
+    if (r.method() === 'GET') return o.c ? route.fulfill({ status: 200, headers: cors, body: JSON.stringify({ content: o.c, encoding: 'base64', sha: String(o.sha) }) }) : route.fulfill({ status: 404, headers: cors, body: '{}' })
+    const bd = r.postDataJSON(); if (o.c && bd.sha !== String(o.sha)) return route.fulfill({ status: 409, headers: cors, body: '{}' })
+    o.c = bd.content; o.sha++; return route.fulfill({ status: 200, headers: cors, body: JSON.stringify({ content: { sha: String(o.sha) } }) })
+  }
   if (r.method() === 'GET') {
     if (!file) return route.fulfill({ status: 404, headers: cors, body: '{}' })
     return route.fulfill({ status: 200, headers: cors, body: JSON.stringify({ content: file, encoding: 'base64', sha: String(sha) }) })
