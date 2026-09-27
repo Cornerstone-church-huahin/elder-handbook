@@ -154,7 +154,6 @@ export default function PrayerNotebookPage() {
                 onCancelDelete={() => setConfirmDel(null)}
                 onDelete={() => { remove(p.id); setConfirmDel(null); setOpen(null) }}
                 onSaveNotes={(notes) => update(p.id, { notes })}
-                onTag={(t) => { onSearch(t); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
               />
             ),
           )}
@@ -211,10 +210,10 @@ function SyncLine({ sync, onRetry, list }: { sync: SyncStatus; onRetry: () => vo
 }
 
 function NoteCard({
-  p, open, flash, elRef, onToggle, onEdit, onBig, confirming, onAskDelete, onCancelDelete, onDelete, onSaveNotes, onTag,
+  p, open, flash, elRef, onToggle, onEdit, onBig, confirming, onAskDelete, onCancelDelete, onDelete, onSaveNotes,
 }: {
   p: NotePrayer; open: boolean; flash: boolean; elRef: (el: HTMLElement | null) => void; onToggle: () => void; onEdit: () => void; onBig: () => void
-  confirming: boolean; onAskDelete: () => void; onCancelDelete: () => void; onDelete: () => void; onSaveNotes: (notes: string) => void; onTag: (tag: string) => void
+  confirming: boolean; onAskDelete: () => void; onCancelDelete: () => void; onDelete: () => void; onSaveNotes: (notes: string) => void
 }) {
   const [tab, setTab] = useState<Tab>('verses')
   const refs = p.refs.filter((r) => parseRef(r))
@@ -348,14 +347,9 @@ function NoteCard({
                 {notesSaved && notes === p.notes && <p className="source-note">บันทึกแล้ว</p>}
               </div>
             )}
-            <div className="nb-foot">
-            {p.keywords.length > 0 && (
-              <p className="nb-tags" aria-label="แท็กสำหรับค้นหา">
-                🏷 {p.keywords.map((k) => <button key={k} type="button" onClick={() => onTag(k)}>#{k}</button>)}
-              </p>
+            {p.updated > 0 && (
+              <p className="nb-by">แก้ไขล่าสุด{p.by ? `โดย ${p.by}` : ''} · {new Date(p.updated).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })} {new Date(p.updated).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.</p>
             )}
-            {p.by && p.updated > 0 && <p className="nb-by">แก้ไขล่าสุดโดย {p.by} · {new Date(p.updated).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}</p>}
-          </div>
           </div>
 
           {tts.supported && slot && createPortal(

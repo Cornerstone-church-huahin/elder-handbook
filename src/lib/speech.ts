@@ -27,13 +27,13 @@ export function speakableRef(ref: string): string {
   return ref.replace(/(\d+)\s*:\s*(\d+)(?:\s*[–—-]\s*(\d+))?/g, (_, c, a, b) => `บทที่ ${c} ข้อ ${a}${b ? ` ถึง ${b}` : ''}`)
 }
 
-/** แบ่งข้อความยาวเป็นท่อน (~160 ตัวอักษร) เพราะบางเครื่องหยุดอ่านเองเมื่อข้อความยาวเกิน */
+/** แบ่งเป็นวลีสั้น ๆ (~60 ตัวอักษร ตัดที่ช่องว่าง) — หยุดแล้วฟังต่อจะย้อนไม่เกินหนึ่งวลี และบางเครื่องหยุดอ่านเองเมื่อข้อความยาวเกิน */
 function chunks(text: string): string[] {
   const out: string[] = []
   for (const para of text.split(/\n+/).map((x) => x.trim()).filter(Boolean)) {
     let cur = ''
     for (const w of para.split(/(\s+)/)) {
-      if ((cur + w).length > 120 && cur.trim()) {
+      if ((cur + w).length > 60 && cur.trim()) {
         out.push(cur.trim())
         cur = ''
       }
@@ -60,7 +60,7 @@ export function useSpeech() {
   const [noVoice, setNoVoice] = useState(false)
   const run = useRef(0)
   // คิวที่กำลังอ่าน + ตำแหน่ง (เพื่อหยุดชั่วคราวแล้วอ่านต่อจากจุดเดิม)
-  const q = useRef<{ items: Item[]; pos: number; onSection?: (id: string) => void } | null>(null)
+  const q = useRef<{ items: Item[]; pos: number; offset: number; onSection?: (id: string) => void } | null>(null)
 
   /** หยุดทั้งหมด (ล้างตำแหน่ง) */
   const stop = useCallback(() => {
@@ -87,14 +87,21 @@ export function useSpeech() {
         return setSpeaking(false)
       }
       const it = c.items[c.pos]
-      if (it.first) c.onSection?.(it.section)
-      const u = new SpeechSynthesisUtterance(it.text)
+      if (it.first && c.offset === 0) c.onSection?.(it.section)
+      const start = c.offset // อ่านต่อจากคำที่หยุดไว้ในวลีนี้
+      const u = new SpeechSynthesisUtterance(it.text.slice(start))
+      // จำตำแหน่งคำที่กำลังอ่าน (เครื่องที่รองรับ) เพื่อฟังต่อได้ตรงคำ
+      u.onboundary = (e) => {
+        if (id !== run.current) return
+        c.offset = Math.min(it.text.length, start + (e.charIndex ?? 0)) // ต้นคำที่กำลังอ่าน
+      }
       u.lang = 'th-TH'
       if (voice) u.voice = voice
       u.rate = rate
       u.onend = () => {
         if (id !== run.current) return
         c.pos++
+        c.offset = 0
         next()
       }
       u.onerror = () => id === run.current && setSpeaking(false)
@@ -120,7 +127,7 @@ export function useSpeech() {
       stop()
       const items = sections.flatMap((sec) => chunks(sec.text).map((text, k) => ({ text, section: sec.id, first: k === 0 })))
       if (!items.length) return
-      q.current = { items, pos: 0, onSection }
+      q.current = { items, pos: 0, offset: 0, onSection }
       play()
     },
     [play, stop],

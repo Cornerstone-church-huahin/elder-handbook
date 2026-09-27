@@ -10,7 +10,7 @@ await ctx.addInitScript(() => {
   window.SpeechSynthesisUtterance = function (t) { this.text = t }
   Object.defineProperty(window, 'speechSynthesis', { value: {
     getVoices: () => voices,
-    speak: (u) => { window.__said.push({ text: u.text, rate: u.rate, lang: u.lang }); setTimeout(() => u.onend && u.onend(), window.__slow ? 300 : 30) },
+    speak: (u) => { window.__said.push({ text: u.text, rate: u.rate, lang: u.lang }); if (window.__slow) { const words = [...u.text.matchAll(/\S+/g)]; words.forEach((m, k) => setTimeout(() => u.onboundary && u.onboundary({ charIndex: m.index }), k * 120)); setTimeout(() => u.onend && u.onend(), words.length * 120 + 50) } else setTimeout(() => u.onend && u.onend(), 30) },
     cancel: () => { window.__cancel = (window.__cancel || 0) + 1 },
   } })
 })
@@ -47,12 +47,12 @@ check(await p.evaluate(() => window.__said.every((x) => x.rate === 0.4)), 'conti
 check((await p.locator('.nb-card--open .nb-tabs [aria-selected=true]').textContent()).includes('อธิษฐาน'), 'tab follows what is being read')
 // หยุดชั่วคราวแล้วฟังต่อจากจุดเดิม (ไม่เริ่มใหม่)
 await p.evaluate(() => { window.__slow = true; window.__said = [] })
-await p.click('.nb-card--open .nb-tabs >> text=อธิษฐาน'); await p.click('[aria-label="ฟังหน้านี้"]'); await p.waitForTimeout(700)
+await p.click('.nb-card--open .nb-tabs >> text=อธิษฐาน'); await p.click('[aria-label="ฟังหน้านี้"]'); await p.waitForTimeout(1000)
 await p.click('[aria-label="หยุดชั่วคราว"]'); const before = await p.evaluate(() => window.__said.length)
 check(await p.locator('[aria-label="ฟังต่อ"]').count() === 1, 'pause shows ฟังต่อ')
 await p.waitForTimeout(500); check(await p.evaluate(() => window.__said.length) === before, 'nothing read while paused')
 await p.evaluate(() => { window.__slow = false }); await p.click('[aria-label="ฟังต่อ"]'); await p.waitForTimeout(1500)
 const seq = await p.evaluate(() => window.__said.map((x) => x.text))
-check(seq.length > before && seq[before] === seq[before - 1] && seq.filter((t) => t === seq[0]).length === 1, 'resume continues from the paused part, not from the beginning')
+check(seq.length > before && seq[before - 1].endsWith(seq[before]) && seq.filter((t) => t === seq[0]).length === 1, 'resume continues from the word where it paused: "' + seq[before - 1] + '" → "' + seq[before] + '"')
 check(errs.length === 0, 'no JS errors ' + errs.join(';'))
 await b.close(); console.log(fail ? `${fail} FAILED` : 'ALL PASSED'); process.exit(fail ? 1 : 0)
