@@ -13,6 +13,7 @@ export default function PronEditor() {
   const [range, setRange] = useState<[number, number]>([0, 0])
   const [say, setSay] = useState('')
   const [saved, setSaved] = useState(false)
+  const [anchor, setAnchor] = useState(false) // แตะคำแรกแล้ว → แตะคำถัดไปเพื่อรวมเป็นช่วง
   const store = useSharedStore<Pron>({ localKey: PRON_KEY, file: 'pronounce.json', label: 'คำอ่าน' })
   const tts = useSpeech()
 
@@ -21,6 +22,7 @@ export default function PronEditor() {
       const det = (e as CustomEvent<PronEditDetail>).detail
       setD(det)
       setRange([det.start, det.end])
+      setAnchor(false)
       setSaved(false)
     }
     window.addEventListener(PRON_EVENT, on)
@@ -56,7 +58,22 @@ export default function PronEditor() {
     setSaved(true)
     window.setTimeout(close, 700)
   }
-  const ctx = d.text.slice(Math.max(0, range[0] - 25), Math.min(d.text.length, range[1] + 25))
+  // ช่วงข้อความที่แสดงให้แตะเลือกคำ (ประมาณ 1–2 บรรทัดรอบคำที่เลือก)
+  const from = Math.max(0, range[0] - 70)
+  const to = Math.min(d.text.length, range[1] + 70)
+  const view = segs.filter((sg) => sg.index + sg.segment.length > from && sg.index < to)
+  const pick = (sg: { index: number; segment: string }) => {
+    const a = sg.index
+    const b = a + sg.segment.length
+    // เลือกไว้คำเดียว แล้วแตะอีกคำ → รวมเป็นช่วงเดียวกัน · นอกนั้นเลือกคำที่แตะใหม่
+    if (anchor && a !== range[0]) {
+      setRange([Math.min(a, range[0]), Math.max(b, range[1])])
+      setAnchor(false)
+    } else {
+      setRange([a, b])
+      setAnchor(true)
+    }
+  }
 
   return (
     <div className="sheet-backdrop" onClick={close}>
@@ -65,7 +82,15 @@ export default function PronEditor() {
           <div className="sheet__title"><strong>🔤 แก้คำอ่าน</strong><span>ข้อความบนจอไม่เปลี่ยน · ใช้ทุกหน้า ทุกเครื่อง</span></div>
           <button type="button" className="sheet__close" onClick={close}>ปิด</button>
         </div>
-        <p className="pron-ctx">…{ctx.split(word).map((part, k, arr) => <span key={k}>{part}{k < arr.length - 1 && <mark>{word}</mark>}</span>)}…</p>
+        <p className="source-note">แตะคำที่ต้องการแก้ · แตะอีกคำเพื่อเลือกหลายคำติดกัน</p>
+        <p className="pron-ctx pron-pick">
+          {view.map((sg) => {
+            const inSel = sg.index >= range[0] && sg.index + sg.segment.length <= range[1]
+            return sg.segment.trim()
+              ? <button key={sg.index} type="button" className={`pron-w${inSel ? ' is-on' : ''}`} onClick={() => pick(sg)}>{sg.segment}</button>
+              : <span key={sg.index}>{sg.segment}</span>
+          })}
+        </p>
         <div className="pron-word">
           <button type="button" className="mini" onClick={() => grow(-1)} aria-label="เพิ่มคำหน้า">＋◀</button>
           <button type="button" className="mini" onClick={() => shrink(-1)} aria-label="ตัดคำหน้า">▶</button>

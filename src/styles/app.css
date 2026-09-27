@@ -1159,7 +1159,7 @@ html[data-scale='150'] body.reading .nb-card--open .nb-card__body { height: calc
 .bible-selbar { flex-direction: column; align-items: stretch; gap: .35rem; border-radius: 1.1rem; padding: .5rem .5rem .45rem; }
 .bible-selbar__top { display: flex; align-items: center; gap: .4rem; padding-left: .4rem; }
 .bible-selbar .bible-selbar__x { width: 34px; height: 34px; font-size: .95rem; }
-.bible-selbar__btns { display: grid; grid-template-columns: repeat(5, 1fr); gap: .3rem; }
+.bible-selbar__btns { display: grid; grid-template-columns: repeat(auto-fit, minmax(3.3rem, 1fr)); gap: .25rem; }
 .bible-selbar__btns button { width: auto; height: auto; border-radius: .7rem; padding: .35rem .1rem; display: flex; flex-direction: column; align-items: center; gap: .1rem; font: inherit; font-size: .7rem; font-weight: 600; }
 .bible-selbar__btns button span { font-size: 1.1rem; line-height: 1.1; }
 .bible-selbar__btns button[aria-pressed='true'] { background: var(--gold); color: var(--navy); }
@@ -1231,3 +1231,7 @@ html[data-scale='150'] body.reading .nb-card--open .nb-card__body { height: calc
 .pron-word strong { font-size: 1.4rem; padding: 0 .5rem; }
 .pron-sheet input { min-height: 46px; border-radius: .6rem; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-size: 1.1rem; padding: 0 .7rem; }
 .pron-actions { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; }
+.pron-pick { line-height: 2.1; }
+.pron-w { border: 0; background: none; font: inherit; color: inherit; padding: .05rem .05rem; border-radius: 4px; cursor: pointer; }
+.pron-w.is-on { background: var(--gold); color: var(--navy); }
+.text-tools .bible-selbar__btns { grid-template-columns: repeat(auto-fit, minmax(3.6rem, 1fr)); }

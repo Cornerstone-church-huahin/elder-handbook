@@ -101,7 +101,7 @@ export default function PersonStory() {
         <input type="checkbox" checked={autoNext} onChange={(e) => setAutoNext(e.target.checked)} />
         เล่าจบแล้วต่อเรื่องของบุคคลถัดไปอัตโนมัติ{next ? ` (${next.th})` : ''}
       </label>
-      <p className="source-note story__hint">แตะที่ตัวหนังสือตรงไหน จะเริ่มอ่านจากตรงนั้น</p>
+      <p className="source-note story__hint">แตะตัวหนังสือ = อ่านจากตรงนั้น · กดค้าง = เครื่องมือ (คัดลอก แชร์ แก้คำอ่าน)</p>
       {tts.noVoice && <p className="nb-none">มือถือเครื่องนี้ยังไม่มีเสียงภาษาไทย · ติดตั้งเสียงไทยในการตั้งค่าการอ่านออกเสียงของเครื่อง</p>}
 
       {story.sections.map((s, i) => (

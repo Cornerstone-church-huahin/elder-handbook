@@ -47,11 +47,15 @@ function wordAt(text: string, at: number): Seg | null {
   return words(text).find((s) => s.index <= at && at < s.index + s.segment.length && s.segment.trim()) ?? null
 }
 
-/** กดค้างที่คำ → เปิดป๊อปอัพแก้คำอ่าน (PronEditor ใน AppShell รับเหตุการณ์นี้) */
+/** เปิดป๊อปอัพแก้คำอ่าน (PronEditor ใน AppShell) */
 export const PRON_EVENT = 'khatha-pron-edit'
 export type PronEditDetail = { text: string; start: number; end: number }
+export const openPronEditor = (d: PronEditDetail) => window.dispatchEvent(new CustomEvent<PronEditDetail>(PRON_EVENT, { detail: d }))
+/** กดค้างที่ข้อความ → แถบเครื่องมือ (TextTools ใน AppShell): ฟังจากตรงนี้ · คัดลอก · แชร์ · แก้คำอ่าน */
+export const TOOLS_EVENT = 'khatha-text-tools'
+export type ToolsDetail = PronEditDetail & { read?: () => void }
 
-export function Spoken({ text, id, follow, word = false, onTap }: { text: string; id: string; follow: Follow; word?: boolean; onTap?: (id: string, at: number) => void }) {
+export function Spoken({ text, id, follow, word = false, onTap, onPress }: { text: string; id: string; follow: Follow; word?: boolean; onTap?: (id: string, at: number) => void; onPress?: () => void }) {
   const ref = useRef<HTMLElement>(null)
   const box = useRef<HTMLSpanElement>(null)
   const press = useRef<{ x: number; y: number; t: number } | null>(null)
@@ -80,12 +84,13 @@ export function Spoken({ text, id, follow, word = false, onTap }: { text: string
         const t = window.setTimeout(() => {
           press.current = null
           if (!box.current) return
-          const w = wordAt(text, charAt(box.current, x, y, text))
-          if (!w) return
+          const w = wordAt(text, charAt(box.current, x, y, text)) ?? { index: 0, segment: text.slice(0, 1) }
           longDone.current = true
           window.setTimeout(() => { longDone.current = false }, 900) // กันเฉพาะการแตะที่ตามมาทันที
           window.getSelection()?.removeAllRanges()
-          window.dispatchEvent(new CustomEvent<PronEditDetail>(PRON_EVENT, { detail: { text, start: w.index, end: w.index + w.segment.length } }))
+          if (onPress) return onPress()
+          const detail: ToolsDetail = { text, start: w.index, end: w.index + w.segment.length, read: onTap ? () => onTap(id, w.index) : undefined }
+          window.dispatchEvent(new CustomEvent<ToolsDetail>(TOOLS_EVENT, { detail }))
         }, 600)
         press.current = { x, y, t }
       }

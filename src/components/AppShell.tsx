@@ -1,6 +1,7 @@
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect } from 'react'
 import PronEditor from './PronEditor'
+import TextTools from './TextTools'
 import { IconBack, IconCalendarCheck, IconHome, IconPeople, IconSearch, IconSettings, StaffMark } from './Icons'
 
 const TABS = [
@@ -49,6 +50,7 @@ export default function AppShell() {
       </main>
 
       <PronEditor />
+      <TextTools />
 
       <nav className="bottomnav" aria-label="เมนูหลัก">
         <ul>

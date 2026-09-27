@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { EN_BOOKS, loadBookEn } from '../data/bible'
 import { HL_COLORS, useHighlights } from '../lib/highlights'
-import { Spoken, useFollow } from '../components/Spoken'
+import { openPronEditor, Spoken, useFollow, words } from '../components/Spoken'
 import { createPortal } from 'react-dom'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { BIBLE_BOOKS, chapterUrl, loadBook, parseRef } from '../data/bible'
@@ -317,7 +317,7 @@ export function BibleChapterPage() {
             const on = reading?.c === ch && reading.v === v && busy
             return (
               <p key={v} id={`v${v}`} className={`bv${sel.includes(v) ? ' bv--sel' : ''}${on ? ' bv--now' : ''}${hlMap[v] ? ` hl--${hlMap[v]}` : ''}`} onClick={() => toggle(v)}>
-                <sup>{v}</sup><Spoken text={t} id={`${ch}:${v}`} follow={fw.follow} onTap={tapRead} />
+                <sup>{v}</sup><Spoken text={t} id={`${ch}:${v}`} follow={fw.follow} onTap={tapRead} onPress={() => toggle(v)} />
               </p>
             )
           })}
@@ -348,6 +348,7 @@ export function BibleChapterPage() {
             <button type="button" onClick={copy} aria-label="คัดลอก"><span>📋</span>คัดลอก</button>
             <button type="button" onClick={share} aria-label="แชร์"><span>📤</span>แชร์</button>
             <button type="button" onClick={() => setEn(true)} aria-label="แปลอังกฤษ"><span>🌐</span>อังกฤษ</button>
+            <button type="button" onClick={() => { const t = verses[sorted[0] - 1] ?? ''; const w = words(t).find((x) => x.segment.trim()); openPronEditor({ text: t, start: w?.index ?? 0, end: (w?.index ?? 0) + (w?.segment.length ?? 1) }) }} aria-label="แก้คำอ่าน"><span>🔤</span>คำอ่าน</button>
             <button type="button" onClick={() => (sel.length === 1 ? listenOn() : listenSelected())} aria-label={sel.length === 1 ? 'ฟังตั้งแต่ข้อนี้เป็นต้นไป' : 'ฟังข้อที่เลือก'}><span>🔊</span>{sel.length === 1 ? 'ฟังต่อ' : 'ฟัง'}</button>
           </div>
         </div>
