@@ -1,6 +1,4 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
-import { parseRef } from '../data/bible'
-import { topicRefs } from '../data/bibleTopics'
 import { loadPeople, peopleForText } from '../data/people'
 import { Link, useSearchParams } from 'react-router-dom'
 import { search } from '../data/contentRepo'
@@ -10,7 +8,7 @@ import { loadNotebook, scoreNote } from '../lib/prayerNotebook'
 import type { SearchResult, SourceType } from '../data/types'
 import { IconSearch } from '../components/Icons'
 import { RelatedPeople } from './People'
-import ScriptureResults from '../components/ScriptureResults'
+import ScriptureResults, { scriptureCount, useScriptureSearch } from '../components/ScriptureResults'
 
 // Source Badge ตาม Blueprint ข้อ 16 — ผู้ใช้ต้องรู้เสมอว่าผลลัพธ์มาจากแหล่งใด
 const BADGE: Record<SourceType, string> = {
@@ -44,7 +42,8 @@ export default function Search() {
   const [q, setQ] = useState(initial)
   const [results, setResults] = useState<SearchResult[]>([])
   const [peopleCount, setPeopleCount] = useState<number | null>(null)
-  const verseCount = initial ? (parseRef(initial) ? 1 : 0) + topicRefs(initial, 12).length : 0
+  const scripture = useScriptureSearch(initial)
+  const verseCount = scriptureCount(scripture)
   useEffect(() => {
     setPeopleCount(null)
     loadPeople().then((doc) => setPeopleCount(peopleForText(doc, initial, 6).length)).catch(() => setPeopleCount(0))
@@ -138,8 +137,8 @@ export default function Search() {
           <SearchAcc icon="👥" title="บุคคลในพระคัมภีร์ที่เกี่ยวข้อง" count={peopleCount} unit="คน">
             <RelatedPeople text={initial} bare />
           </SearchAcc>
-          <SearchAcc icon="📖" title="ข้อพระคัมภีร์ที่เกี่ยวข้อง" count={verseCount} unit="ตอน" id="acc-scripture">
-            <ScriptureResults text={initial} bare />
+          <SearchAcc icon="📖" title="ข้อพระคัมภีร์ที่เกี่ยวข้อง" count={verseCount} unit="ข้อ" id="acc-scripture">
+            <ScriptureResults text={initial} data={scripture} />
           </SearchAcc>
           <SearchAcc icon="📜" title="ธรรมนูญ ระเบียบ และคู่มือ" count={results.length} unit="รายการ">
             {results.length > 0 ? (

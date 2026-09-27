@@ -46,7 +46,7 @@ function chunks(text: string): string[] {
   return out
 }
 
-type Item = { text: string; section: string; first: boolean }
+type Item = { text: string; section: string; first: boolean; base: number }
 
 /** lang: 'th-TH' (ค่าเริ่มต้น) หรือ 'en-US' สำหรับฉบับภาษาอังกฤษ */
 export function useSpeech(lang = 'th-TH') {
@@ -63,7 +63,7 @@ export function useSpeech(lang = 'th-TH') {
   const [noVoice, setNoVoice] = useState(false)
   const run = useRef(0)
   // คิวที่กำลังอ่าน + ตำแหน่ง (เพื่อหยุดชั่วคราวแล้วอ่านต่อจากจุดเดิม)
-  const q = useRef<{ items: Item[]; pos: number; offset: number; onSection?: (id: string) => void } | null>(null)
+  const q = useRef<{ items: Item[]; pos: number; offset: number; onSection?: (id: string) => void; onWord?: (id: string, at: number) => void } | null>(null)
 
   const watch = useRef<number | undefined>(undefined)
   const [me0] = useState(() => Symbol('speech'))
@@ -124,6 +124,7 @@ export function useSpeech(lang = 'th-TH') {
       const it = c.items[c.pos]
       if (it.first && c.offset === 0) c.onSection?.(it.section)
       const start = Math.min(c.offset, it.text.length - 1) // อ่านต่อจากคำที่หยุดไว้ในวลีนี้
+      c.onWord?.(it.section, it.base + Math.max(0, start))
       const u = new SpeechSynthesisUtterance(it.text.slice(Math.max(0, start)))
       const me = { done: false, startedAt: Date.now() }
       active = me
@@ -136,6 +137,7 @@ export function useSpeech(lang = 'th-TH') {
       u.onboundary = (e) => {
         if (id !== run.current || me.done) return
         c.offset = Math.max(0, start) + (e.charIndex ?? 0)
+        c.onWord?.(it.section, it.base + c.offset) // ไฮไลต์คำที่กำลังอ่าน
       }
       u.lang = lang
       if (voice) u.voice = voice
@@ -173,12 +175,20 @@ export function useSpeech(lang = 'th-TH') {
 
   /** อ่านหลายส่วนต่อเนื่อง (เช่น พระคำ → เรื่องราว → คำอธิษฐาน) · onSection แจ้งเมื่อเริ่มส่วนใหม่ */
   const speakSections = useCallback(
-    (sections: { id: string; text: string }[], onSection?: (id: string) => void) => {
+    (sections: { id: string; text: string }[], onSection?: (id: string) => void, onWord?: (id: string, at: number) => void) => {
       if (!canSpeak()) return setNoVoice(true)
       stop()
-      const items = sections.flatMap((sec) => chunks(sec.text).map((text, k) => ({ text, section: sec.id, first: k === 0 })))
+      const items = sections.flatMap((sec) => {
+        let cur = 0
+        return chunks(sec.text).map((text, k) => {
+          const at = sec.text.indexOf(text, cur)
+          const base = at >= 0 ? at : cur
+          cur = base + text.length
+          return { text, section: sec.id, first: k === 0, base }
+        })
+      })
       if (!items.length) return
-      q.current = { items, pos: 0, offset: 0, onSection }
+      q.current = { items, pos: 0, offset: 0, onSection, onWord }
       play()
     },
     [play, stop],

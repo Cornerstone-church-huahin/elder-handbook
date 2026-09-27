@@ -28,8 +28,13 @@ const device = async (name) => {
     window.SpeechSynthesisUtterance = function (t) { this.text = t }
     let cur = null
     const synth = { speaking: false, pending: false, getVoices: () => voices,
-      speak: (u) => { window.__said.push({ text: u.text, lang: u.lang }); synth.speaking = true; const me = setTimeout(() => { synth.speaking = false; u.onend && u.onend() }, 30); cur = { me, u } },
-      cancel: () => { if (cur) { clearTimeout(cur.me); cur = null } synth.speaking = false } }
+      speak: (u) => {
+        window.__said.push({ text: u.text, lang: u.lang }); synth.speaking = true
+        const step = window.__slow ? 150 : 3; const ws = [...u.text.matchAll(/\S+/g)]; const ts = []
+        ws.forEach((m, i) => ts.push(setTimeout(() => u.onboundary && u.onboundary({ charIndex: m.index }), i * step)))
+        const me = setTimeout(() => { synth.speaking = false; u.onend && u.onend() }, ws.length * step + 30); cur = { me, u, ts }
+      },
+      cancel: () => { if (cur) { clearTimeout(cur.me); cur.ts.forEach(clearTimeout); cur = null } synth.speaking = false } }
     Object.defineProperty(window, 'speechSynthesis', { value: synth })
   })
   const p = await ctx.newPage(); p.errs = []; p.on('pageerror', (e) => p.errs.push(e.message))
@@ -65,6 +70,14 @@ await A.evaluate(() => (window.__said = []))
 await A.click('[aria-label="Read aloud"]'); await A.waitForTimeout(800)
 let said = await A.evaluate(() => window.__said)
 check(said.length > 0 && said.every((x) => x.lang === 'en-US') && said.map((x) => x.text).join(' ').includes('For God so loved'), 'reads aloud in English voice')
+// ไฮไลต์วิ่งตามคำที่อ่าน
+await A.evaluate(() => { window.__slow = true }); await A.click('[aria-label="Replay"]'); await A.waitForTimeout(1500)
+const w1 = await A.locator('.en-sheet mark.en-word').textContent().catch(() => '')
+await A.waitForTimeout(600)
+const w2 = await A.locator('.en-sheet mark.en-word').textContent().catch(() => '')
+check(!!w1 && !!w2 && w1 !== w2, `highlight follows the words being read ("${w1}" → "${w2}")`)
+check(await A.locator('.en-sheet .bv--now').count() === 1, 'current verse marked')
+await A.click('[aria-label="Pause"]'); await A.evaluate(() => { window.__slow = false })
 await A.click('[aria-label="Loop"]'); await A.evaluate(() => (window.__said = []))
 await A.click('[aria-label="Replay"]'); await A.waitForTimeout(2500)
 said = await A.evaluate(() => window.__said.map((x) => x.text).join(' | '))

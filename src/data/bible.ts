@@ -168,11 +168,54 @@ export const BIBLE_BOOKS: BibleBook[] = BOOKS.map(([names, code], i) => ({ no: i
 export const chapterUrl = (book: number, ch: number, v?: [number, number]) =>
   `https://www.bible.com/th/bible/275/${BOOKS[book - 1][1]}.${ch}${v ? `.${v[0]}${v[1] !== v[0] ? '-' + v[1] : ''}` : ''}.TH1971`
 
-export interface BibleHit { book: number; chapter: number; verse: number; text: string }
-/** ค้นคำในพระคัมภีร์ทั้งเล่ม (ฉบับ 1971) — โหลดทีละหลายเล่ม · onProgress(เล่มที่โหลดแล้ว, 66) */
+export interface BibleHit { book: number; chapter: number; verse: number; text: string; score: number }
+
+// คำเชื่อมที่ไม่ต้องใช้ในการค้น (พิมพ์ "พ่อตาโมเสส" ก็เจอ "พ่อตาของโมเสส")
+const STOP = new Set(['ของ', 'ที่', 'และ', 'ใน', 'กับ', 'เป็น', 'ได้', 'ให้', 'แก่', 'แห่ง', 'ซึ่ง', 'จะ', 'ก็', 'ไป', 'มา', 'คือ', 'เรื่อง', 'เกี่ยวกับ', 'ข้อ', 'บท', 'พระคัมภีร์', 'ว่า', 'the', 'of', 'and'])
+
+const PREFIX = new Set(['ผู้', 'การ', 'ความ', 'นัก', 'ชาว', 'หญิง', 'ชาย', 'ช่าง', 'พระ'])
+
+/** แยกคำค้นภาษาไทยเป็นคำสำคัญ (ใช้ตัวตัดคำของเครื่อง) เช่น "พ่อตาโมเสส" → ["พ่อตา", "โมเสส"] */
+export function keyWords(term: string): string[] {
+  const t = term.trim()
+  if (!t) return []
+  let parts: string[] = t.split(/\s+/)
+  try {
+    const Seg = (Intl as unknown as { Segmenter?: new (l: string, o: { granularity: string }) => { segment: (s: string) => Iterable<{ segment: string; isWordLike?: boolean }> } }).Segmenter
+    if (Seg) parts = [...new Seg('th', { granularity: 'word' }).segment(t)].filter((x) => x.isWordLike !== false).map((x) => x.segment.trim())
+  } catch {
+    /* เครื่องเก่า: ใช้การเว้นวรรค */
+  }
+  // คำนำหน้า เช่น ผู้/การ/ความ รวมกับคำถัดไป ("ผู้" + "ปกครอง" → "ผู้ปกครอง")
+  const joined: string[] = []
+  for (let i = 0; i < parts.length; i++) {
+    const w = parts[i]
+    if (PREFIX.has(w) && i + 1 < parts.length) {
+      parts[i + 1] = w + parts[i + 1]
+      continue
+    }
+    joined.push(w)
+  }
+  const out = joined.filter((w) => w && !STOP.has(w))
+  // รวมคำที่ถูกตัดสั้นเกินไป (1 ตัวอักษร) เข้ากับคำก่อนหน้า
+  const merged: string[] = []
+  for (const w of out) {
+    if (w.length <= 1 && merged.length) merged[merged.length - 1] += w
+    else merged.push(w)
+  }
+  return [...new Set(merged)]
+}
+
+/**
+ * ค้นในพระคัมภีร์ทั้งเล่ม (ฉบับ 1971) แบบ "คำตรงกัน":
+ * ตรงทั้งวลี > มีครบทุกคำสำคัญ (ไม่ต้องติดกัน) > ขาดไปหนึ่งคำ (เมื่อพิมพ์ตั้งแต่ 3 คำ)
+ * onProgress(เล่มที่ค้นแล้ว, 66)
+ */
 export async function searchBible(term: string, onProgress?: (done: number, total: number) => void): Promise<BibleHit[]> {
   const t = term.trim()
   if (!t) return []
+  const words = keyWords(t)
+  const need = words.length >= 3 ? words.length - 1 : words.length
   const hits: BibleHit[][] = Array.from({ length: 66 }, () => [])
   let done = 0
   let next = 1
@@ -180,12 +223,28 @@ export async function searchBible(term: string, onProgress?: (done: number, tota
     while (next <= 66) {
       const b = next++
       const c = await loadBook(b)
-      c?.forEach((vs, ci) => vs.forEach((text, vi) => { if (text.includes(t)) hits[b - 1].push({ book: b, chapter: ci + 1, verse: vi + 1, text }) }))
+      c?.forEach((vs, ci) =>
+        vs.forEach((text, vi) => {
+          let score = 0
+          if (text.includes(t)) score = 100
+          else if (words.length) {
+            const n = words.filter((w) => text.includes(w)).length
+            const pos = words.map((w) => text.indexOf(w)).filter((x) => x >= 0)
+            const span = pos.length ? Math.max(...pos) - Math.min(...pos) : 0
+            // ต้องมีคำครบ (หรือขาดหนึ่งคำเมื่อพิมพ์หลายคำ) และคำอยู่ไม่ห่างกันเกินไป
+            if (n >= need && n > 0 && span <= 60) {
+              score = 10 * n + Math.max(0, 30 - span / 2)
+              if (n === words.length) score += 20
+            }
+          }
+          if (score) hits[b - 1].push({ book: b, chapter: ci + 1, verse: vi + 1, text, score })
+        }),
+      )
       onProgress?.(++done, 66)
     }
   }
   await Promise.all(Array.from({ length: 6 }, worker))
-  return hits.flat()
+  return hits.flat().sort((x, y) => y.score - x.score || x.book - y.book || x.chapter - y.chapter || x.verse - y.verse)
 }
 
 // ---------- ภาษาอังกฤษ: World English Bible (WEB, สาธารณสมบัติ) — ฉบับแปลที่พิมพ์แล้ว ไม่ใช้ AI แปล ----------

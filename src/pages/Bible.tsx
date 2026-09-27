@@ -367,8 +367,24 @@ function EnglishSheet({ book, ch, verses, onClose, onOpen }: { book: number; ch:
   }, [book]) // eslint-disable-line react-hooks/exhaustive-deps
   const lines = verses.map((v) => ({ v, t: c?.[ch - 1]?.[v - 1] ?? '' }))
   const label = `${EN_BOOKS[book - 1]} ${ch}:${rangeLabel(verses)}`
-  const text = lines.filter((x) => x.t).map((x) => x.t).join(' ')
-  const play = () => tts.speakSections([{ id: 'en', text: `${label}. ${text}` }])
+  // อ่านทีละข้อ + ไฮไลต์วิ่งตามคำที่กำลังอ่าน
+  const [at, setAt] = useState<{ v: number; i: number } | null>(null)
+  const play = () =>
+    tts.speakSections(
+      [{ id: '0', text: label }, ...lines.filter((x) => x.t).map((x) => ({ id: String(x.v), text: x.t }))],
+      (id) => setAt({ v: Number(id), i: 0 }),
+      (id, i) => setAt({ v: Number(id), i }),
+    )
+  const active = (tts.speaking || tts.paused) && at
+  useEffect(() => {
+    if (active && at.v) document.getElementById(`en${at.v}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [active, at?.v]) // eslint-disable-line react-hooks/exhaustive-deps
+  const renderLine = (v: number, t: string) => {
+    if (!active || at.v !== v) return t
+    const end = t.slice(at.i).search(/\s/)
+    const e = end < 0 ? t.length : at.i + end
+    return (<>{t.slice(0, at.i)}<mark className="en-word">{t.slice(at.i, e)}</mark>{t.slice(e)}</>)
+  }
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(`${label} (WEB)\n${lines.map((x) => `${x.v} ${x.t}`).join('\n')}`)
@@ -382,12 +398,12 @@ function EnglishSheet({ book, ch, verses, onClose, onOpen }: { book: number; ch:
     <div className="sheet-backdrop" onClick={() => { tts.stop(); onClose() }}>
       <div className="sheet sheet--short en-sheet" role="dialog" aria-modal="true" aria-label="ภาษาอังกฤษ" onClick={(e) => e.stopPropagation()}>
         <div className="sheet__head">
-          <div className="sheet__title"><strong>🌐 {label}</strong><span>World English Bible (ฉบับภาษาอังกฤษ สาธารณสมบัติ)</span></div>
+          <div className="sheet__title"><strong className={active && at.v === 0 ? 'en-label--now' : ''}>🌐 {label}</strong><span>World English Bible (ฉบับภาษาอังกฤษ สาธารณสมบัติ)</span></div>
           <button type="button" className="sheet__close" onClick={() => { tts.stop(); onClose() }}>ปิด</button>
         </div>
         <div className="en-sheet__text" lang="en">
           {c === undefined ? <p className="empty">Loading…</p> : !c ? <p className="empty">เปิดฉบับภาษาอังกฤษไม่ได้ตอนนี้ (อาจออฟไลน์)</p> : lines.map((x) => (
-            <p key={x.v} className="bv"><sup>{x.v}</sup>{x.t || '—'}</p>
+            <p key={x.v} id={`en${x.v}`} className={`bv${active && at.v === x.v ? ' bv--now' : ''}`}><sup>{x.v}</sup>{x.t ? renderLine(x.v, x.t) : '—'}</p>
           ))}
         </div>
         {c && tts.supported && (

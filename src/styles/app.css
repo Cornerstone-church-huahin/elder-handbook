@@ -1173,3 +1173,6 @@ html[data-scale='150'] body.reading .nb-card--open .nb-card__body { height: calc
 .en-sheet__controls { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; }
 .en-sheet__controls .btn { min-height: 44px; }
 .btn--navy { background: var(--navy); color: #fff; border-color: var(--navy); }
+.sr-sub { margin: .3rem 0 .35rem; font-size: .85rem; font-weight: 700; color: var(--accent-ink); }
+.en-word { background: var(--gold); color: var(--navy); border-radius: 3px; padding: 0 .1em; }
+.en-label--now { text-decoration: underline; text-decoration-color: var(--gold); text-decoration-thickness: 3px; }

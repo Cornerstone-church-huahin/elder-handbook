@@ -1,3 +1,4 @@
+import { keyWords } from './bible'
 /**
  * บุคคลสำคัญในพระคัมภีร์ 100 คน (public/data/bible-people.json สร้างด้วย scripts/build_people.py)
  * เรียงตามลำดับเวลา จากปฐมกาลถึงคริสตจักรยุคแรก
@@ -88,11 +89,14 @@ const PREFERRED: [RegExp, string[]][] = [
 ]
 export function peopleForText(doc: PeopleDoc, text: string, limit = 6): Person[] {
   const n = norm(text)
+  // คำบรรยายตรงกัน เช่น "พ่อตาโมเสส" → เยโธร (พ่อตาของโมเสส)
+  const words = keyWords(text)
+  const byRole = words.length >= 2 ? doc.people.filter((x) => words.every((w) => norm(`${x.th} ${x.role} ${x.lesson}`).includes(norm(w)))) : []
   const pref = PREFERRED.filter(([re]) => re.test(text)).flatMap(([, ids]) => ids.map((id) => doc.people.find((x) => x.id === id)).filter((x): x is Person => !!x))
   const byName = n.length >= 2 ? doc.people.filter((x) => n.includes(norm(x.th)) || norm(x.th).includes(n)) : []
   const byTheme = peopleForThemes(doc, themesInText(doc, text), limit)
   const seen = new Set<string>()
-  return [...byName, ...pref, ...byTheme].filter((x) => !seen.has(x.id) && seen.add(x.id)).slice(0, limit)
+  return [...byRole, ...byName, ...pref, ...byTheme].filter((x) => !seen.has(x.id) && seen.add(x.id)).slice(0, limit)
 }
 
 /** หาบุคคลจากชื่อที่ AI เขียนมา (เช่น "เฮเซคียาห์") เพื่อทำลิงก์ */
