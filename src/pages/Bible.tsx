@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { EN_BOOKS, loadBookEn } from '../data/bible'
 import { HL_COLORS, useHighlights } from '../lib/highlights'
+import { Spoken, useFollow } from '../components/Spoken'
 import { createPortal } from 'react-dom'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { BIBLE_BOOKS, chapterUrl, loadBook, parseRef } from '../data/bible'
@@ -169,6 +170,7 @@ export function BibleChapterPage() {
   }, [hl.mine, bookNo, ch])
   useEffect(() => { if (!sel.length) setPalette(false) }, [sel.length])
   const tts = useSpeech()
+  const fw = useFollow(tts.speaking || tts.paused)
   const slot = useTopSlot()
   const autoNav = useRef(false)
   const chRef = useRef(ch)
@@ -224,14 +226,14 @@ export function BibleChapterPage() {
     const head = from > 1 ? `${b.name} บทที่ ${c} ข้อ ${from}` : `${b.name} บทที่ ${c}`
     return [{ id: `${c}:0`, text: head }, ...vs.map((t, i) => ({ id: `${c}:${i + 1}`, text: t })).filter((x, i) => x.text && i + 1 >= from)]
   }
-  const listenChapter = () => tts.speakSections(chapterSections(ch, start), onSection)
+  const listenChapter = () => tts.speakSections(chapterSections(ch, start), onSection, fw.onWord)
   const listenOn = () => {
     const secs = [...chapterSections(ch, start)]
     for (let c = ch + 1; c <= b.chapters; c++) secs.push(...chapterSections(c))
-    tts.speakSections(secs, onSection)
+    tts.speakSections(secs, onSection, fw.onWord)
   }
   const listenSelected = () =>
-    tts.speakSections([...sel].sort((x, y) => x - y).map((v) => ({ id: `${ch}:${v}`, text: verses[v - 1] })), onSection)
+    tts.speakSections([...sel].sort((x, y) => x - y).map((v) => ({ id: `${ch}:${v}`, text: verses[v - 1] })), onSection, fw.onWord)
 
   // ?play=all จากปุ่ม "ฟังทั้งเล่ม"
   const autoplay = sp.get('play') === 'all'
@@ -296,7 +298,7 @@ export function BibleChapterPage() {
             const on = reading?.c === ch && reading.v === v && busy
             return (
               <p key={v} id={`v${v}`} className={`bv${sel.includes(v) ? ' bv--sel' : ''}${on ? ' bv--now' : ''}${hlMap[v] ? ` hl--${hlMap[v]}` : ''}`} onClick={() => toggle(v)}>
-                <sup>{v}</sup>{t}
+                <sup>{v}</sup><Spoken text={t} id={`${ch}:${v}`} follow={fw.follow} />
               </p>
             )
           })}
@@ -369,22 +371,18 @@ function EnglishSheet({ book, ch, verses, onClose, onOpen }: { book: number; ch:
   const label = `${EN_BOOKS[book - 1]} ${ch}:${rangeLabel(verses)}`
   // อ่านทีละข้อ + ไฮไลต์วิ่งตามคำที่กำลังอ่าน
   const [at, setAt] = useState<{ v: number; i: number } | null>(null)
+  const [end, setEnd] = useState(0)
   const play = () =>
     tts.speakSections(
       [{ id: '0', text: label }, ...lines.filter((x) => x.t).map((x) => ({ id: String(x.v), text: x.t }))],
       (id) => setAt({ v: Number(id), i: 0 }),
-      (id, i) => setAt({ v: Number(id), i }),
+      (id, i, e) => { setAt({ v: Number(id), i }); setEnd(e) },
     )
   const active = (tts.speaking || tts.paused) && at
   useEffect(() => {
     if (active && at.v) document.getElementById(`en${at.v}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   }, [active, at?.v]) // eslint-disable-line react-hooks/exhaustive-deps
-  const renderLine = (v: number, t: string) => {
-    if (!active || at.v !== v) return t
-    const end = t.slice(at.i).search(/\s/)
-    const e = end < 0 ? t.length : at.i + end
-    return (<>{t.slice(0, at.i)}<mark className="en-word">{t.slice(at.i, e)}</mark>{t.slice(e)}</>)
-  }
+  const renderLine = (v: number, t: string) => <Spoken text={t} id={String(v)} follow={active ? { id: String(at.v), at: at.i, end } : null} word />
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(`${label} (WEB)\n${lines.map((x) => `${x.v} ${x.t}`).join('\n')}`)

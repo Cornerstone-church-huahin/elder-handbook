@@ -6,7 +6,8 @@ import { AiError, getAiProvider } from '../lib/ai'
 import { comparePeople, teachPerson, TEACH_MODES, type AiSection, type Comparison, type TeachMode } from '../lib/peopleAi'
 import PeoplePicker from '../components/PeoplePicker'
 import { getPassage, parseRef, refUrl, type Passage } from '../data/bible'
-import { speakableRef, useSpeech } from '../lib/speech'
+import { speakableRef, useSpeech, type SpeechSection } from '../lib/speech'
+import { Spoken, useFollow, type Follow } from '../components/Spoken'
 import { loadPeopleContent, sectionsToText, textToSections, usePeopleEdits, type PersonContent } from '../data/peopleContent'
 import { IconSearch } from '../components/Icons'
 import { suggestPeople, useCustomThemes, type CustomTheme } from '../lib/customThemes'
@@ -311,15 +312,16 @@ const SITUATION_LABEL: Record<string, string> = {
   'new-beginning': 'เริ่มต้นใหม่',
 }
 
-function Sections({ sections, badge = '🤖 ร่างโดย AI · ตรวจกับพระคัมภีร์ก่อนใช้' }: { sections: AiSection[]; badge?: string }) {
+function Sections({ sections, badge = '🤖 ร่างโดย AI · ตรวจกับพระคัมภีร์ก่อนใช้', follow = null, prefix = '' }: { sections: AiSection[]; badge?: string; follow?: Follow; prefix?: string }) {
+  const S = (t: string, id: string) => (follow ? <Spoken text={t} id={`${prefix}|${id}`} follow={follow} /> : t)
   return (
     <div className="ai-explain">
       {badge && <header><span className="badge">{badge}</span></header>}
       {sections.map((s, i) => (
         <div key={i} className="ai-sec">
-          {s.heading && <h3>{s.heading}</h3>}
-          {s.text && <p>{s.text}</p>}
-          {s.items.length > 0 && <ul>{s.items.map((it, k) => <li key={k}>{it}</li>)}</ul>}
+          {s.heading && <h3>{S(s.heading, `${i}|h`)}</h3>}
+          {s.text && <p>{S(s.text, `${i}|t`)}</p>}
+          {s.items.length > 0 && <ul>{s.items.map((it, k) => <li key={k}>{S(it, `${i}|${k}`)}</li>)}</ul>}
         </div>
       ))}
     </div>
@@ -332,6 +334,7 @@ function RefReader({ text }: { text: string }) {
   const [open, setOpen] = useState(false)
   const [ps, setPs] = useState<Passage | null | undefined>(undefined)
   const sp = useSpeech()
+  const rfw = useFollow(sp.speaking || sp.paused)
   const head = parseRef(text)
   useEffect(() => {
     if (open && ps === undefined) getPassage(text).then(setPs)
@@ -342,7 +345,7 @@ function RefReader({ text }: { text: string }) {
     if (sp.speaking) return sp.pause()
     if (sp.paused) return sp.resume()
     if (!ps) return
-    sp.speak([speakableRef(ps.label), ...ps.blocks.flatMap((b) => b.verses.map((v) => v.text))].join('\n'))
+    sp.speakSections([{ id: 'label', text: ps.label, say: speakableRef }, ...ps.blocks.flatMap((b) => b.verses.map((v) => ({ id: `${b.chapter}:${v.n}`, text: v.text })))], undefined, rfw.onWord)
   }
   return (
     <div className={`ref-read${open ? ' is-open' : ''}`}>
@@ -367,7 +370,7 @@ function RefReader({ text }: { text: string }) {
                 {ps.blocks.map((b) => (
                   <div key={b.chapter} className="ref-read__chapter">
                     {ps.blocks.length > 1 && <h4>บทที่ {b.chapter}</h4>}
-                    <p>{b.verses.map((v) => <span key={v.n}><sup>{v.n}</sup>{v.text} </span>)}</p>
+                    <p>{b.verses.map((v) => <span key={v.n}><sup>{v.n}</sup><Spoken text={v.text} id={`${b.chapter}:${v.n}`} follow={rfw.follow} /> </span>)}</p>
                   </div>
                 ))}
                 <p className="source-note">พระคริสตธรรมคัมภีร์ ฉบับ 1971 · {link && <a href={link} target="_blank" rel="noreferrer">เปิดในแอปพระคัมภีร์ ↗</a>}</p>
@@ -417,20 +420,32 @@ function TeachPanel({ p }: { p: Person }) {
     if (autoMode.current) return void (autoMode.current = false) // เปลี่ยนแท็บเพราะฟังต่อเนื่อง → อ่านต่อ
     stop()
   }, [mode, stop])
-  const speakText = (m: TeachMode) =>
-    sectionsOf(m)
-      .map((x) => [x.heading, x.text, ...x.items].filter(Boolean).map((t) => speakableRef(t)).join('\n'))
-      .join('\n')
+  const fw = useFollow(tts.speaking || tts.paused)
+  // แต่ละหัวข้อ/ย่อหน้า/รายการเป็นส่วนแยก เพื่อให้ไฮไลต์วิ่งตามเสียงตรงตำแหน่ง · อ่านข้ออ้างอิงแบบ "บทที่ … ข้อ …"
+  const partsOf = (m: TeachMode): SpeechSection[] => {
+    const secs = sectionsOf(m)
+    if (!secs.length) return []
+    const out: SpeechSection[] = [{ id: `${m}|title`, text: `${TEACH_MODES.find((x) => x.id === m)!.label}.` }]
+    secs.forEach((x, i) => {
+      if (x.heading) out.push({ id: `${m}|${i}|h`, text: x.heading, say: speakableRef })
+      if (x.text) out.push({ id: `${m}|${i}|t`, text: x.text, say: speakableRef })
+      x.items.forEach((it, k) => out.push({ id: `${m}|${i}|${k}`, text: it, say: speakableRef }))
+    })
+    return out
+  }
+  const speakText = (m: TeachMode) => partsOf(m).length > 1
+  const listenThis = () => tts.speakSections(partsOf(mode), undefined, fw.onWord)
   const listenAll = () => {
     const start = TEACH_MODES.findIndex((m) => m.id === mode)
-    const secs = TEACH_MODES.slice(start).map((m) => ({ id: m.id, text: speakText(m.id) ? `${m.label}.\n${speakText(m.id)}` : '' })).filter((x) => x.text)
+    const secs = TEACH_MODES.slice(start).flatMap((m) => partsOf(m.id))
     tts.speakSections(secs, (id) => {
-      if (id !== modeRef.current) {
+      const m = id.split('|')[0] as TeachMode
+      if (m !== modeRef.current) {
         autoMode.current = true
-        modeRef.current = id as TeachMode
-        setMode(id as TeachMode)
+        modeRef.current = m
+        setMode(m)
       }
-    })
+    }, fw.onWord)
   }
 
   const startEdit = (from = sections) => {
@@ -482,7 +497,7 @@ function TeachPanel({ p }: { p: Person }) {
       ) : base === null ? (
         <p className="empty">กำลังเปิดเนื้อหา…</p>
       ) : sections.length ? (
-        <Sections sections={sections} badge={edit ? `✏️ แก้ไขโดย ${edit.by ?? 'ผู้ปกครอง'}` : ''} />
+        <Sections sections={sections} badge={edit ? `✏️ แก้ไขโดย ${edit.by ?? 'ผู้ปกครอง'}` : ''} follow={fw.follow} prefix={mode} />
       ) : (
         <p className="empty">ยังไม่มีเนื้อหา{label} · กด ✏️ เพื่อเขียนเอง</p>
       )}
@@ -524,7 +539,7 @@ function TeachPanel({ p }: { p: Person }) {
             </>
           ) : (
             <>
-              <button type="button" className="nb-fab__btn" disabled={!speakText(mode)} onClick={() => tts.speak(`${label}.\n${speakText(mode)}`)} aria-label="ฟังแท็บนี้">🔊 หน้านี้</button>
+              <button type="button" className="nb-fab__btn" disabled={!speakText(mode)} onClick={listenThis} aria-label="ฟังแท็บนี้">🔊 หน้านี้</button>
               <button type="button" className="nb-fab__btn" onClick={listenAll} aria-label="ฟังต่อเนื่องทุกแท็บ">▶ ต่อเนื่อง</button>
             </>
           )}

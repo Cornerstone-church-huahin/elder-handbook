@@ -1176,3 +1176,7 @@ html[data-scale='150'] body.reading .nb-card--open .nb-card__body { height: calc
 .sr-sub { margin: .3rem 0 .35rem; font-size: .85rem; font-weight: 700; color: var(--accent-ink); }
 .en-word { background: var(--gold); color: var(--navy); border-radius: 3px; padding: 0 .1em; }
 .en-label--now { text-decoration: underline; text-decoration-color: var(--gold); text-decoration-thickness: 3px; }
+
+/* ไฮไลต์วิ่งตามเสียงอ่าน (ทุกหน้า) */
+.spoken-now { background: var(--gold); color: var(--navy); border-radius: 4px; padding: 0 .12em; box-decoration-break: clone; -webkit-box-decoration-break: clone; transition: background .15s; }
+.spoken-done { opacity: .6; }

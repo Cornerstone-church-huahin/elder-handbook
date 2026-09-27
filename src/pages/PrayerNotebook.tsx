@@ -2,9 +2,10 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useSearchParams } from 'react-router-dom'
 import { parseRef, refUrl } from '../data/bible'
+import { Spoken, useFollow } from '../components/Spoken'
 import { scoreNote, usePrayerNotebook, type NotePrayer } from '../lib/prayerNotebook'
 import type { SyncStatus } from '../lib/sync'
-import { speakableRef, useSpeech } from '../lib/speech'
+import { speakableRef, useSpeech, type SpeechSection } from '../lib/speech'
 import { PrayerMode, useVerseTexts } from './Prayer'
 
 type Draft = { title: string; category: string; ref1: string; ref2: string; story: string; text: string; notes: string }
@@ -233,34 +234,37 @@ function NoteCard({
     if (autoTab.current) return void (autoTab.current = false) // แท็บเปลี่ยนเพราะการฟังต่อเนื่อง → อ่านต่อ
     stop()
   }, [tab, open, stop]) // ผู้ใช้เปลี่ยนแท็บหรือพับการ์ด → หยุดอ่าน
-  const versesText = () =>
-    refs
-        .map((r) => {
-          const v = verses[r]
-          const label = speakableRef(v?.ref?.label ?? r)
-          return `${label}. ${v?.verses.map((x) => x.text).join(' ') ?? ''}`
-        })
-        .join('\n')
-  const listenText = (): string => {
-    if (tab === 'verses') return versesText()
-    if (tab === 'story') return p.story
-    if (tab === 'prayer') return p.text
-    return notes
+  const fw = useFollow(tts.speaking || tts.paused)
+  // แยกเป็นส่วนย่อย (ชื่อข้อ/ข้อความพระคำ/ย่อหน้า) เพื่อให้ไฮไลต์วิ่งตามเสียงตรงตำแหน่งที่แสดงบนจอ
+  const versesText = (): SpeechSection[] =>
+    refs.flatMap((r) => {
+      const v = verses[r]
+      const label = v?.ref?.label ?? r
+      const body = v?.verses.map((x) => x.text).join(' ') ?? ''
+      return [{ id: `verses|${r}|label`, text: label, say: speakableRef }, ...(body ? [{ id: `verses|${r}`, text: body }] : [])]
+    })
+  const parasOf = (t: 'story' | 'prayer', text: string): SpeechSection[] => paras(text).map((x, i) => ({ id: `${t}|${i}`, text: x }))
+  const listenSecs = (t: Tab): SpeechSection[] => {
+    if (t === 'verses') return versesText()
+    if (t === 'story') return parasOf('story', p.story)
+    if (t === 'prayer') return parasOf('prayer', p.text)
+    return notes.trim() ? [{ id: 'notes|0', text: notes }] : []
   }
   const listenAll = () => {
-    const secs = [
-      { id: 'verses', text: refs.length ? `พระคำ. ${versesText()}` : '' },
-      { id: 'story', text: p.story ? `เรื่องราว. ${p.story}` : '' },
-      { id: 'prayer', text: p.text ? `คำอธิษฐาน. ${p.text}` : '' },
-    ].filter((x) => x.text)
+    const secs: SpeechSection[] = [
+      ...(refs.length ? [{ id: 'verses|head', text: 'พระคำ.' }, ...versesText()] : []),
+      ...(p.story ? [{ id: 'story|head', text: 'เรื่องราว.' }, ...parasOf('story', p.story)] : []),
+      ...(p.text ? [{ id: 'prayer|head', text: 'คำอธิษฐาน.' }, ...parasOf('prayer', p.text)] : []),
+    ]
     tts.speakSections(secs, (id) => {
+      const t = id.split('|')[0] as Tab
       // เทียบกับแท็บที่แสดงอยู่ "ตอนนี้" (ไม่ใช่ตอนกดปุ่ม) — เดิมถ้าเริ่มจากแท็บอธิษฐาน เสียงจะหยุดก่อนถึงคำอธิษฐาน
-      if (id !== tabRef.current) {
+      if (t !== tabRef.current) {
         autoTab.current = true
-        tabRef.current = id as Tab
-        setTab(id as Tab)
+        tabRef.current = t
+        setTab(t)
       }
-    })
+    }, fw.onWord)
   }
   const copy = async () => {
     const vs = refs.map((r) => `📖 ${parseRef(r)?.label ?? r}`).join('\n')
@@ -344,9 +348,9 @@ function NoteCard({
                   const ref = v?.ref ?? parseRef(r)
                   return (
                     <a key={r} className="nb-verse" href={ref ? refUrl(ref) : undefined} target="_blank" rel="noreferrer">
-                      <span className="nb-verse__ref">📖 {ref?.label ?? r} <small>ฉบับ 1971 ↗</small></span>
+                      <span className="nb-verse__ref">📖 <Spoken text={v?.ref?.label ?? r} id={`verses|${r}|label`} follow={fw.follow} /> <small>ฉบับ 1971 ↗</small></span>
                       <span className="nb-verse__text">
-                        {v === undefined ? 'กำลังเปิดพระคัมภีร์…' : v.verses.length ? v.verses.map((x) => x.text).join(' ') : 'แตะเพื่อเปิดอ่านข้อนี้'}
+                        {v === undefined ? 'กำลังเปิดพระคัมภีร์…' : v.verses.length ? <Spoken text={v.verses.map((x) => x.text).join(' ')} id={`verses|${r}`} follow={fw.follow} /> : 'แตะเพื่อเปิดอ่านข้อนี้'}
                       </span>
                     </a>
                   )
@@ -354,8 +358,8 @@ function NoteCard({
               ) : (
                 <p className="nb-none">ยังไม่ได้ใส่ข้อพระคำ · กด ✏️ แก้ไข เพื่อเพิ่มได้ 2 ข้อ</p>
               ))}
-            {tab === 'story' && (p.story ? <div className="nb-prose">{paras(p.story).map((x, i) => <p key={i}>{x}</p>)}</div> : <p className="nb-none">ยังไม่มีเรื่องราว · กด ✏️ แก้ไข เพื่อเขียนเรื่องของบุคคลในพระคัมภีร์ที่เกี่ยวข้อง</p>)}
-            {tab === 'prayer' && <div className="nb-card__text">{paras(p.text).map((x, i) => <p key={i}>{x}</p>)}</div>}
+            {tab === 'story' && (p.story ? <div className="nb-prose">{paras(p.story).map((x, i) => <p key={i}><Spoken text={x} id={`story|${i}`} follow={fw.follow} /></p>)}</div> : <p className="nb-none">ยังไม่มีเรื่องราว · กด ✏️ แก้ไข เพื่อเขียนเรื่องของบุคคลในพระคัมภีร์ที่เกี่ยวข้อง</p>)}
+            {tab === 'prayer' && <div className="nb-card__text">{paras(p.text).map((x, i) => <p key={i}><Spoken text={x} id={`prayer|${i}`} follow={fw.follow} /></p>)}</div>}
             {tab === 'notes' && (
               <div className="nb-notes">
                 <textarea
@@ -384,7 +388,7 @@ function NoteCard({
                 </>
               ) : (
                 <>
-                  <button type="button" className="nb-fab__btn" disabled={!listenText().trim()} onClick={() => tts.speak(listenText())} aria-label="ฟังหน้านี้">🔊 หน้านี้</button>
+                  <button type="button" className="nb-fab__btn" disabled={!listenSecs(tab).length} onClick={() => tts.speakSections(listenSecs(tab), undefined, fw.onWord)} aria-label="ฟังหน้านี้">🔊 หน้านี้</button>
                   <button type="button" className="nb-fab__btn" onClick={listenAll} aria-label="ฟังต่อเนื่อง พระคำ เรื่องราว อธิษฐาน">▶ ต่อเนื่อง</button>
                 </>
               )}
