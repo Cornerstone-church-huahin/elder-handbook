@@ -1046,3 +1046,15 @@ html[data-scale='150'] body.reading .nb-card--open .nb-card__body { height: calc
 .acc__list .art-no { min-width: 1.8rem; font-size: 0.85rem; }
 .acc__list .result__title { font-size: 0.95rem; }
 .acc__list .art-where { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+/* สีแยกพันธสัญญา: เดิม = น้ำตาลแดงอุ่น · ใหม่ = เขียวเข้ม (ไม่ซ้ำกับสีน้ำเงินของแถบบน) */
+.acc--old > .acc__bar--testament { background: #7b3b24; }
+.acc--new > .acc__bar--testament { background: #1f5c4f; }
+.acc--old > .acc__bar--testament small, .acc--new > .acc__bar--testament small { color: #f1e3b8; }
+.acc--old .acc__bar--era { border-left-color: #b0643f; background: #fbf4ee; }
+.acc--new .acc__bar--era { border-left-color: #3f8f7a; background: #eef7f3; }
+.acc--old > .acc__body { border-left: 2px solid #e6cdbd; margin-left: 0.4rem; }
+.acc--new > .acc__body { border-left: 2px solid #c3e0d6; margin-left: 0.4rem; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .acc--old .acc__bar--era { background: #3a2a24; }
+  :root:not([data-theme='light']) .acc--new .acc__bar--era { background: #1f3530; }
+}

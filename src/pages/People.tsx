@@ -135,7 +135,7 @@ export function PeopleHome() {
           const eras = doc.eras.filter((e) => e.testament === t.id && shown.some((x) => x.era === e.id))
           if (!eras.length) return null
           return (
-            <details key={t.id} className="acc acc--testament" open={!!theme}>
+            <details key={t.id} className={`acc acc--testament acc--${t.id}`} open={!!theme}>
               <summary className="acc__bar acc__bar--testament">
                 <span className="acc__title">{t.title}</span>
                 <small>{t.span} · {shown.filter((x) => eras.some((e) => e.id === x.era)).length} คน</small>
