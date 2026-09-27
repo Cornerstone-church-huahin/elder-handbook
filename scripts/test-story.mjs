@@ -45,7 +45,7 @@ check(true, 'after Noah ends → continues to next person (Melchizedek)')
 await p.waitForTimeout(800)
 check(await p.locator('[aria-label="หยุดชั่วคราว"]').count() === 1 && (await p.textContent('.story__title')) === 'เมลคีเซเดค', 'next story is playing automatically')
 const said = await p.evaluate(() => window.__said.map((x) => x.text).join(' | '))
-check(said.includes('ต่อไปคือเรื่องของเมลคีเซเดค') && said.includes('เรื่องเล่าชีวิตของเมลคีเซเดค'), 'announces and starts next story')
+check(said.includes('ต่อไปคือเรื่องของเมนคีเซเดก') && said.includes('เรื่องเล่าชีวิตของเมนคีเซเดก'), 'announces and starts next story')
 // ปิดต่ออัตโนมัติ
 await p.click('[aria-label="หยุดชั่วคราว"]'); await p.click('[aria-label="เริ่มใหม่"]')
 await p.uncheck('.story__auto input'); await p.click('[aria-label="ฟังเรื่องเล่า"]')

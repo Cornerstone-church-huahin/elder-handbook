@@ -4,6 +4,8 @@ import { useElderDuties } from '../lib/elderDuties'
 import { useState } from 'react'
 import { DEFAULT_REPO, getSync, saveSync, testSync } from '../lib/sync'
 import { RATES, useSpeech } from '../lib/speech'
+import { BUILTIN_PRON, getVoicePrefs, PITCHES, PRON_KEY, setVoicePrefs, type Pron } from '../lib/voicePrefs'
+import { useSharedStore } from '../lib/sharedStore'
 import { canInstall, install, isInstalled, isIOS, onInstallChange } from '../lib/install'
 import { useEffect } from 'react'
 import { getAiSettings, isStandaloneSite, saveAiSettings, testAiKey, VENDORS, type AiSettings, type AiVendor } from '../lib/ai'
@@ -40,6 +42,8 @@ export default function Settings() {
 
       <InstallSettings />
       <SpeechSettings />
+      <VoiceSettings />
+      <PronounceSettings />
 
       <Link to="/settings/duties" className="result settings-row">
         <span className="result__icon" aria-hidden="true">📋</span>
@@ -295,5 +299,107 @@ function GestureTip() {
         <li>เลือก “ท่าทางการปัด” — ปุ่มจะเหลือเป็นเส้นบาง ๆ ปัดขึ้นจากขอบล่างเพื่อกลับหน้าหลัก</li>
       </ol>
     </details>
+  )
+}
+
+/** เลือกเสียงอ่าน (จากเสียงที่มือถือมี) + ระดับเสียงทุ้ม/แหลม · เครื่องนี้เท่านั้น */
+function VoiceSettings() {
+  const th = useSpeech()
+  const en = useSpeech('en-US')
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
+  const [prefs, setPrefs] = useState(getVoicePrefs())
+  useEffect(() => {
+    if (!('speechSynthesis' in window)) return
+    const load = () => setVoices(window.speechSynthesis.getVoices())
+    load()
+    window.speechSynthesis.addEventListener?.('voiceschanged', load)
+    return () => window.speechSynthesis.removeEventListener?.('voiceschanged', load)
+  }, [])
+  if (!th.supported) return null
+  const thv = voices.filter((v) => /^th/i.test(v.lang))
+  const env = voices.filter((v) => /^en/i.test(v.lang))
+  const update = (p: Partial<typeof prefs>) => {
+    setVoicePrefs(p)
+    setPrefs(getVoicePrefs())
+    th.stop()
+    en.stop()
+  }
+  const label = (v: SpeechSynthesisVoice) => `${v.name}${v.localService ? '' : ' (ออนไลน์)'}`
+  return (
+    <section className="card voice-settings">
+      <h2 style={{ fontSize: '1.1rem' }}>🗣️ เสียงผู้อ่าน</h2>
+      <label className="voice-row">
+        <span>เสียงภาษาไทย</span>
+        <select id="voice-th" value={prefs.th ?? ''} onChange={(e) => update({ th: e.target.value || undefined })}>
+          <option value="">อัตโนมัติ</option>
+          {thv.map((v) => <option key={v.voiceURI} value={v.voiceURI}>{label(v)}</option>)}
+        </select>
+      </label>
+      <label className="voice-row">
+        <span>เสียงภาษาอังกฤษ</span>
+        <select id="voice-en" value={prefs.en ?? ''} onChange={(e) => update({ en: e.target.value || undefined })}>
+          <option value="">อัตโนมัติ</option>
+          {env.map((v) => <option key={v.voiceURI} value={v.voiceURI}>{label(v)}</option>)}
+        </select>
+      </label>
+      <p className="voice-row__label">ระดับเสียง (ทุ้ม = โทนผู้ชาย · แหลม = โทนผู้หญิง)</p>
+      <div className="font-scale" role="group" aria-label="ระดับเสียง">
+        {PITCHES.map((p) => (
+          <button key={p.v} type="button" aria-pressed={prefs.pitch === p.v} onClick={() => update({ pitch: p.v })}>{p.label}</button>
+        ))}
+      </div>
+      <div className="voice-test">
+        <button type="button" className="btn btn--ghost" onClick={() => th.speak('เอโนคดำเนินชีวิตกับพระเจ้า อิสอัคเป็นบุตรของอับราฮัม ในพระนามพระเยซูคริสต์ อาเมน')}>▶️ ฟังเสียงไทย</button>
+        <button type="button" className="btn btn--ghost" onClick={() => en.speak('The Lord is my shepherd. I shall lack nothing.')}>▶️ ฟังเสียงอังกฤษ</button>
+      </div>
+      <p className="source-note">
+        มือถือแต่ละเครื่องมีเสียงไม่เท่ากัน · เสียงไทยส่วนใหญ่มีเสียงเดียว ปรับระดับเสียงแทนได้ ·
+        เพิ่มเสียง: Android › ตั้งค่า › การจัดการทั่วไป › การอ่านออกเสียง (Text-to-speech) › เลือก Google › ติดตั้งข้อมูลเสียง › ไทย (เลือกเสียงคุณภาพสูง) ·
+        iPhone › ตั้งค่า › การช่วยการเข้าถึง › เนื้อหาที่ถูกพูด › เสียง › ไทย (ดาวน์โหลดเสียง Enhanced)
+      </p>
+    </section>
+  )
+}
+
+/** คำที่เครื่องอ่านผิด → เขียนแบบที่อ่านถูก (ใช้ร่วมกันออนไลน์) */
+function PronounceSettings() {
+  const store = useSharedStore<Pron>({ localKey: PRON_KEY, file: 'pronounce.json', label: 'คำอ่าน' })
+  const tts = useSpeech()
+  const [word, setWord] = useState('')
+  const [say, setSay] = useState('')
+  const [showBuiltin, setShowBuiltin] = useState(false)
+  if (!tts.supported) return null
+  const add = () => {
+    const w = word.trim()
+    const s2 = say.trim()
+    if (!w || !s2) return
+    store.put([{ id: `p:${w}`, word: w, say: s2, updated: 0 }])
+    setWord('')
+    setSay('')
+  }
+  return (
+    <section className="card pron-settings">
+      <h2 style={{ fontSize: '1.1rem' }}>🔤 แก้คำที่เสียงอ่านผิด</h2>
+      <p className="source-note">เช่น เครื่องอ่าน “เอโนค” เป็น “เอ-โน-คอ” ให้ใส่คำอ่านว่า “เอโนก” · ข้อความบนจอไม่เปลี่ยน · ใช้ร่วมกันทุกเครื่อง</p>
+      <div className="pron-add">
+        <input id="pron-word" value={word} onChange={(e) => setWord(e.target.value)} placeholder="คำที่อ่านผิด" aria-label="คำที่อ่านผิด" />
+        <input id="pron-say" value={say} onChange={(e) => setSay(e.target.value)} placeholder="ให้อ่านว่า" aria-label="ให้อ่านว่า" />
+        <button type="button" className="btn btn--ghost" disabled={!say.trim()} onClick={() => tts.speak(say)} aria-label="ทดลองฟังคำอ่าน">▶️</button>
+        <button type="button" className="btn btn--gold" disabled={!word.trim() || !say.trim()} onClick={add}>＋ เพิ่ม</button>
+      </div>
+      {store.items.length > 0 && (
+        <ul className="pron-list">
+          {store.items.map((x) => (
+            <li key={x.id}>
+              <span><b>{x.word}</b> → {x.say}</span>
+              <button type="button" className="mini" onClick={() => tts.speak(x.word)} aria-label={`ฟัง ${x.word}`}>▶️</button>
+              <button type="button" className="mini" onClick={() => store.remove(x.id)} aria-label={`ลบ ${x.word}`}>🗑️</button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <button type="button" className="linkish" onClick={() => setShowBuiltin(!showBuiltin)}>{showBuiltin ? '▴' : '▾'} คำที่แก้ไว้ให้แล้ว ({BUILTIN_PRON.length} คำ)</button>
+      {showBuiltin && <p className="source-note">{BUILTIN_PRON.map(([w, s2]) => `${w} → ${s2}`).join(' · ')}</p>}
+    </section>
   )
 }

@@ -63,10 +63,11 @@ export default function PersonStory() {
     out.push({ id: '__end', text: next && autoNext ? `จบเรื่องของ${p.th} ต่อไปคือเรื่องของ${next.th}` : `จบเรื่องของ${p.th}` })
     return out
   }
-  const play = () => {
+  const play = (from?: { id: string; at: number }) => {
     reachedEnd.current = false
-    tts.speakSections(secs(), (sid) => { if (sid === '__end') reachedEnd.current = true }, fw.onWord)
+    tts.speakSections(secs(), (sid) => { if (sid === '__end') reachedEnd.current = true }, fw.onWord, from)
   }
+  const tapRead = (sid: string, at: number) => play({ id: sid, at }) // แตะตรงไหน อ่านจากตรงนั้น
 
   // เปิดมาจากการเล่าต่อเนื่อง (?play=1) → เริ่มเล่าทันทีเมื่อเนื้อหาพร้อม
   const autoplay = sp.get('play') === '1'
@@ -100,12 +101,13 @@ export default function PersonStory() {
         <input type="checkbox" checked={autoNext} onChange={(e) => setAutoNext(e.target.checked)} />
         เล่าจบแล้วต่อเรื่องของบุคคลถัดไปอัตโนมัติ{next ? ` (${next.th})` : ''}
       </label>
+      <p className="source-note story__hint">แตะที่ตัวหนังสือตรงไหน จะเริ่มอ่านจากตรงนั้น</p>
       {tts.noVoice && <p className="nb-none">มือถือเครื่องนี้ยังไม่มีเสียงภาษาไทย · ติดตั้งเสียงไทยในการตั้งค่าการอ่านออกเสียงของเครื่อง</p>}
 
       {story.sections.map((s, i) => (
         <section key={i} className="story__sec">
-          <h2><Spoken text={s.heading} id={`${i}|h`} follow={fw.follow} /></h2>
-          {paras(s.text).map((t, k) => <p key={k}><Spoken text={t} id={`${i}|${k}`} follow={fw.follow} /></p>)}
+          <h2><Spoken text={s.heading} id={`${i}|h`} follow={fw.follow} onTap={tapRead} /></h2>
+          {paras(s.text).map((t, k) => <p key={k}><Spoken text={t} id={`${i}|${k}`} follow={fw.follow} onTap={tapRead} /></p>)}
         </section>
       ))}
 
@@ -125,7 +127,7 @@ export default function PersonStory() {
               <button type="button" className="nb-fab__btn" onClick={() => { reachedEnd.current = false; tts.stop() }} aria-label="เริ่มใหม่">↺</button>
             </>
           ) : (
-            <button type="button" className="nb-fab__btn" onClick={play} aria-label="ฟังเรื่องเล่า">🔊 ฟังเรื่องเล่า</button>
+            <button type="button" className="nb-fab__btn" onClick={() => play()} aria-label="ฟังเรื่องเล่า">🔊 ฟังเรื่องเล่า</button>
           )}
         </div>,
         slot,

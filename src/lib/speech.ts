@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { applyPron, getVoicePrefs } from './voicePrefs'
 
 /**
  * อ่านออกเสียงภาษาไทยด้วยระบบของมือถือเอง (Web Speech API) — ฟรี ไม่ใช้บริการอื่น
@@ -19,6 +20,9 @@ export const canSpeak = () => typeof window !== 'undefined' && 'speechSynthesis'
 
 function pickVoice(lang: string): SpeechSynthesisVoice | null {
   const vs = window.speechSynthesis.getVoices()
+  const want = getVoicePrefs()[lang.startsWith('th') ? 'th' : 'en'] // เสียงที่เลือกไว้ในหน้าตั้งค่า
+  const chosen = want && vs.find((v) => v.voiceURI === want)
+  if (chosen) return chosen
   const re = new RegExp(`^${lang.slice(0, 2)}(-|_|$)`, 'i')
   const exact = new RegExp(`^${lang.replace('-', '[-_]')}$`, 'i')
   return vs.find((v) => exact.test(v.lang) && /google/i.test(v.name)) ?? vs.find((v) => exact.test(v.lang)) ?? vs.find((v) => re.test(v.lang)) ?? null
@@ -128,7 +132,8 @@ export function useSpeech(lang = 'th-TH') {
       const endAt = it.base + it.text.length
       c.onWord?.(it.section, it.base + Math.max(0, start), endAt) // ไฮไลต์วลีที่กำลังอ่าน
       const rest = it.text.slice(Math.max(0, start))
-      const u = new SpeechSynthesisUtterance(it.say ? it.say(rest) : rest)
+      const said = it.say ? it.say(rest) : rest
+      const u = new SpeechSynthesisUtterance(lang.startsWith('th') ? applyPron(said) : said) // แก้คำที่เครื่องอ่านผิด
       const me = { done: false, startedAt: Date.now() }
       active = me
       const finish = () => {
@@ -145,6 +150,7 @@ export function useSpeech(lang = 'th-TH') {
       u.lang = lang
       if (voice) u.voice = voice
       u.rate = rate
+      u.pitch = getVoicePrefs().pitch
       u.onend = finish
       u.onerror = (e) => {
         if (id !== run.current) return
@@ -178,7 +184,7 @@ export function useSpeech(lang = 'th-TH') {
 
   /** อ่านหลายส่วนต่อเนื่อง (เช่น พระคำ → เรื่องราว → คำอธิษฐาน) · onSection แจ้งเมื่อเริ่มส่วนใหม่ */
   const speakSections = useCallback(
-    (sections: SpeechSection[], onSection?: (id: string) => void, onWord?: (id: string, at: number, end: number) => void) => {
+    (sections: SpeechSection[], onSection?: (id: string) => void, onWord?: (id: string, at: number, end: number) => void, from?: { id: string; at: number }) => {
       if (!canSpeak()) return setNoVoice(true)
       stop()
       const items = sections.flatMap((sec) => {
@@ -191,7 +197,18 @@ export function useSpeech(lang = 'th-TH') {
         })
       })
       if (!items.length) return
-      q.current = { items, pos: 0, offset: 0, onSection, onWord }
+      // เริ่มจากจุดที่แตะ: หาวลีที่มีตำแหน่งนั้น แล้วอ่านต่อจากตรงนั้น
+      let pos = 0
+      let offset = 0
+      if (from) {
+        const k = items.findIndex((x) => x.section === from.id && x.base + x.text.length > from.at)
+        if (k >= 0) {
+          pos = k
+          offset = Math.max(0, from.at - items[k].base)
+          if (offset > 0) onSection?.(items[k].section)
+        }
+      }
+      q.current = { items, pos, offset, onSection, onWord }
       play()
     },
     [play, stop],

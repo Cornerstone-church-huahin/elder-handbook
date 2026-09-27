@@ -1206,3 +1206,18 @@ html[data-scale='150'] body.reading .nb-card--open .nb-card__body { height: calc
 .story__sec h2 { font-size: 1.1rem; margin: 1.1rem 0 .4rem; color: var(--accent-ink); }
 .story__sec p { line-height: 1.9; margin: 0 0 .75rem; font-size: 1.05rem; }
 .story__pager { display: flex; justify-content: space-between; gap: .5rem; margin: 1.2rem 0 .6rem; }
+
+/* เสียงผู้อ่าน */
+.voice-row { display: flex; flex-direction: column; gap: .25rem; margin: .5rem 0; font-weight: 600; font-size: .9rem; }
+.voice-row select { min-height: 44px; border-radius: .6rem; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-weight: 400; padding: 0 .5rem; max-width: 100%; }
+.voice-row__label { margin: .6rem 0 .3rem; font-weight: 600; font-size: .9rem; }
+.voice-test { display: flex; flex-wrap: wrap; gap: .4rem; margin: .6rem 0 .2rem; }
+.voice-test .btn { flex: 1 1 8rem; }
+.pron-add { display: grid; grid-template-columns: 1fr 1fr auto; gap: .35rem; margin: .4rem 0; }
+.pron-add input { min-width: 0; min-height: 44px; border-radius: .6rem; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; padding: 0 .5rem; }
+.pron-add .btn--gold { grid-column: 1 / -1; }
+.pron-list { list-style: none; margin: .4rem 0; padding: 0; display: flex; flex-direction: column; gap: .3rem; }
+.pron-list li { display: flex; align-items: center; gap: .4rem; padding: .35rem .6rem; border-radius: .6rem; background: var(--surface-2); }
+.pron-list li span { flex: 1; min-width: 0; }
+.linkish { background: none; border: 0; color: var(--accent-ink); font: inherit; font-size: .85rem; padding: .3rem 0; cursor: pointer; }
+.spoken--tap { cursor: pointer; -webkit-tap-highlight-color: rgba(212, 167, 44, .25); }

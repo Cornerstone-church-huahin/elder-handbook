@@ -226,14 +226,33 @@ export function BibleChapterPage() {
     const head = from > 1 ? `${b.name} บทที่ ${c} ข้อ ${from}` : `${b.name} บทที่ ${c}`
     return [{ id: `${c}:0`, text: head }, ...vs.map((t, i) => ({ id: `${c}:${i + 1}`, text: t })).filter((x, i) => x.text && i + 1 >= from)]
   }
-  const listenChapter = () => tts.speakSections(chapterSections(ch, start), onSection, fw.onWord)
-  const listenOn = () => {
-    const secs = [...chapterSections(ch, start)]
-    for (let c = ch + 1; c <= b.chapters; c++) secs.push(...chapterSections(c))
-    tts.speakSections(secs, onSection, fw.onWord)
+  type From = { id: string; at: number }
+  const mode = useRef<'chapter' | 'book' | 'sel'>('chapter')
+  const selPlaying = useRef<number[]>([])
+  const listenChapter = (from?: From) => {
+    mode.current = 'chapter'
+    tts.speakSections(chapterSections(ch, from ? 1 : start), onSection, fw.onWord, from)
   }
-  const listenSelected = () =>
-    tts.speakSections([...sel].sort((x, y) => x - y).map((v) => ({ id: `${ch}:${v}`, text: verses[v - 1] })), onSection, fw.onWord)
+  const listenOn = (from?: From) => {
+    mode.current = 'book'
+    const secs = [...chapterSections(ch, from ? 1 : start)]
+    for (let c = ch + 1; c <= b.chapters; c++) secs.push(...chapterSections(c))
+    tts.speakSections(secs, onSection, fw.onWord, from)
+  }
+  const listenSelected = (from?: From) => {
+    mode.current = 'sel'
+    if (!from) selPlaying.current = [...sel].sort((x, y) => x - y)
+    tts.speakSections(selPlaying.current.map((v) => ({ id: `${ch}:${v}`, text: verses[v - 1] })), onSection, fw.onWord, from)
+  }
+  // ระหว่างฟัง: แตะที่ข้อความตรงไหน อ่านต่อจากตรงนั้น (แบบเดิม) · ตอนไม่ได้ฟัง แตะเพื่อเลือกข้อตามปกติ
+  const busy0 = tts.speaking || tts.paused
+  const tapRead = busy0
+    ? (sid: string, at: number) => {
+        const v = Number(sid.split(':')[1])
+        if (mode.current === 'sel' && !selPlaying.current.includes(v)) mode.current = 'chapter'
+        ;(mode.current === 'book' ? listenOn : mode.current === 'sel' ? listenSelected : listenChapter)({ id: sid, at })
+      }
+    : undefined
 
   // ?play=all จากปุ่ม "ฟังทั้งเล่ม"
   const autoplay = sp.get('play') === 'all'
@@ -298,7 +317,7 @@ export function BibleChapterPage() {
             const on = reading?.c === ch && reading.v === v && busy
             return (
               <p key={v} id={`v${v}`} className={`bv${sel.includes(v) ? ' bv--sel' : ''}${on ? ' bv--now' : ''}${hlMap[v] ? ` hl--${hlMap[v]}` : ''}`} onClick={() => toggle(v)}>
-                <sup>{v}</sup><Spoken text={t} id={`${ch}:${v}`} follow={fw.follow} />
+                <sup>{v}</sup><Spoken text={t} id={`${ch}:${v}`} follow={fw.follow} onTap={tapRead} />
               </p>
             )
           })}
@@ -329,7 +348,7 @@ export function BibleChapterPage() {
             <button type="button" onClick={copy} aria-label="คัดลอก"><span>📋</span>คัดลอก</button>
             <button type="button" onClick={share} aria-label="แชร์"><span>📤</span>แชร์</button>
             <button type="button" onClick={() => setEn(true)} aria-label="แปลอังกฤษ"><span>🌐</span>อังกฤษ</button>
-            <button type="button" onClick={sel.length === 1 ? listenOn : listenSelected} aria-label={sel.length === 1 ? 'ฟังตั้งแต่ข้อนี้เป็นต้นไป' : 'ฟังข้อที่เลือก'}><span>🔊</span>{sel.length === 1 ? 'ฟังต่อ' : 'ฟัง'}</button>
+            <button type="button" onClick={() => (sel.length === 1 ? listenOn() : listenSelected())} aria-label={sel.length === 1 ? 'ฟังตั้งแต่ข้อนี้เป็นต้นไป' : 'ฟังข้อที่เลือก'}><span>🔊</span>{sel.length === 1 ? 'ฟังต่อ' : 'ฟัง'}</button>
           </div>
         </div>
       )}
@@ -347,8 +366,8 @@ export function BibleChapterPage() {
             </>
           ) : (
             <>
-              <button type="button" className="nb-fab__btn" onClick={listenChapter} aria-label="ฟังบทนี้">{start > 1 ? `🔊 ข้อ ${start}–จบบท` : '🔊 บทนี้'}</button>
-              <button type="button" className="nb-fab__btn" onClick={listenOn} aria-label="ฟังต่อเนื่องจนจบเล่ม">▶ ต่อเนื่อง</button>
+              <button type="button" className="nb-fab__btn" onClick={() => listenChapter()} aria-label="ฟังบทนี้">{start > 1 ? `🔊 ข้อ ${start}–จบบท` : '🔊 บทนี้'}</button>
+              <button type="button" className="nb-fab__btn" onClick={() => listenOn()} aria-label="ฟังต่อเนื่องจนจบเล่ม">▶ ต่อเนื่อง</button>
             </>
           )}
         </div>,
@@ -372,17 +391,18 @@ function EnglishSheet({ book, ch, verses, onClose, onOpen }: { book: number; ch:
   // อ่านทีละข้อ + ไฮไลต์วิ่งตามคำที่กำลังอ่าน
   const [at, setAt] = useState<{ v: number; i: number } | null>(null)
   const [end, setEnd] = useState(0)
-  const play = () =>
+  const play = (from?: { id: string; at: number }) =>
     tts.speakSections(
       [{ id: '0', text: label }, ...lines.filter((x) => x.t).map((x) => ({ id: String(x.v), text: x.t }))],
       (id) => setAt({ v: Number(id), i: 0 }),
       (id, i, e) => { setAt({ v: Number(id), i }); setEnd(e) },
+      from,
     )
   const active = (tts.speaking || tts.paused) && at
   useEffect(() => {
     if (active && at.v) document.getElementById(`en${at.v}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   }, [active, at?.v]) // eslint-disable-line react-hooks/exhaustive-deps
-  const renderLine = (v: number, t: string) => <Spoken text={t} id={String(v)} follow={active ? { id: String(at.v), at: at.i, end } : null} word />
+  const renderLine = (v: number, t: string) => <Spoken text={t} id={String(v)} follow={active ? { id: String(at.v), at: at.i, end } : null} word onTap={(id, i) => play({ id, at: i })} />
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(`${label} (WEB)\n${lines.map((x) => `${x.v} ${x.t}`).join('\n')}`)
@@ -411,9 +431,9 @@ function EnglishSheet({ book, ch, verses, onClose, onOpen }: { book: number; ch:
             ) : tts.paused ? (
               <button type="button" className="btn btn--gold" onClick={tts.resume} aria-label="Resume">▶ ฟังต่อ</button>
             ) : (
-              <button type="button" className="btn btn--gold" onClick={play} aria-label="Read aloud">🔊 อ่านออกเสียง</button>
+              <button type="button" className="btn btn--gold" onClick={() => play()} aria-label="Read aloud">🔊 อ่านออกเสียง</button>
             )}
-            <button type="button" className="btn btn--ghost" onClick={play} aria-label="Replay">↺ เล่นซ้ำ</button>
+            <button type="button" className="btn btn--ghost" onClick={() => play()} aria-label="Replay">↺ เล่นซ้ำ</button>
             <button type="button" className={`btn ${tts.looping ? 'btn--navy' : 'btn--ghost'}`} aria-pressed={tts.looping} onClick={() => tts.setLoop(!tts.looping)} aria-label="Loop">🔁 วน{tts.looping ? ' (เปิด)' : ''}</button>
             <button type="button" className="btn btn--ghost" onClick={copy} aria-label="Copy English">{copied ? '✓ คัดลอกแล้ว' : '📋 คัดลอก'}</button>
           </div>
