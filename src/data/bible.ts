@@ -187,3 +187,22 @@ export async function searchBible(term: string, onProgress?: (done: number, tota
   await Promise.all(Array.from({ length: 6 }, worker))
   return hits.flat()
 }
+
+// ---------- ภาษาอังกฤษ: World English Bible (WEB, สาธารณสมบัติ) — ฉบับแปลที่พิมพ์แล้ว ไม่ใช้ AI แปล ----------
+const enCache = new Map<number, Promise<string[][] | null>>()
+export const EN_BOOKS = ['Genesis', 'Exodus', 'Leviticus', 'Numbers', 'Deuteronomy', 'Joshua', 'Judges', 'Ruth', '1 Samuel', '2 Samuel', '1 Kings', '2 Kings', '1 Chronicles', '2 Chronicles', 'Ezra', 'Nehemiah', 'Esther', 'Job', 'Psalms', 'Proverbs', 'Ecclesiastes', 'Song of Solomon', 'Isaiah', 'Jeremiah', 'Lamentations', 'Ezekiel', 'Daniel', 'Hosea', 'Joel', 'Amos', 'Obadiah', 'Jonah', 'Micah', 'Nahum', 'Habakkuk', 'Zephaniah', 'Haggai', 'Zechariah', 'Malachi', 'Matthew', 'Mark', 'Luke', 'John', 'Acts', 'Romans', '1 Corinthians', '2 Corinthians', 'Galatians', 'Ephesians', 'Philippians', 'Colossians', '1 Thessalonians', '2 Thessalonians', '1 Timothy', '2 Timothy', 'Titus', 'Philemon', 'Hebrews', 'James', '1 Peter', '2 Peter', '1 John', '2 John', '3 John', 'Jude', 'Revelation']
+export function loadBookEn(book: number) {
+  if (!enCache.has(book)) {
+    enCache.set(
+      book,
+      fetch(`./data/bible-en/${book}.json`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: { c: string[][] } | null) => d?.c ?? null)
+        .catch(() => {
+          enCache.delete(book)
+          return null
+        }),
+    )
+  }
+  return enCache.get(book)!
+}

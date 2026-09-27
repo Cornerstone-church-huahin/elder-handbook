@@ -17,9 +17,11 @@ const RATE_KEY = 'khatha.speechRate'
 
 export const canSpeak = () => typeof window !== 'undefined' && 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window
 
-function thaiVoice(): SpeechSynthesisVoice | null {
+function pickVoice(lang: string): SpeechSynthesisVoice | null {
   const vs = window.speechSynthesis.getVoices()
-  return vs.find((v) => /^th(-|_|$)/i.test(v.lang) && /google/i.test(v.name)) ?? vs.find((v) => /^th(-|_|$)/i.test(v.lang)) ?? null
+  const re = new RegExp(`^${lang.slice(0, 2)}(-|_|$)`, 'i')
+  const exact = new RegExp(`^${lang.replace('-', '[-_]')}$`, 'i')
+  return vs.find((v) => exact.test(v.lang) && /google/i.test(v.name)) ?? vs.find((v) => exact.test(v.lang)) ?? vs.find((v) => re.test(v.lang)) ?? null
 }
 
 /** "ยอห์น 11:25–26" → "ยอห์น บทที่ 11 ข้อ 25 ถึง 26" ให้ฟังเป็นธรรมชาติ */
@@ -46,7 +48,8 @@ function chunks(text: string): string[] {
 
 type Item = { text: string; section: string; first: boolean }
 
-export function useSpeech() {
+/** lang: 'th-TH' (ค่าเริ่มต้น) หรือ 'en-US' สำหรับฉบับภาษาอังกฤษ */
+export function useSpeech(lang = 'th-TH') {
   const [speaking, setSpeaking] = useState(false)
   const [paused, setPaused] = useState(false)
   const [rate, setRateState] = useState<Rate>(() => {
@@ -64,6 +67,12 @@ export function useSpeech() {
 
   const watch = useRef<number | undefined>(undefined)
   const [me0] = useState(() => Symbol('speech'))
+  const loop = useRef(false)
+  const [looping, setLoopState] = useState(false)
+  const setLoop = (v: boolean) => {
+    loop.current = v
+    setLoopState(v)
+  }
 
   /** หยุดทั้งหมด (ล้างตำแหน่ง) */
   const stop = useCallback(() => {
@@ -87,7 +96,7 @@ export function useSpeech() {
     const synth = window.speechSynthesis
     window.dispatchEvent(new CustomEvent('khatha-speech', { detail: me0 })) // ให้ปุ่มฟังอื่นในหน้าหยุดก่อน (อ่านทีละแหล่ง)
     const id = ++run.current
-    const voice = thaiVoice()
+    const voice = pickVoice(lang)
     setNoVoice(!voice && synth.getVoices().length > 0)
     setSpeaking(true)
     setPaused(false)
@@ -103,6 +112,10 @@ export function useSpeech() {
     const next = () => {
       if (id !== run.current || !q.current) return
       const c = q.current
+      if (c.pos >= c.items.length && loop.current) {
+        c.pos = 0 // เล่นวนซ้ำ
+        c.offset = 0
+      }
       if (c.pos >= c.items.length) {
         q.current = null
         window.clearInterval(watch.current)
@@ -124,7 +137,7 @@ export function useSpeech() {
         if (id !== run.current || me.done) return
         c.offset = Math.max(0, start) + (e.charIndex ?? 0)
       }
-      u.lang = 'th-TH'
+      u.lang = lang
       if (voice) u.voice = voice
       u.rate = rate
       u.onend = finish
@@ -145,7 +158,7 @@ export function useSpeech() {
     }, 400)
     synth.cancel()
     window.setTimeout(next, 150)
-  }, [rate, me0])
+  }, [rate, me0, lang])
 
   /** หยุดชั่วคราว: จำคำที่กำลังอ่านไว้ กดฟังต่อจะอ่านต่อจากตรงนั้น */
   const pause = useCallback(() => {
@@ -200,5 +213,5 @@ export function useSpeech() {
     }
   }, [me0])
 
-  return { speak, speakSections, stop, pause, resume, speaking, paused, rate, setRate, noVoice, supported: canSpeak() }
+  return { speak, speakSections, stop, pause, resume, speaking, paused, rate, setRate, noVoice, supported: canSpeak(), looping, setLoop }
 }

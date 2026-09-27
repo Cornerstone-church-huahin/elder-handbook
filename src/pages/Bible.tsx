@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { EN_BOOKS, loadBookEn } from '../data/bible'
+import { HL_COLORS, useHighlights } from '../lib/highlights'
 import { createPortal } from 'react-dom'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { BIBLE_BOOKS, chapterUrl, loadBook, parseRef } from '../data/bible'
@@ -157,6 +159,15 @@ export function BibleChapterPage() {
   const [sel, setSel] = useState<number[]>([])
   const [reading, setReading] = useState<{ c: number; v: number } | null>(null)
   const [msg, setMsg] = useState('')
+  const [palette, setPalette] = useState(false)
+  const [en, setEn] = useState(false)
+  const hl = useHighlights()
+  const hlMap = useMemo(() => {
+    const m: Record<number, string> = {}
+    for (const x of hl.mine) if (x.book === bookNo && x.ch === ch) m[x.v] = x.color
+    return m
+  }, [hl.mine, bookNo, ch])
+  useEffect(() => { if (!sel.length) setPalette(false) }, [sel.length])
   const tts = useSpeech()
   const slot = useTopSlot()
   const autoNav = useRef(false)
@@ -230,6 +241,11 @@ export function BibleChapterPage() {
     listenOn()
   }, [autoplay, all]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const paint = (color: string | null) => {
+    hl.paint(bookNo, ch, sel, color)
+    setPalette(false)
+    setSel([])
+  }
   const toggle = (v: number) => setSel((s) => (s.includes(v) ? s.filter((x) => x !== v) : [...s, v]))
   const sorted = [...sel].sort((x, y) => x - y)
   const selLabel = `${b?.name} ${ch}:${rangeLabel(sel)}`
@@ -279,7 +295,7 @@ export function BibleChapterPage() {
             const v = i + 1
             const on = reading?.c === ch && reading.v === v && busy
             return (
-              <p key={v} id={`v${v}`} className={`bv${sel.includes(v) ? ' bv--sel' : ''}${on ? ' bv--now' : ''}`} onClick={() => toggle(v)}>
+              <p key={v} id={`v${v}`} className={`bv${sel.includes(v) ? ' bv--sel' : ''}${on ? ' bv--now' : ''}${hlMap[v] ? ` hl--${hlMap[v]}` : ''}`} onClick={() => toggle(v)}>
                 <sup>{v}</sup>{t}
               </p>
             )
@@ -294,14 +310,29 @@ export function BibleChapterPage() {
 
       {sel.length > 0 && (
         <div className="bible-selbar" role="toolbar" aria-label="ข้อที่เลือก">
-          <span className="bible-selbar__ref">{msg || selLabel}</span>
-          <button type="button" onClick={copy} aria-label="คัดลอก">📋</button>
-          <button type="button" onClick={share} aria-label="ส่ง">📤</button>
-          <button type="button" onClick={listenSelected} aria-label="ฟังข้อที่เลือก">🔊</button>
-          {sel.length === 1 && <button type="button" onClick={listenOn} aria-label="ฟังตั้งแต่ข้อนี้เป็นต้นไป">⏩</button>}
-          <button type="button" onClick={() => setSel([])} aria-label="ยกเลิกการเลือก">✕</button>
+          {palette && (
+            <div className="bible-colors" role="group" aria-label="เลือกสีไฮไลต์">
+              {HL_COLORS.map((c) => (
+                <button key={c.id} type="button" className={`hl-dot hl--${c.id}`} onClick={() => paint(c.id)} aria-label={`ไฮไลต์สี${c.label}`} />
+              ))}
+              <button type="button" className="hl-dot hl-dot--clear" onClick={() => paint(null)} aria-label="ลบไฮไลต์">✕</button>
+            </div>
+          )}
+          <div className="bible-selbar__top">
+            <span className="bible-selbar__ref">{msg || selLabel}</span>
+            <button type="button" className="bible-selbar__x" onClick={() => setSel([])} aria-label="ยกเลิกการเลือก">✕</button>
+          </div>
+          <div className="bible-selbar__btns">
+            <button type="button" onClick={() => setPalette(!palette)} aria-pressed={palette} aria-label="ไฮไลต์"><span>🖍️</span>ไฮไลต์</button>
+            <button type="button" onClick={copy} aria-label="คัดลอก"><span>📋</span>คัดลอก</button>
+            <button type="button" onClick={share} aria-label="แชร์"><span>📤</span>แชร์</button>
+            <button type="button" onClick={() => setEn(true)} aria-label="แปลอังกฤษ"><span>🌐</span>อังกฤษ</button>
+            <button type="button" onClick={sel.length === 1 ? listenOn : listenSelected} aria-label={sel.length === 1 ? 'ฟังตั้งแต่ข้อนี้เป็นต้นไป' : 'ฟังข้อที่เลือก'}><span>🔊</span>{sel.length === 1 ? 'ฟังต่อ' : 'ฟัง'}</button>
+          </div>
         </div>
       )}
+
+      {en && <EnglishSheet book={bookNo} ch={ch} verses={sorted} onClose={() => setEn(false)} onOpen={() => tts.stop()} />}
 
       {tts.supported && slot && all && createPortal(
         <div className="nb-fab" role="group" aria-label="ฟังเสียงอ่าน">
@@ -321,6 +352,60 @@ export function BibleChapterPage() {
         </div>,
         slot,
       )}
+    </div>
+  )
+}
+
+/** ป๊อปอัพภาษาอังกฤษ: World English Bible (ฉบับแปลที่พิมพ์แล้ว สาธารณสมบัติ) — ไม่ใช้ AI แปลพระคัมภีร์ */
+function EnglishSheet({ book, ch, verses, onClose, onOpen }: { book: number; ch: number; verses: number[]; onClose: () => void; onOpen: () => void }) {
+  const [c, setC] = useState<string[][] | null | undefined>(undefined)
+  const tts = useSpeech('en-US')
+  const [copied, setCopied] = useState(false)
+  useEffect(() => {
+    onOpen()
+    loadBookEn(book).then(setC)
+  }, [book]) // eslint-disable-line react-hooks/exhaustive-deps
+  const lines = verses.map((v) => ({ v, t: c?.[ch - 1]?.[v - 1] ?? '' }))
+  const label = `${EN_BOOKS[book - 1]} ${ch}:${rangeLabel(verses)}`
+  const text = lines.filter((x) => x.t).map((x) => x.t).join(' ')
+  const play = () => tts.speakSections([{ id: 'en', text: `${label}. ${text}` }])
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(`${label} (WEB)\n${lines.map((x) => `${x.v} ${x.t}`).join('\n')}`)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1500)
+    } catch {
+      /* ignore */
+    }
+  }
+  return (
+    <div className="sheet-backdrop" onClick={() => { tts.stop(); onClose() }}>
+      <div className="sheet sheet--short en-sheet" role="dialog" aria-modal="true" aria-label="ภาษาอังกฤษ" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet__head">
+          <div className="sheet__title"><strong>🌐 {label}</strong><span>World English Bible (ฉบับภาษาอังกฤษ สาธารณสมบัติ)</span></div>
+          <button type="button" className="sheet__close" onClick={() => { tts.stop(); onClose() }}>ปิด</button>
+        </div>
+        <div className="en-sheet__text" lang="en">
+          {c === undefined ? <p className="empty">Loading…</p> : !c ? <p className="empty">เปิดฉบับภาษาอังกฤษไม่ได้ตอนนี้ (อาจออฟไลน์)</p> : lines.map((x) => (
+            <p key={x.v} className="bv"><sup>{x.v}</sup>{x.t || '—'}</p>
+          ))}
+        </div>
+        {c && tts.supported && (
+          <div className="en-sheet__controls">
+            {tts.speaking ? (
+              <button type="button" className="btn btn--gold" onClick={tts.pause} aria-label="Pause">⏸ หยุด</button>
+            ) : tts.paused ? (
+              <button type="button" className="btn btn--gold" onClick={tts.resume} aria-label="Resume">▶ ฟังต่อ</button>
+            ) : (
+              <button type="button" className="btn btn--gold" onClick={play} aria-label="Read aloud">🔊 อ่านออกเสียง</button>
+            )}
+            <button type="button" className="btn btn--ghost" onClick={play} aria-label="Replay">↺ เล่นซ้ำ</button>
+            <button type="button" className={`btn ${tts.looping ? 'btn--navy' : 'btn--ghost'}`} aria-pressed={tts.looping} onClick={() => tts.setLoop(!tts.looping)} aria-label="Loop">🔁 วน{tts.looping ? ' (เปิด)' : ''}</button>
+            <button type="button" className="btn btn--ghost" onClick={copy} aria-label="Copy English">{copied ? '✓ คัดลอกแล้ว' : '📋 คัดลอก'}</button>
+          </div>
+        )}
+        {tts.noVoice && <p className="nb-none">เครื่องนี้ยังไม่มีเสียงภาษาอังกฤษ · ติดตั้งเสียง English ในการตั้งค่าการอ่านออกเสียงของเครื่อง</p>}
+      </div>
     </div>
   )
 }
