@@ -4,6 +4,7 @@ import { eraTitle, loadPeople, peopleForText, peopleForThemes, type PeopleDoc, t
 import { AiError, getAiProvider } from '../lib/ai'
 import { comparePeople, teachPerson, TEACH_MODES, type AiSection, type Comparison, type TeachMode } from '../lib/peopleAi'
 import PeoplePicker from '../components/PeoplePicker'
+import { loadPeopleContent, sectionsToText, textToSections, usePeopleEdits, type PersonContent } from '../data/peopleContent'
 import { IconSearch } from '../components/Icons'
 import { suggestPeople, useCustomThemes, type CustomTheme } from '../lib/customThemes'
 
@@ -306,10 +307,10 @@ const SITUATION_LABEL: Record<string, string> = {
   'new-beginning': 'เริ่มต้นใหม่',
 }
 
-function Sections({ sections }: { sections: AiSection[] }) {
+function Sections({ sections, badge = '🤖 ร่างโดย AI · ตรวจกับพระคัมภีร์ก่อนใช้' }: { sections: AiSection[]; badge?: string }) {
   return (
     <div className="ai-explain">
-      <header><span className="badge">🤖 ร่างโดย AI · ตรวจกับพระคัมภีร์ก่อนใช้</span></header>
+      {badge && <header><span className="badge">{badge}</span></header>}
       {sections.map((s, i) => (
         <div key={i} className="ai-sec">
           {s.heading && <h3>{s.heading}</h3>}
@@ -321,25 +322,51 @@ function Sections({ sections }: { sections: AiSection[] }) {
   )
 }
 
-type PanelState = { mode: TeachMode; status: 'loading' } | { mode: TeachMode; status: 'done'; sections: AiSection[] } | { mode: TeachMode; status: 'error'; kind: AiError['kind'] } | { mode: TeachMode; status: 'no-ai' }
-
+/** เนื้อหาสอนและอภิบาล: มีเนื้อหาพร้อมทุกคน แก้ไขได้ (ใช้ร่วมกันออนไลน์) และให้ AI ช่วยเขียนใหม่ได้ถ้าใส่คีย์ไว้ */
 function TeachPanel({ p }: { p: Person }) {
-  const [state, setState] = useState<PanelState | null>(null)
+  const [mode, setMode] = useState<TeachMode>('story')
+  const [base, setBase] = useState<PersonContent | null>(null)
+  const edits = usePeopleEdits()
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState('')
+  const [ai, setAi] = useState<{ status: 'loading' } | { status: 'done'; sections: AiSection[] } | { status: 'error'; kind: AiError['kind'] } | { status: 'no-ai' } | null>(null)
   const ctl = useRef<AbortController | null>(null)
-  useEffect(() => () => ctl.current?.abort(), [])
+  useEffect(() => {
+    loadPeopleContent().then((all) => setBase(all[p.id] ?? {}))
+    return () => ctl.current?.abort()
+  }, [p.id])
+  useEffect(() => {
+    setEditing(false)
+    setAi(null)
+    ctl.current?.abort()
+  }, [mode])
 
-  const run = async (mode: TeachMode) => {
-    const ai = await getAiProvider()
-    if (!ai) return setState({ mode, status: 'no-ai' })
+  const key = `${p.id}:${mode}`
+  const edit = edits.items.find((x) => x.id === key)
+  const sections = edit?.sections ?? base?.[mode] ?? []
+  const label = TEACH_MODES.find((m) => m.id === mode)!.label
+
+  const startEdit = (from = sections) => {
+    setDraft(sectionsToText(from))
+    setEditing(true)
+  }
+  const save = () => {
+    edits.put([{ id: key, sections: textToSections(draft), updated: 0 }])
+    setEditing(false)
+    setAi(null)
+  }
+  const runAi = async () => {
+    const provider = await getAiProvider()
+    if (!provider) return setAi({ status: 'no-ai' })
     ctl.current?.abort()
     const c = new AbortController()
     ctl.current = c
-    setState({ mode, status: 'loading' })
+    setAi({ status: 'loading' })
     try {
-      const sections = await teachPerson(ai, p, mode, { signal: c.signal })
-      if (!c.signal.aborted) setState({ mode, status: 'done', sections })
+      const s = await teachPerson(provider, p, mode, { signal: c.signal })
+      if (!c.signal.aborted) setAi({ status: 'done', sections: s })
     } catch (e) {
-      if (!c.signal.aborted) setState({ mode, status: 'error', kind: e instanceof AiError ? e.kind : 'failed' })
+      if (!c.signal.aborted) setAi({ status: 'error', kind: e instanceof AiError ? e.kind : 'failed' })
     }
   }
 
@@ -347,31 +374,54 @@ function TeachPanel({ p }: { p: Person }) {
     <>
       <div className="teach-buttons">
         {TEACH_MODES.map((m) => (
-          <button
-            key={m.id}
-            type="button"
-            className="teach-btn"
-            aria-pressed={state?.mode === m.id}
-            onClick={() => run(m.id)}
-          >
+          <button key={m.id} type="button" className="teach-btn" aria-pressed={mode === m.id} onClick={() => setMode(m.id)}>
             <span aria-hidden="true">{m.icon}</span> {m.label}
           </button>
         ))}
       </div>
-      {state?.status === 'loading' && (
+
+      {editing ? (
+        <div className="teach-edit">
+          <p className="source-note">พิมพ์ “## ” นำหน้าหัวข้อ · พิมพ์ “- ” นำหน้ารายการ · เว้นบรรทัดระหว่างหัวข้อ</p>
+          <textarea id="teach-edit" value={draft} onChange={(e) => setDraft(e.target.value)} />
+          <div className="teach-edit__btns">
+            <button type="button" className="btn btn--gold" onClick={save} disabled={!draft.trim()}>💾 บันทึก</button>
+            <button type="button" className="btn btn--ghost" onClick={() => setEditing(false)}>ยกเลิก</button>
+          </div>
+        </div>
+      ) : base === null ? (
+        <p className="empty">กำลังเปิดเนื้อหา…</p>
+      ) : sections.length ? (
+        <Sections sections={sections} badge={edit ? `✏️ แก้ไขโดย ${edit.by ?? 'ผู้ปกครอง'}` : ''} />
+      ) : (
+        <p className="empty">ยังไม่มีเนื้อหา{label} · กด ✏️ เพื่อเขียนเอง</p>
+      )}
+
+      {!editing && (
+        <div className="teach-tools">
+          <button type="button" className="mini" onClick={() => startEdit()}>✏️ แก้ไข / เพิ่มเติม</button>
+          {edit && <button type="button" className="mini" onClick={() => edits.remove(key)}>↺ ใช้ฉบับเดิม</button>}
+          <button type="button" className="mini" onClick={runAi}>✨ ให้ AI เขียนเพิ่ม</button>
+        </div>
+      )}
+
+      {ai?.status === 'loading' && (
         <div className="card ai-loading" role="status">
-          <div className="ai-loading__row"><span className="spinner" aria-hidden="true" /><p><strong>กำลังเตรียม{TEACH_MODES.find((m) => m.id === state.mode)?.label}…</strong></p></div>
-          <button type="button" className="btn btn--ghost" onClick={() => ctl.current?.abort()}>หยุด</button>
+          <div className="ai-loading__row"><span className="spinner" aria-hidden="true" /><p><strong>กำลังเตรียม{label}…</strong></p></div>
+          <button type="button" className="btn btn--ghost" onClick={() => { ctl.current?.abort(); setAi(null) }}>หยุด</button>
         </div>
       )}
-      {state?.status === 'no-ai' && <p className="empty">ผู้ช่วย AI ใช้ได้เมื่อใส่คีย์ในหน้าตั้งค่า</p>}
-      {state?.status === 'error' && (
-        <div className="card">
-          <p>{AI_ERR[state.kind]}</p>
-          {state.kind !== 'declined' && <button type="button" className="btn" onClick={() => run(state.mode)}>ลองอีกครั้ง</button>}
-        </div>
+      {ai?.status === 'no-ai' && <p className="empty">ผู้ช่วย AI ใช้ได้เมื่อใส่คีย์ในหน้าตั้งค่า</p>}
+      {ai?.status === 'error' && <p className="empty">{AI_ERR[ai.kind]}</p>}
+      {ai?.status === 'done' && (
+        <>
+          <Sections sections={ai.sections} />
+          <div className="teach-tools">
+            <button type="button" className="mini" onClick={() => startEdit([...sections, ...ai.sections])}>➕ รวมเข้ากับเนื้อหาเดิม แล้วแก้ไข</button>
+            <button type="button" className="mini" onClick={() => startEdit(ai.sections)}>✏️ ใช้ฉบับ AI แทน แล้วแก้ไข</button>
+          </div>
+        </>
       )}
-      {state?.status === 'done' && <Sections sections={state.sections} />}
     </>
   )
 }

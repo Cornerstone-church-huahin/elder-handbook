@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useSharedStore } from './sharedStore'
 
 /**
  * หน้าที่ผู้ปกครอง — รายการที่ผู้ใช้แก้ไข เพิ่ม ลบ และเรียงลำดับเองได้ (เมนูตั้งค่า)
@@ -25,48 +25,60 @@ export const DEFAULT_DUTIES: Duty[] = [
   { id: 'd13', text: 'เข้าประชุมคณะธรรมกิจทุกครั้ง (ขาดติดต่อกัน 3 ครั้งโดยไม่แจ้งเหตุผล พ้นจากวาระประจำการ)', source: 'ระเบียบปฏิบัติฯ ข้อ 26.5' },
 ]
 
-function read(): Duty[] {
+type DutyItem = Duty & { pos: number; updated: number; deleted?: boolean; by?: string }
+
+function legacy(): DutyItem[] {
+  // รายการเดิมที่เคยแก้ไว้ในเครื่อง (รุ่นก่อนใช้ร่วมกัน) หรือรายการตั้งต้น
+  let list = DEFAULT_DUTIES
+  let touched = false
   try {
     const raw = localStorage.getItem(KEY)
-    if (!raw) return DEFAULT_DUTIES
-    const v = JSON.parse(raw)
-    return Array.isArray(v) ? v.filter((d) => d && typeof d.text === 'string').map((d) => ({ id: String(d.id), text: d.text, source: String(d.source ?? '') })) : DEFAULT_DUTIES
+    const v = raw ? JSON.parse(raw) : null
+    if (Array.isArray(v)) {
+      list = v.filter((d) => d && typeof d.text === 'string').map((d) => ({ id: String(d.id), text: d.text, source: String(d.source ?? '') }))
+      touched = true
+    }
   } catch {
-    return DEFAULT_DUTIES
+    /* ignore */
   }
+  const now = touched ? Date.now() : 0
+  const items: DutyItem[] = list.map((d, i) => ({ ...d, pos: i, updated: now }))
+  if (touched) for (const d of DEFAULT_DUTIES) if (!list.some((x) => x.id === d.id)) items.push({ ...d, pos: 999, updated: now, deleted: true })
+  return items
 }
 
-function write(list: Duty[]): boolean {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(list))
-    return true
-  } catch {
-    return false // โหมดส่วนตัวของเบราว์เซอร์: ใช้ได้ระหว่างเปิดหน้านี้ แต่ไม่ถูกเก็บ
-  }
-}
-
+/** หน้าที่ผู้ปกครอง — ใช้ร่วมกันออนไลน์ (แก้ที่เครื่องไหน อีกเครื่องเห็นด้วย) */
 export function useElderDuties() {
-  const [list, setList] = useState<Duty[]>(read)
-  const [saved, setSaved] = useState(true)
-  const commit = useCallback((next: Duty[]) => {
-    setList(next)
-    setSaved(write(next))
-  }, [])
+  const store = useSharedStore<DutyItem>({ localKey: 'khatha.elderDuties.v2', file: 'duties.json', label: 'หน้าที่ผู้ปกครอง', seed: legacy })
+  const sorted = [...store.items].sort((a, b) => a.pos - b.pos)
+  const list: Duty[] = sorted.map(({ id, text, source }) => ({ id, text, source }))
+  const renumber = (arr: DutyItem[]) => arr.map((d, i) => ({ ...d, pos: i }))
   return {
     list,
-    saved,
-    add: (text: string) => commit([...list, { id: `u${Date.now().toString(36)}`, text: text.trim(), source: 'เพิ่มเอง' }]),
-    update: (id: string, text: string) =>
-      commit(list.map((d) => (d.id === id ? { ...d, text: text.trim(), source: d.source && !d.source.includes('(แก้ไข)') && d.source !== 'เพิ่มเอง' ? `${d.source} (แก้ไข)` : d.source } : d))),
-    remove: (id: string) => commit(list.filter((d) => d.id !== id)),
-    move: (id: string, dir: -1 | 1) => {
-      const i = list.findIndex((d) => d.id === id)
-      const j = i + dir
-      if (i < 0 || j < 0 || j >= list.length) return
-      const next = [...list]
-      ;[next[i], next[j]] = [next[j], next[i]]
-      commit(next)
+    saved: true,
+    sync: store.sync,
+    add: (text: string) => store.put([{ id: `u${Date.now().toString(36)}`, text: text.trim(), source: 'เพิ่มเอง', pos: sorted.length, updated: 0 }]),
+    update: (id: string, text: string) => {
+      const d = sorted.find((x) => x.id === id)
+      if (!d) return
+      const source = d.source && !d.source.includes('(แก้ไข)') && d.source !== 'เพิ่มเอง' ? `${d.source} (แก้ไข)` : d.source
+      store.put([{ ...d, text: text.trim(), source }])
     },
-    reset: () => commit(DEFAULT_DUTIES),
+    remove: (id: string) => store.remove(id),
+    move: (id: string, dir: -1 | 1) => {
+      const i = sorted.findIndex((d) => d.id === id)
+      const j = i + dir
+      if (i < 0 || j < 0 || j >= sorted.length) return
+      const next = [...sorted]
+      ;[next[i], next[j]] = [next[j], next[i]]
+      store.put(renumber(next))
+    },
+    reset: () => {
+      const keep = new Set(DEFAULT_DUTIES.map((d) => d.id))
+      store.put([
+        ...sorted.filter((d) => !keep.has(d.id)).map((d) => ({ ...d, deleted: true })),
+        ...DEFAULT_DUTIES.map((d, i) => ({ ...d, pos: i, updated: 0, deleted: false })),
+      ])
+    },
   }
 }

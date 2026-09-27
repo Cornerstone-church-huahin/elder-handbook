@@ -1,37 +1,32 @@
-import { useCallback, useState } from 'react'
+import { useSharedStore } from './sharedStore'
 import type { PeopleDoc } from '../data/people'
 
-/** หัวข้อที่ผู้ปกครองสร้างเอง (เช่น "การรับใช้") พร้อมบุคคลที่เลือกไว้ — เก็บในเครื่องนี้ */
-export interface CustomTheme { id: string; name: string; people: string[] }
-const KEY = 'khatha.customThemes.v1'
-
-function read(): CustomTheme[] {
-  try {
-    const v = JSON.parse(localStorage.getItem(KEY) ?? '[]')
-    return Array.isArray(v) ? v.filter((x) => x && x.name && Array.isArray(x.people)) : []
-  } catch {
-    return []
-  }
-}
+/** หัวข้อที่ผู้ปกครองสร้างเอง (เช่น "การรับใช้") พร้อมบุคคลที่เลือกไว้ — ใช้ร่วมกันออนไลน์ */
+export interface CustomTheme { id: string; name: string; people: string[]; updated: number; deleted?: boolean; by?: string }
 
 export function useCustomThemes() {
-  const [list, setList] = useState<CustomTheme[]>(read)
-  const commit = useCallback((next: CustomTheme[]) => {
-    setList(next)
-    try {
-      localStorage.setItem(KEY, JSON.stringify(next))
-    } catch {
-      /* ignore */
-    }
-  }, [])
+  const store = useSharedStore<CustomTheme>({
+    localKey: 'khatha.customThemes.v2',
+    file: 'themes.json',
+    label: 'หัวข้อบุคคล',
+    seed: () => {
+      // ย้ายของเดิม (รุ่นที่เก็บในเครื่องอย่างเดียว)
+      try {
+        const v = JSON.parse(localStorage.getItem('khatha.customThemes.v1') ?? '[]')
+        return Array.isArray(v) ? v.map((x) => ({ ...x, updated: Date.now() })) : []
+      } catch {
+        return []
+      }
+    },
+  })
   return {
-    list,
-    save: (t: Omit<CustomTheme, 'id'> & { id?: string }) => {
+    list: store.items,
+    save: (t: { id?: string; name: string; people: string[] }) => {
       const id = t.id ?? `c${Date.now().toString(36)}`
-      commit([...list.filter((x) => x.id !== id), { id, name: t.name.trim(), people: t.people }])
+      store.put([{ id, name: t.name.trim(), people: t.people, updated: 0 }])
       return id
     },
-    remove: (id: string) => commit(list.filter((x) => x.id !== id)),
+    remove: (id: string) => store.remove(id),
   }
 }
 

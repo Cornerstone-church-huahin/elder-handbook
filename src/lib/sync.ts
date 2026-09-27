@@ -104,6 +104,55 @@ export async function pushRemote(cfg: SyncConfig, items: NotePrayer[], sha?: str
   if (!r.ok) throw new Error(explain(r.status))
 }
 
+// ---------- ไฟล์ข้อมูลทั่วไป (หัวข้อ หน้าที่ เนื้อหาบุคคล ฯลฯ) ----------
+export interface SharedItem { id: string; updated: number; deleted?: boolean; by?: string }
+
+export async function pullFile<T extends SharedItem>(cfg: SyncConfig, file: string): Promise<{ items: T[]; sha?: string; exists: boolean }> {
+  let r: Response
+  try {
+    r = await api(cfg, `contents/${file}`)
+  } catch {
+    throw new Error('ไม่มีอินเทอร์เน็ต — บันทึกไว้ในเครื่องก่อน จะส่งขึ้นเมื่อเชื่อมต่อได้')
+  }
+  if (r.status === 404) {
+    const repo = await api(cfg, '').catch(() => null)
+    if (repo?.ok) return { items: [], exists: false }
+    throw new Error(explain(repo?.status ?? 404))
+  }
+  if (!r.ok) throw new Error(explain(r.status))
+  const body = (await r.json()) as { content?: string; sha: string; encoding?: string }
+  let text = body.content && body.encoding === 'base64' ? b64decode(body.content) : ''
+  if (!text) {
+    const raw = await api(cfg, `contents/${file}`, { headers: { accept: 'application/vnd.github.raw' } } as RequestInit)
+    text = raw.ok ? await raw.text() : ''
+  }
+  const data = JSON.parse(text || '{"items":[]}') as { items?: T[] }
+  return { items: (data.items ?? []).filter((x) => x && x.id), sha: body.sha, exists: true }
+}
+
+export function mergeItems<T extends SharedItem>(a: T[], b: T[]): T[] {
+  const m = new Map<string, T>()
+  for (const x of [...a, ...b]) {
+    const cur = m.get(x.id)
+    if (!cur || (x.updated ?? 0) > (cur.updated ?? 0)) m.set(x.id, x)
+  }
+  return [...m.values()]
+}
+
+export async function pushFile<T extends SharedItem>(cfg: SyncConfig, file: string, label: string, items: T[], sha?: string, retry = true): Promise<void> {
+  const content = JSON.stringify({ app: 'church-elder-handbook', version: 1, saved: new Date().toISOString(), items }, null, 1)
+  const r = await api(cfg, `contents/${file}`, {
+    method: 'PUT',
+    body: JSON.stringify({ message: `อัปเดต${label}${cfg.name ? ` โดย ${cfg.name}` : ''}`, content: b64encode(content), ...(sha ? { sha } : {}) }),
+  }).catch(() => null)
+  if (!r) throw new Error('ไม่มีอินเทอร์เน็ต — บันทึกไว้ในเครื่องก่อน จะส่งขึ้นเมื่อเชื่อมต่อได้')
+  if ((r.status === 409 || r.status === 422) && retry) {
+    const remote = await pullFile<T>(cfg, file)
+    return pushFile(cfg, file, label, mergeItems(items, remote.items), remote.sha, false)
+  }
+  if (!r.ok) throw new Error(explain(r.status))
+}
+
 /** ทดสอบการเชื่อมต่อจากหน้าตั้งค่า: '' = ใช้ได้ */
 export async function testSync(cfg: SyncConfig): Promise<string> {
   try {
