@@ -64,7 +64,7 @@ export function refUrl(r: VerseRef): string {
 }
 
 const cache = new Map<number, Promise<string[][] | null>>()
-function loadBook(book: number) {
+export function loadBook(book: number) {
   if (!cache.has(book)) {
     cache.set(
       book,
@@ -160,3 +160,10 @@ export async function getPassage(input: string): Promise<Passage | null> {
   const link = f ? refUrl({ ...head, chapter: f.chapter, verses: whole ? [] : [f.verses[0].n, f.verses[f.verses.length - 1].n] }) : url
   return { label: `${head.name} ${body.replace(/,/g, ', ')}`, url: link, blocks: out }
 }
+
+const CHAPTERS = [50, 40, 27, 36, 34, 24, 21, 4, 31, 24, 22, 25, 29, 36, 10, 13, 10, 42, 150, 31, 12, 8, 66, 52, 5, 48, 12, 14, 3, 9, 1, 4, 7, 3, 3, 3, 2, 14, 4, 28, 16, 24, 21, 28, 16, 16, 13, 6, 6, 4, 4, 5, 3, 6, 4, 3, 1, 13, 5, 5, 3, 5, 1, 1, 1, 22]
+export interface BibleBook { no: number; name: string; code: string; chapters: number; testament: 'old' | 'new' }
+/** รายชื่อ 66 เล่มตามฉบับ 1971 (ปฐมกาล → วิวรณ์) */
+export const BIBLE_BOOKS: BibleBook[] = BOOKS.map(([names, code], i) => ({ no: i + 1, name: names[0], code, chapters: CHAPTERS[i], testament: i < 39 ? 'old' : 'new' }))
+export const chapterUrl = (book: number, ch: number, v?: [number, number]) =>
+  `https://www.bible.com/th/bible/275/${BOOKS[book - 1][1]}.${ch}${v ? `.${v[0]}${v[1] !== v[0] ? '-' + v[1] : ''}` : ''}.TH1971`

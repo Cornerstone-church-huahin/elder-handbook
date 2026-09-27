@@ -1100,3 +1100,35 @@ html[data-scale='150'] body.reading .nb-card--open .nb-card__body { height: calc
 .teach-tabs button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .1rem; line-height: 1.2; font-size: .78rem; }
 .teach-tabs button span:first-child { font-size: 1.05rem; }
 .teach-mode-title { margin: .25rem 0 .4rem; font-size: 1rem; color: var(--accent-ink); }
+
+/* ---------- พระคัมภีร์ 1971 ---------- */
+.bible__title { font-size: 1.35rem; margin: .2rem 0 .6rem; }
+.bible__title small { font-size: .8rem; font-weight: 500; color: var(--ink-soft); margin-left: .3rem; }
+.bible__crumb { margin: 0; font-size: .85rem; }
+.bible-jump { display: flex; gap: .4rem; margin-bottom: .5rem; }
+.bible-jump input { flex: 1; min-width: 0; min-height: 44px; padding: 0 .8rem; border-radius: 999px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; }
+.bible-last { display: block; margin: .2rem 0 .6rem; padding: .55rem .8rem; border-radius: var(--radius); background: var(--surface-2); color: var(--ink); text-decoration: none; font-size: .9rem; }
+.bible-tabs { grid-template-columns: 1fr 1fr; position: static; margin-bottom: .6rem; }
+.bible-tabs small { display: block; font-weight: 500; opacity: .75; font-size: .72rem; }
+.bible-books { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: .4rem; }
+.bible-book { display: flex; flex-direction: column; justify-content: center; min-height: 52px; padding: .35rem .7rem; border-radius: .7rem; background: var(--surface); border: 1.5px solid var(--line); color: var(--ink); text-decoration: none; border-left: 4px solid #8a6d2b; }
+.bible-books--new .bible-book { border-left-color: #2c6e8f; }
+.bible-book__name { font-weight: 700; font-size: .95rem; line-height: 1.25; }
+.bible-book__n { font-size: .72rem; color: var(--ink-soft); }
+.bible-listen-book { width: 100%; margin-bottom: .4rem; }
+.bible-chapters { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(48px, 1fr)); gap: .35rem; }
+.bible-ch { display: flex; align-items: center; justify-content: center; height: 48px; border-radius: .6rem; background: var(--surface); border: 1.5px solid var(--line); color: var(--ink); text-decoration: none; font-weight: 700; }
+.bible-head { display: flex; align-items: center; gap: .4rem; position: sticky; top: 3.4rem; z-index: 3; background: var(--bg, var(--surface)); padding: .3rem 0; }
+.bible-head__title { flex: 1; text-align: center; font-weight: 800; font-size: 1.15rem; color: var(--ink); text-decoration: none; }
+.bible-head__title span { font-size: .75em; opacity: .6; }
+.bible-nav { width: 44px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: .6rem; background: var(--surface-2); color: var(--ink); text-decoration: none; }
+.bible-nav[aria-disabled='true'] { opacity: .35; }
+.bible-text { padding-bottom: 5rem; }
+.bv { margin: 0; padding: .3rem .4rem; line-height: 1.85; border-radius: .45rem; cursor: pointer; font-size: 1.05rem; }
+.bv sup { font-size: .68em; font-weight: 700; color: var(--accent-ink); margin-right: .3em; }
+.bv--sel { background: rgba(212, 167, 44, .22); text-decoration: underline dotted rgba(138, 109, 43, .7); text-underline-offset: .3em; }
+.bv--now { background: rgba(44, 110, 143, .16); box-shadow: inset 3px 0 0 #2c6e8f; }
+.bible-foot { display: flex; justify-content: space-between; gap: .5rem; margin: 1rem 0 .5rem; }
+.bible-selbar { position: fixed; left: .5rem; right: .5rem; bottom: calc(env(safe-area-inset-bottom, 0px) + 4.2rem); z-index: 11; max-width: calc(var(--maxw) - 1rem); margin: 0 auto; display: flex; align-items: center; gap: .2rem; padding: .35rem .4rem .35rem .9rem; border-radius: 999px; background: var(--navy); color: #fff; box-shadow: 0 6px 20px rgba(0,0,0,.25); }
+.bible-selbar__ref { flex: 1; min-width: 0; font-size: .85rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bible-selbar button { width: 40px; height: 40px; border: 0; border-radius: 50%; background: rgba(255,255,255,.12); color: #fff; font-size: 1.05rem; cursor: pointer; }

@@ -4,7 +4,7 @@ import type { HomeAction } from '../types'
 // เพราะพิมพ์เรื่องในช่องอธิษฐานเผื่อ/ค้นหาแล้วระบบดึงคู่มือสถานการณ์ขึ้นมาเอง
 export const seedHomeActions: HomeAction[] = [
   { id: 'a07', kind: 'route', to: '/prayer', icon: '🙏', label: 'เตรียมคำอธิษฐาน' },
-  { id: 'a08', kind: 'route', to: '/sermon', icon: '📖', label: 'เตรียมพระคำ' },
+  { id: 'a08', kind: 'route', to: '/bible', icon: '📖', label: 'พระคัมภีร์' },
   { id: 'a13', kind: 'route', to: '/people', icon: '👥', label: 'บุคคลในพระคัมภีร์' },
   { id: 'a09', kind: 'route', to: '/service', icon: '⛪', label: 'เตรียมพิธี' },
   { id: 'a10', kind: 'route', to: '/members', icon: '👤', label: 'สมาชิกและการติดตาม' },

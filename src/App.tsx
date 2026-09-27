@@ -11,6 +11,7 @@ import PrayerAiPage from './pages/Prayer'
 import PrayerNotebookPage from './pages/PrayerNotebook'
 import JoinPage from './pages/Join'
 import ElderDutiesPage from './pages/ElderDuties'
+import { BibleBookPage, BibleChapterPage, BibleHome } from './pages/Bible'
 
 // HashRouter: ใช้ได้บนทุก Static Hosting โดยไม่ต้องตั้งค่า rewrite
 // MemoryRouter: ใช้เฉพาะไฟล์พรีวิว (npm run build:preview) ที่เปิดในกรอบซึ่งไม่มี URL จริง
@@ -33,7 +34,10 @@ export default function App() {
           <Route path="prayer/ai" element={<PrayerAiPage />} />
           <Route path="join" element={<JoinPage />} />
           <Route path="prayer/saved/:id" element={<SavedRedirect />} />
-          <Route path="sermon" element={<ComingSoon icon="📖" title="เตรียมพระคำ" />} />
+          <Route path="sermon" element={<Navigate to="/bible" replace />} />
+          <Route path="bible" element={<BibleHome />} />
+          <Route path="bible/:book" element={<BibleBookPage />} />
+          <Route path="bible/:book/:ch" element={<BibleChapterPage />} />
           <Route path="service" element={<ComingSoon icon="⛪" title="เตรียมพิธี" />} />
           <Route path="people" element={<PeopleHome />} />
           <Route path="people/compare" element={<PeopleCompare />} />
