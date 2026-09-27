@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useSearchParams } from 'react-router-dom'
 import { parseRef, refUrl } from '../data/bible'
@@ -273,11 +273,26 @@ function NoteCard({
     }
   }
   const [menu, setMenu] = useState(false)
+  // ความสูงเนื้อหาให้พอดีจอพอดี (ทุกขนาดตัวอักษร ทุกขนาดจอ): จอ − แถบบน − แถบค้นหา − หัวการ์ด
+  const topRef = useRef<HTMLDivElement>(null)
+  const [bodyH, setBodyH] = useState<number | undefined>(undefined)
+  useLayoutEffect(() => {
+    if (!open) return
+    const fit = () => {
+      const bar = (document.querySelector('.topbar') as HTMLElement | null)?.offsetHeight ?? 56
+      const search = (document.querySelector('.nb-bar') as HTMLElement | null)?.offsetHeight ?? 50
+      const head = topRef.current?.offsetHeight ?? 50
+      setBodyH(Math.max(260, window.innerHeight - bar - search - head - 12 - 1.5 * parseFloat(getComputedStyle(document.documentElement).fontSize)))
+    }
+    fit()
+    window.addEventListener('resize', fit)
+    return () => window.removeEventListener('resize', fit)
+  }, [open, p.title])
   useEffect(() => { if (!open) setMenu(false) }, [open])
   const preview = p.text.replace(/\s+/g, ' ').slice(0, 70)
   return (
     <article ref={elRef} className={`nb-card${open ? ' nb-card--open' : ''}${flash ? ' nb-card--flash' : ''}`}>
-      <div className="nb-card__top">
+      <div className="nb-card__top" ref={topRef}>
         <button type="button" className="nb-card__head" onClick={onToggle} aria-expanded={open}>
           <span className="nb-card__icon" aria-hidden="true">{p.icon}</span>
           <span className="nb-card__main">
@@ -308,7 +323,7 @@ function NoteCard({
         )}
       </div>
       {open && (
-        <div className="nb-card__body">
+        <div className="nb-card__body" style={bodyH ? { height: bodyH } : undefined}>
           <div className="nb-tabs" role="tablist">
             {TABS.map((t) => (
               <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}>{t.label}</button>

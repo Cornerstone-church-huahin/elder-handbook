@@ -59,5 +59,6 @@
 /* ขนาดตัวอักษร (Mobile First): ฐาน 16px อ่านสบายบนมือถือ ใหญ่กว่าเว็บทั่วไปเล็กน้อย
    ผู้ใช้เลือกขยายได้ 125% / 150% ในหน้าตั้งค่า */
 html { font-size: 16px; }
+html[data-scale='85'] { font-size: 13.5px; }
 html[data-scale='125'] { font-size: 19px; }
 html[data-scale='150'] { font-size: 22px; }

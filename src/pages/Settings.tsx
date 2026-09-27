@@ -32,7 +32,7 @@ export default function Settings() {
               onClick={() => setScale(s)}
             >
               <span className="scale-option__sample" style={{ fontSize: `${s / 100}em` }}>ก</span>
-              <span className="scale-option__pct">{s === 100 ? 'ปกติ' : s === 125 ? 'ใหญ่' : 'ใหญ่มาก'} {s}%</span>
+              <span className="scale-option__pct">{s === 85 ? 'เล็ก' : s === 100 ? 'ปกติ' : s === 125 ? 'ใหญ่' : 'ใหญ่มาก'} {s}%</span>
             </button>
           ))}
         </div>

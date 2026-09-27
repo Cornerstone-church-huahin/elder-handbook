@@ -1017,3 +1017,10 @@ body.reading .nb-card--open .nb-card__body { height: calc(100dvh - 11.3rem - env
 .nb-menu__note { font-size: 0.8rem; color: #1e6b34; padding: 0.3rem 0.7rem; }
 .nb-menu .duty__btns--warn { margin: 0.2rem; }
 .install-steps { margin: 0; padding-left: 1.3rem; display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.9rem; }
+.scale-options { grid-template-columns: repeat(4, 1fr); gap: 0.4rem; }
+.scale-option { padding: 0.4rem 0.2rem; }
+/* ความสูงการ์ดโหมดอ่านให้พอดีจอในทุกขนาดตัวอักษร */
+body.reading .nb-card--open .nb-card__body { height: calc(100dvh - 11.8rem - env(safe-area-inset-bottom, 0px)); }
+html[data-scale='85'] body.reading .nb-card--open .nb-card__body { height: calc(100dvh - 12.3rem - env(safe-area-inset-bottom, 0px)); }
+html[data-scale='125'] body.reading .nb-card--open .nb-card__body { height: calc(100dvh - 12.3rem - env(safe-area-inset-bottom, 0px)); }
+html[data-scale='150'] body.reading .nb-card--open .nb-card__body { height: calc(100dvh - 13.4rem - env(safe-area-inset-bottom, 0px)); }

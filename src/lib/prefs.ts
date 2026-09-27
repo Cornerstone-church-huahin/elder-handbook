@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
-export type FontScale = 100 | 125 | 150
-export const FONT_SCALES: FontScale[] = [100, 125, 150]
+export type FontScale = 85 | 100 | 125 | 150
+export const FONT_SCALES: FontScale[] = [85, 100, 125, 150] // 85 = เล็ก สำหรับมือถือที่ตั้งตัวอักษรของเครื่องไว้ใหญ่
 const KEY = 'khatha.fontScale'
 
 // Step A4: เมื่อ Login แล้วจะบันทึกค่านี้ใน users.font_scale ด้วย เพื่อให้ตามไปทุกเครื่อง
