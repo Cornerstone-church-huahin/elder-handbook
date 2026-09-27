@@ -34,7 +34,7 @@ check(prompt.includes('ถือแหล่งที่ 1 เป็นหลั
 check(await p.locator('.official-text').count() === 1, 'cited article shown, invalid citation dropped (82.15→82 kept, 999 dropped)')
 check(await p.locator('.ai-explain .note--diff').count() === 1, 'differences between sources shown')
 // ค้นหารวม
-await p.click('.bottomnav >> text=ค้นหา'); await p.fill('#search-q', 'เหรัญญิก'); await p.press('#search-q', 'Enter'); await p.waitForTimeout(400)
+await p.click('.bottomnav >> text=ค้นหา'); await p.fill('#search-q', 'เหรัญญิก'); await p.press('#search-q', 'Enter'); await p.waitForSelector('.sacc'); await p.click('.sacc >> nth=2 >> summary'); await p.waitForTimeout(400)
 check(await p.locator('.badge:has-text("การบริหาร")').count() > 0, 'universal search shows 🏛️ การบริหาร results')
 check(errs.length === 0, 'no JS errors ' + errs.join(';'))
 await b.close(); console.log(fail ? fail + ' FAILED' : 'ALL PASSED'); process.exit(fail ? 1 : 0)

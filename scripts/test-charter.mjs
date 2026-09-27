@@ -35,7 +35,7 @@ const prompt = await p.evaluate(() => window.__prompts.at(-1))
 check(prompt.includes('<article no="25"') && prompt.includes('ตอบจากข้อที่ให้มาข้างบนเท่านั้น'), 'AI gets official articles + grounding rule')
 check(await p.locator('.official-text').count() === 1, 'shows only cited article that exists (999 dropped)')
 // ค้นหารวม
-await p.click('.bottomnav >> text=ค้นหา'); await p.fill('#search-q', 'องค์ประชุม'); await p.press('#search-q', 'Enter'); await p.waitForTimeout(400)
+await p.click('.bottomnav >> text=ค้นหา'); await p.fill('#search-q', 'องค์ประชุม'); await p.press('#search-q', 'Enter'); await p.waitForSelector('.sacc'); await p.click('.sacc >> nth=2 >> summary'); await p.waitForTimeout(400)
 check(await p.locator('.badge:has-text("ธรรมนูญ")').count() > 0, 'universal search includes 📜 ธรรมนูญ results')
 check(errs.length === 0, 'no JS errors ' + errs.join(';'))
 await p.screenshot({ path: '/tmp/claude-0/shots/charter-search.png' })
