@@ -62,58 +62,94 @@ export function useSpeech() {
   // คิวที่กำลังอ่าน + ตำแหน่ง (เพื่อหยุดชั่วคราวแล้วอ่านต่อจากจุดเดิม)
   const q = useRef<{ items: Item[]; pos: number; offset: number; onSection?: (id: string) => void } | null>(null)
 
+  const watch = useRef<number | undefined>(undefined)
+
   /** หยุดทั้งหมด (ล้างตำแหน่ง) */
   const stop = useCallback(() => {
     run.current++
     q.current = null
+    window.clearInterval(watch.current)
     if (canSpeak()) window.speechSynthesis.cancel()
     setSpeaking(false)
     setPaused(false)
   }, [])
 
+  /**
+   * อ่านคิวต่อจากตำแหน่งปัจจุบัน — กันปัญหาของมือถือบางรุ่น:
+   * · ไม่ส่งสัญญาณ "อ่านจบ" → มีตัวตรวจทุก 0.4 วินาที ถ้าเครื่องเงียบแล้วให้ไปวลีถัดไปเอง
+   * · อ่านวลีใดไม่ได้ (error) → ข้ามไปวลีถัดไป ไม่หยุดทั้งหมด
+   * · สั่งอ่านทันทีหลังหยุดแล้วเครื่องไม่อ่าน → เว้น 150 มิลลิวินาทีก่อนเริ่ม
+   */
   const play = useCallback(() => {
     const cur = q.current
     if (!cur || !canSpeak()) return
+    const synth = window.speechSynthesis
     const id = ++run.current
     const voice = thaiVoice()
-    setNoVoice(!voice && window.speechSynthesis.getVoices().length > 0)
+    setNoVoice(!voice && synth.getVoices().length > 0)
     setSpeaking(true)
     setPaused(false)
+    window.clearInterval(watch.current)
+    let active: { done: boolean; startedAt: number } | null = null
+
+    const advance = () => {
+      if (id !== run.current || !q.current) return
+      q.current.pos++
+      q.current.offset = 0
+      next()
+    }
     const next = () => {
       if (id !== run.current || !q.current) return
       const c = q.current
       if (c.pos >= c.items.length) {
         q.current = null
+        window.clearInterval(watch.current)
         return setSpeaking(false)
       }
       const it = c.items[c.pos]
       if (it.first && c.offset === 0) c.onSection?.(it.section)
-      const start = c.offset // อ่านต่อจากคำที่หยุดไว้ในวลีนี้
-      const u = new SpeechSynthesisUtterance(it.text.slice(start))
+      const start = Math.min(c.offset, it.text.length - 1) // อ่านต่อจากคำที่หยุดไว้ในวลีนี้
+      const u = new SpeechSynthesisUtterance(it.text.slice(Math.max(0, start)))
+      const me = { done: false, startedAt: Date.now() }
+      active = me
+      const finish = () => {
+        if (me.done || id !== run.current) return
+        me.done = true
+        advance()
+      }
       // จำตำแหน่งคำที่กำลังอ่าน (เครื่องที่รองรับ) เพื่อฟังต่อได้ตรงคำ
       u.onboundary = (e) => {
-        if (id !== run.current) return
-        c.offset = Math.min(it.text.length, start + (e.charIndex ?? 0)) // ต้นคำที่กำลังอ่าน
+        if (id !== run.current || me.done) return
+        c.offset = Math.max(0, start) + (e.charIndex ?? 0)
       }
       u.lang = 'th-TH'
       if (voice) u.voice = voice
       u.rate = rate
-      u.onend = () => {
+      u.onend = finish
+      u.onerror = (e) => {
         if (id !== run.current) return
-        c.pos++
-        c.offset = 0
-        next()
+        if (e.error === 'interrupted' || e.error === 'canceled') return
+        finish() // อ่านวลีนี้ไม่ได้ → ข้ามไปวลีถัดไป
       }
-      u.onerror = () => id === run.current && setSpeaking(false)
-      window.speechSynthesis.speak(u)
+      synth.speak(u)
     }
-    next()
+    // ตัวตรวจ: เครื่องเงียบไปแล้วแต่ไม่แจ้งว่าอ่านจบ → ไปต่อเอง
+    watch.current = window.setInterval(() => {
+      if (id !== run.current) return window.clearInterval(watch.current)
+      if (active && !active.done && Date.now() - active.startedAt > 700 && !synth.speaking && !synth.pending) {
+        active.done = true
+        advance()
+      }
+    }, 400)
+    synth.cancel()
+    window.setTimeout(next, 150)
   }, [rate])
 
-  /** หยุดชั่วคราว: จำท่อนที่กำลังอ่านไว้ กดฟังต่อจะอ่านต่อจากท่อนนั้น */
+  /** หยุดชั่วคราว: จำคำที่กำลังอ่านไว้ กดฟังต่อจะอ่านต่อจากตรงนั้น */
   const pause = useCallback(() => {
     if (!q.current) return
     run.current++
+    window.clearInterval(watch.current)
     if (canSpeak()) window.speechSynthesis.cancel()
     setSpeaking(false)
     setPaused(true)

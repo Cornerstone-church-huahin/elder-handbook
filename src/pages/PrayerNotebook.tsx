@@ -216,6 +216,8 @@ function NoteCard({
   confirming: boolean; onAskDelete: () => void; onCancelDelete: () => void; onDelete: () => void; onSaveNotes: (notes: string) => void
 }) {
   const [tab, setTab] = useState<Tab>('verses')
+  const tabRef = useRef<Tab>('verses')
+  tabRef.current = tab
   const refs = p.refs.filter((r) => parseRef(r))
   const verses = useVerseTexts(open ? refs : [])
   const [copied, setCopied] = useState('')
@@ -252,8 +254,12 @@ function NoteCard({
       { id: 'prayer', text: p.text ? `คำอธิษฐาน. ${p.text}` : '' },
     ].filter((x) => x.text)
     tts.speakSections(secs, (id) => {
-      if (id !== tab) autoTab.current = true
-      setTab(id as Tab)
+      // เทียบกับแท็บที่แสดงอยู่ "ตอนนี้" (ไม่ใช่ตอนกดปุ่ม) — เดิมถ้าเริ่มจากแท็บอธิษฐาน เสียงจะหยุดก่อนถึงคำอธิษฐาน
+      if (id !== tabRef.current) {
+        autoTab.current = true
+        tabRef.current = id as Tab
+        setTab(id as Tab)
+      }
     })
   }
   const copy = async () => {
