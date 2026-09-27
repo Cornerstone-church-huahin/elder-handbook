@@ -6,6 +6,7 @@ import Settings from './pages/Settings'
 import { AskPage, ComingSoon, KitPage } from './pages/Placeholders'
 import { CharterArticlePage, CharterAsk, CharterHome } from './pages/Charter'
 import { PeopleCompare, PeopleHome, PersonPage } from './pages/People'
+import PersonStory from './pages/PersonStory'
 import { ManagementAsk, ManagementHome, ManagementTopic } from './pages/Management'
 import PrayerAiPage from './pages/Prayer'
 import PrayerNotebookPage from './pages/PrayerNotebook'
@@ -42,6 +43,7 @@ export default function App() {
           <Route path="people" element={<PeopleHome />} />
           <Route path="people/compare" element={<PeopleCompare />} />
           <Route path="people/:id" element={<PersonPage />} />
+          <Route path="people/:id/story" element={<PersonStory />} />
           <Route path="manage" element={<ManagementHome />} />
           <Route path="manage/ask" element={<ManagementAsk />} />
           <Route path="manage/:id" element={<ManagementTopic />} />

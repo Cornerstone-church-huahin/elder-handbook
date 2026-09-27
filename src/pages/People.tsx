@@ -236,7 +236,10 @@ export function PersonPage() {
         <h1>{p.th}</h1>
         <p className="person-head__en">{p.en}</p>
         <p className="person-head__role">{p.role}</p>
-        <button type="button" className="btn btn--ghost" onClick={() => setOpen(true)}>📜 เลือกบุคคลอื่น</button>
+        <div className="person-head__btns">
+          <button type="button" className="btn btn--ghost" onClick={() => setOpen(true)}>📜 เลือกบุคคลอื่น</button>
+          <Link className="btn btn--gold story-btn" to={`/people/${p.id}/story`}>📖 ฟังเรื่องเล่าชีวิต</Link>
+        </div>
       </div>
 
       <section className="lesson-card">

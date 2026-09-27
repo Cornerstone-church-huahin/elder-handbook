@@ -1196,3 +1196,13 @@ html[data-scale='150'] body.reading .nb-card--open .nb-card__body { height: calc
 .ai-apps__hint { margin: .3rem 0 0; font-size: .7rem; color: var(--ink-soft); }
 .search .search__go { flex: 0 0 auto; width: 3rem; padding: 0; display: flex; align-items: center; justify-content: center; }
 .search .search__go svg { width: 1.35rem; height: 1.35rem; color: var(--parchment); stroke: currentColor; }
+
+/* เรื่องเล่าชีวิต */
+.person-head__btns { display: flex; flex-wrap: wrap; gap: .5rem; }
+.person-head__btns .btn { flex: 1 1 9rem; }
+.story__title { margin: .1rem 0 .2rem; }
+.story__auto { display: flex; align-items: flex-start; gap: .5rem; margin: .6rem 0 .8rem; padding: .55rem .7rem; border-radius: var(--radius); background: var(--surface-2); font-size: .88rem; }
+.story__auto input { width: 1.2rem; height: 1.2rem; margin-top: .15rem; flex: none; accent-color: var(--navy); }
+.story__sec h2 { font-size: 1.1rem; margin: 1.1rem 0 .4rem; color: var(--accent-ink); }
+.story__sec p { line-height: 1.9; margin: 0 0 .75rem; font-size: 1.05rem; }
+.story__pager { display: flex; justify-content: space-between; gap: .5rem; margin: 1.2rem 0 .6rem; }

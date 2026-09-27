@@ -31,7 +31,7 @@ export default defineConfig({
         // ห้ามเพิ่ม runtimeCaching สำหรับ API ข้อมูลสมาชิก/การเยี่ยม (ต้องออนไลน์เท่านั้น)
         globPatterns: ['**/*.{js,css,html,svg,png,json}'], // รวมระเบียบปฏิบัติฯ (json) ให้อ่านได้แม้ออฟไลน์
         // พระคัมภีร์ทั้งเล่ม (~11MB) ไม่โหลดล่วงหน้า — เก็บไว้ในเครื่องเฉพาะเล่มที่เปิดอ่านแล้ว
-        globIgnores: ['**/data/bible/**', '**/data/bible-en/**'],
+        globIgnores: ['**/data/bible/**', '**/data/bible-en/**', '**/data/stories/**'],
         navigateFallback: 'index.html',
         runtimeCaching: [
           {
@@ -43,6 +43,11 @@ export default defineConfig({
             urlPattern: /\/data\/bible-en\/\d+\.json$/,
             handler: 'CacheFirst',
             options: { cacheName: 'bible-web-en', expiration: { maxEntries: 70 } },
+          },
+          {
+            urlPattern: /\/data\/stories\/[\w-]+\.json$/,
+            handler: 'StaleWhileRevalidate',
+            options: { cacheName: 'people-stories', expiration: { maxEntries: 120 } },
           },
           {
             urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/,
