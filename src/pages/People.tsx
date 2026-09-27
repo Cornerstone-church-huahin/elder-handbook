@@ -55,7 +55,7 @@ export function PersonChip({ p }: { p: Person }) {
 }
 
 /** บุคคลที่เกี่ยวข้องกับข้อความหรือสถานการณ์ — แสดงได้ทันทีโดยไม่ต้องใช้ AI */
-export function RelatedPeople({ text, situation, title = 'บุคคลในพระคัมภีร์ที่เกี่ยวข้อง' }: { text?: string; situation?: string; title?: string }) {
+export function RelatedPeople({ text, situation, title = 'บุคคลในพระคัมภีร์ที่เกี่ยวข้อง', bare = false }: { text?: string; situation?: string; title?: string; bare?: boolean }) {
   const [doc, setDoc] = useState<PeopleDoc | null>(null)
   useEffect(() => {
     loadPeople().then(setDoc).catch(() => {})
@@ -64,17 +64,18 @@ export function RelatedPeople({ text, situation, title = 'บุคคลใน�
   const list = situation
     ? peopleForThemes(doc, doc.situation_themes[situation] ?? [], 6)
     : peopleForText(doc, text ?? '', 6)
-  if (!list.length) return null
+  if (!list.length) return bare ? <p className="empty">ไม่พบบุคคลที่เกี่ยวข้อง</p> : null
+  const Wrap = bare ? 'div' : 'section'
   return (
-    <section className="section">
-      <h2 className="section__title">👥 {title}</h2>
+    <Wrap className={bare ? 'acc__inner' : 'section'}>
+      {!bare && <h2 className="section__title">👥 {title}</h2>}
       <div className="person-chips">{list.map((p) => <PersonChip key={p.id} p={p} />)}</div>
       {text && (
         <Link to={`/people/compare?q=${encodeURIComponent(text)}`} className="btn btn--ghost">
           🤖 ให้ AI เทียบสถานการณ์นี้กับบุคคลในพระคัมภีร์
         </Link>
       )}
-    </section>
+    </Wrap>
   )
 }
 

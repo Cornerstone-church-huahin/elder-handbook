@@ -4,7 +4,7 @@ import { BIBLE_BOOKS, getPassage, parseRef, searchBible, type BibleHit, type Pas
 import { topicRefs } from '../data/bibleTopics'
 
 /** ข้อพระคัมภีร์ที่เกี่ยวกับคำค้น: ข้อที่คัดไว้ตามหัวข้อ + ค้นคำทั้งพระคัมภีร์ (ฉบับ 1971) */
-export default function ScriptureResults({ text }: { text: string }) {
+export default function ScriptureResults({ text, bare = false }: { text: string; bare?: boolean }) {
   const [cards, setCards] = useState<{ ref: string; ps: Passage }[] | null>(null)
   const [full, setFull] = useState<{ state: 'idle' } | { state: 'loading'; done: number } | { state: 'done'; hits: BibleHit[] }>({ state: 'idle' })
   const [show, setShow] = useState(20)
@@ -43,8 +43,8 @@ export default function ScriptureResults({ text }: { text: string }) {
 
   if (!term) return null
   return (
-    <section className="section scripture-results">
-      <h2 className="section__title">📖 ข้อพระคัมภีร์ที่เกี่ยวข้อง</h2>
+    <section className={`${bare ? 'acc__inner' : 'section'} scripture-results`}>
+      {!bare && <h2 className="section__title">📖 ข้อพระคัมภีร์ที่เกี่ยวข้อง</h2>}
       {cards === null ? (
         <p className="empty">กำลังเปิดพระคัมภีร์…</p>
       ) : cards.length > 0 ? (

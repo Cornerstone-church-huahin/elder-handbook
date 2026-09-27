@@ -1,4 +1,7 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { parseRef } from '../data/bible'
+import { topicRefs } from '../data/bibleTopics'
+import { loadPeople, peopleForText } from '../data/people'
 import { Link, useSearchParams } from 'react-router-dom'
 import { search } from '../data/contentRepo'
 import { loadCharter, searchCharter } from '../data/charter'
@@ -20,11 +23,32 @@ const BADGE: Record<SourceType, string> = {
   'saved-prayer': '📜 คำอธิษฐานที่บันทึกไว้',
 }
 
+/** แท็บพับ/ขยาย (เปิดทีละแท็บ) */
+function SearchAcc({ icon, title, count, unit, children, id }: { icon: string; title: string; count: number | null; unit: string; children: ReactNode; id?: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <details className="acc sacc" name="search-acc" id={id} onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}>
+      <summary className="acc__bar sacc__bar">
+        <span className="acc__title"><span aria-hidden="true">{icon}</span> {title}</span>
+        <small>{count === null ? 'กำลังค้น…' : count ? `${count} ${unit}` : 'ไม่พบ'}</small>
+        <span className="acc__chev" aria-hidden="true">▾</span>
+      </summary>
+      {open && <div className="sacc__body">{children}</div>}
+    </details>
+  )
+}
+
 export default function Search() {
   const [params, setParams] = useSearchParams()
   const initial = params.get('q') ?? ''
   const [q, setQ] = useState(initial)
   const [results, setResults] = useState<SearchResult[]>([])
+  const [peopleCount, setPeopleCount] = useState<number | null>(null)
+  const verseCount = initial ? (parseRef(initial) ? 1 : 0) + topicRefs(initial, 12).length : 0
+  useEffect(() => {
+    setPeopleCount(null)
+    loadPeople().then((doc) => setPeopleCount(peopleForText(doc, initial, 6).length)).catch(() => setPeopleCount(0))
+  }, [initial])
 
   useEffect(() => {
     setQ(initial)
@@ -109,16 +133,17 @@ export default function Search() {
         <Link to={`/prayer?q=${encodeURIComponent(initial)}`} className="btn btn--gold">🙏 หาคำอธิษฐานเรื่องนี้</Link>
       )}
 
-      {initial && <RelatedPeople text={initial} />}
-
-      {initial && <ScriptureResults text={initial} />}
-
       {initial && (
-        <section className="section" aria-live="polite">
-          {results.length > 0 ? (
-            <>
-              <h2 className="section__title">📜 ธรรมนูญ ระเบียบ และคู่มือ</h2>
-              <ul className="results">
+        <div className="search-accs" key={initial}>
+          <SearchAcc icon="👥" title="บุคคลในพระคัมภีร์ที่เกี่ยวข้อง" count={peopleCount} unit="คน">
+            <RelatedPeople text={initial} bare />
+          </SearchAcc>
+          <SearchAcc icon="📖" title="ข้อพระคัมภีร์ที่เกี่ยวข้อง" count={verseCount} unit="ตอน" id="acc-scripture">
+            <ScriptureResults text={initial} bare />
+          </SearchAcc>
+          <SearchAcc icon="📜" title="ธรรมนูญ ระเบียบ และคู่มือ" count={results.length} unit="รายการ">
+            {results.length > 0 ? (
+              <ul className="results acc__inner" aria-live="polite">
                 {results.map((r) => (
                   <li key={`${r.type}-${r.id}`}>
                     <Link to={r.href} className="result">
@@ -131,13 +156,12 @@ export default function Search() {
                   </li>
                 ))}
               </ul>
-            </>
-          ) : (
-            <p className="empty">ไม่พบคู่มือที่ตรงกับ “{initial}” กดปุ่มด้านบนเพื่อให้ AI ช่วยเตรียม</p>
-          )}
-        </section>
+            ) : (
+              <p className="empty">ไม่พบคู่มือที่ตรงกับ “{initial}” กดปุ่มด้านบนเพื่อให้ AI ช่วยเตรียม</p>
+            )}
+          </SearchAcc>
+        </div>
       )}
-
     </>
   )
 }

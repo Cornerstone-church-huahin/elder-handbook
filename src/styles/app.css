@@ -1138,3 +1138,13 @@ html[data-scale='150'] body.reading .nb-card--open .nb-card__body { height: calc
 .sr-verse__text { display: block; font-size: .88rem; line-height: 1.6; color: var(--ink-soft); margin-top: .15rem; }
 .sr-verse__text mark { background: rgba(212, 167, 44, .35); color: inherit; border-radius: 3px; padding: 0 .1em; }
 .sr-full { width: 100%; margin-top: .5rem; }
+
+/* ค้นหา: 3 แท็บพับ/ขยาย */
+.search-accs { display: flex; flex-direction: column; gap: .45rem; margin-top: .8rem; }
+.sacc__bar { background: var(--surface); border: 1.5px solid var(--line); border-left: 5px solid var(--gold); }
+.sacc[open] > .sacc__bar { background: var(--navy); color: var(--parchment); border-color: var(--navy); border-left-color: var(--gold); }
+.sacc[open] > .sacc__bar small { color: #e9d99a; }
+.sacc__bar .acc__title { font-size: 1rem; }
+.sacc__bar small { color: var(--ink-soft); }
+.sacc__body { padding: .5rem 0 .3rem; }
+.acc__inner { margin: 0; }
