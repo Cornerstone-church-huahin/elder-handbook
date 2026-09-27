@@ -4,6 +4,8 @@ import { eraTitle, loadPeople, peopleForText, peopleForThemes, type PeopleDoc, t
 import { AiError, getAiProvider } from '../lib/ai'
 import { comparePeople, teachPerson, TEACH_MODES, type AiSection, type Comparison, type TeachMode } from '../lib/peopleAi'
 import PeoplePicker from '../components/PeoplePicker'
+import { getPassage, parseRef, refUrl, type Passage } from '../data/bible'
+import { speakableRef, useSpeech } from '../lib/speech'
 import { loadPeopleContent, sectionsToText, textToSections, usePeopleEdits, type PersonContent } from '../data/peopleContent'
 import { IconSearch } from '../components/Icons'
 import { suggestPeople, useCustomThemes, type CustomTheme } from '../lib/customThemes'
@@ -242,9 +244,9 @@ export function PersonPage() {
       <section className="section">
         <h2 className="section__title">📖 อ่านเรื่องราวได้ที่</h2>
         <ul className="ref-list">
-          {p.refs.map((r) => <li key={r}><span className="ref-list__ref">{r}</span></li>)}
+          {p.refs.map((r) => <li key={r}><RefReader text={r} /></li>)}
         </ul>
-        <p className="source-note">เปิดอ่านจากพระคริสตธรรมคัมภีร์ฉบับ 1971</p>
+        <p className="source-note">กดเพื่ออ่านข้อความจริงจากพระคริสตธรรมคัมภีร์ฉบับ 1971 · ↗ เปิดในแอปพระคัมภีร์</p>
       </section>
 
       <section className="section">
@@ -263,7 +265,7 @@ export function PersonPage() {
 
       <section className="section">
         <h2 className="section__title">🎓 เนื้อหาสำหรับสอนและอภิบาล</h2>
-        <p className="source-note">กดหัวข้อที่ต้องการ ผู้ช่วย AI จะเตรียมเนื้อหาให้ (ร่างโดย AI โปรดตรวจกับพระคัมภีร์)</p>
+        <p className="source-note">เลือกหัวข้อเพื่ออ่าน · กด ✏️ เพื่อแก้ไขหรือเพิ่มเติม (บันทึกแล้วขึ้นออนไลน์ให้อีกเครื่องเห็นทันที)</p>
         <TeachPanel key={p.id} p={p} />
       </section>
 
@@ -323,6 +325,58 @@ function Sections({ sections, badge = '🤖 ร่างโดย AI · ตร�
 }
 
 /** เนื้อหาสอนและอภิบาล: มีเนื้อหาพร้อมทุกคน แก้ไขได้ (ใช้ร่วมกันออนไลน์) และให้ AI ช่วยเขียนใหม่ได้ถ้าใส่คีย์ไว้ */
+/** ข้ออ้างอิงที่กดอ่านข้อความจริงฉบับ 1971 ได้ในแอป + ฟังเสียง + ลิงก์เปิดแอปพระคัมภีร์ */
+function RefReader({ text }: { text: string }) {
+  const [open, setOpen] = useState(false)
+  const [ps, setPs] = useState<Passage | null | undefined>(undefined)
+  const sp = useSpeech()
+  const head = parseRef(text)
+  useEffect(() => {
+    if (open && ps === undefined) getPassage(text).then(setPs)
+    if (!open) sp.stop()
+  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+  const link = ps?.url ?? (head ? refUrl(head) : undefined)
+  const listen = () => {
+    if (sp.speaking) return sp.pause()
+    if (sp.paused) return sp.resume()
+    if (!ps) return
+    sp.speak([speakableRef(ps.label), ...ps.blocks.flatMap((b) => b.verses.map((v) => v.text))].join('\n'))
+  }
+  return (
+    <div className={`ref-read${open ? ' is-open' : ''}`}>
+      <div className="ref-read__bar">
+        <button type="button" className="ref-read__toggle" aria-expanded={open} onClick={() => setOpen(!open)}>
+          <span className="ref-list__ref">{ps?.label ?? head?.label ?? text}</span>
+          <span className="ref-read__chev" aria-hidden="true">{open ? '▴' : '▾'}</span>
+        </button>
+        {link && <a className="ref-read__app" href={link} target="_blank" rel="noreferrer" aria-label={`เปิด ${text} ในแอปพระคัมภีร์ ฉบับ 1971`}>↗ 1971</a>}
+      </div>
+      {open && (
+        <div className="ref-read__body">
+          {ps === undefined ? <p className="empty">กำลังเปิด…</p>
+            : !ps || !ps.blocks.length ? <p className="empty">อ่านในแอปไม่ได้ตอนนี้ (อาจออฟไลน์) · กด ↗ 1971 เพื่อเปิดอ่าน</p>
+            : (
+              <>
+                {sp.supported && (
+                  <button type="button" className="mini ref-read__listen" onClick={listen}>
+                    {sp.speaking ? '⏸ หยุด' : sp.paused ? '▶️ ฟังต่อ' : '🔊 ฟัง'}
+                  </button>
+                )}
+                {ps.blocks.map((b) => (
+                  <div key={b.chapter} className="ref-read__chapter">
+                    {ps.blocks.length > 1 && <h4>บทที่ {b.chapter}</h4>}
+                    <p>{b.verses.map((v) => <span key={v.n}><sup>{v.n}</sup>{v.text} </span>)}</p>
+                  </div>
+                ))}
+                <p className="source-note">พระคริสตธรรมคัมภีร์ ฉบับ 1971 · {link && <a href={link} target="_blank" rel="noreferrer">เปิดในแอปพระคัมภีร์ ↗</a>}</p>
+              </>
+            )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function TeachPanel({ p }: { p: Person }) {
   const [mode, setMode] = useState<TeachMode>('story')
   const [base, setBase] = useState<PersonContent | null>(null)

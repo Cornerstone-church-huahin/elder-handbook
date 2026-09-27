@@ -105,3 +105,58 @@ function loadCore() {
   }
   return corePromise
 }
+
+export interface PassageBlock { chapter: number; verses: VerseText[] }
+export interface Passage { label: string; url: string; blocks: PassageBlock[] }
+
+/**
+ * อ่านช่วงพระคัมภีร์เต็มจากฉบับ 1971 (ไม่จำกัด 12 ข้อ) รองรับ:
+ * "ปฐมกาล 3" · "ปฐมกาล 2–3" · "โรม 5:12–19" · "อพยพ 35:30–36:1" · "1 โครินธ์ 15:22, 45" · "ยูดา 14–15" (เล่มที่มีบทเดียว)
+ * คืน null ถ้าอ่านข้ออ้างอิงไม่ได้ · blocks ว่างถ้าโหลดไฟล์ไม่ได้ (ออฟไลน์)
+ */
+export async function getPassage(input: string): Promise<Passage | null> {
+  const head = parseRef(input)
+  if (!head) return null
+  const s = thaiDigits(input).replace(/\s+/g, ' ').replace(/^(\d)\s*/, '$1 ').trim()
+  const hit = NAMES.find(({ n }) => s.startsWith(n))!
+  const body = s.slice(hit.n.length).replace(/[—-]/g, '–').replace(/\s+/g, '')
+  const c = await loadBook(head.book)
+  const url = refUrl(head)
+  if (!c) return { label: `${head.name} ${body}`, url, blocks: [] }
+  const chap = (n: number) => c[n - 1] ?? []
+  const pick = (ch: number, a: number, b: number): PassageBlock => ({
+    chapter: ch,
+    verses: chap(ch).slice(a - 1, b).map((text, i) => ({ n: a + i, text })).filter((v) => v.text),
+  })
+  const blocks: PassageBlock[] = []
+  const one = c.length === 1
+  let m: RegExpMatchArray | null
+  if ((m = body.match(/^(\d+):(\d+)–(\d+):(\d+)$/))) {
+    const [c1, v1, c2, v2] = m.slice(1).map(Number)
+    for (let ch = c1; ch <= c2; ch++) blocks.push(pick(ch, ch === c1 ? v1 : 1, ch === c2 ? v2 : chap(ch).length))
+  } else if ((m = body.match(/^(\d+):(.+)$/))) {
+    const ch = +m[1]
+    for (const part of m[2].split(',')) {
+      const r = part.match(/^(\d+)(?:–(\d+))?$/)
+      if (r) blocks.push(pick(ch, +r[1], r[2] ? +r[2] : +r[1]))
+    }
+  } else if ((m = body.match(/^(\d+)(?:–(\d+))?$/))) {
+    const a = +m[1]
+    const b = m[2] ? +m[2] : a
+    if (one) blocks.push(pick(1, a, b)) // ยูดา 14–15 = ข้อ 14–15
+    else for (let ch = a; ch <= b; ch++) blocks.push(pick(ch, 1, chap(ch).length))
+  }
+  // รวมช่วงที่อยู่บทเดียวกัน (เช่น 15:22, 45)
+  const merged: PassageBlock[] = []
+  for (const bl of blocks) {
+    const last = merged[merged.length - 1]
+    if (last && last.chapter === bl.chapter) last.verses.push(...bl.verses)
+    else merged.push({ ...bl, verses: [...bl.verses] })
+  }
+  const out = merged.filter((b) => b.verses.length)
+  const f = out[0]
+  const gap = !!f && f.verses.some((v, i) => i > 0 && v.n !== f.verses[i - 1].n + 1) // เช่น 15:22, 45 → เปิดทั้งบท
+  const whole = !f || gap || out.length > 1 || f.verses.length === chap(f.chapter).length
+  const link = f ? refUrl({ ...head, chapter: f.chapter, verses: whole ? [] : [f.verses[0].n, f.verses[f.verses.length - 1].n] }) : url
+  return { label: `${head.name} ${body.replace(/,/g, ', ')}`, url: link, blocks: out }
+}

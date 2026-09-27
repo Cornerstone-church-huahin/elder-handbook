@@ -1083,3 +1083,14 @@ html[data-scale='150'] body.reading .nb-card--open .nb-card__body { height: calc
 .teach-tools .mini { font-size: .85rem; padding: .3rem .6rem; border-radius: 999px; border: 1px solid var(--line, #ddd); background: var(--surface, #fff); color: inherit; }
 .teach-edit textarea { width: 100%; min-height: 55vh; font: inherit; font-size: .95rem; line-height: 1.6; padding: .6rem; border-radius: 10px; border: 1px solid var(--line, #ddd); background: var(--surface, #fff); color: inherit; box-sizing: border-box; }
 .teach-edit__btns { display: flex; gap: .5rem; margin-top: .5rem; }
+
+/* ข้ออ้างอิงบุคคล: กดอ่านข้อความจริงฉบับ 1971 */
+.ref-read__bar { display: flex; align-items: stretch; gap: .4rem; }
+.ref-read__toggle { flex: 1; display: flex; justify-content: space-between; align-items: center; gap: .5rem; text-align: left; background: none; border: 0; color: inherit; font: inherit; padding: 0; cursor: pointer; }
+.ref-read__chev { opacity: .7; font-size: .9em; }
+.ref-read__app { flex: none; align-self: center; font-size: .8rem; padding: .25rem .55rem; border-radius: 999px; border: 1px solid currentColor; opacity: .85; text-decoration: none; color: inherit; white-space: nowrap; }
+.ref-read__body { margin-top: .6rem; padding-top: .6rem; border-top: 1px solid rgba(127,127,127,.25); }
+.ref-read__body p { line-height: 1.75; margin: 0 0 .5rem; }
+.ref-read__body sup { font-size: .7em; opacity: .7; margin-right: .15em; }
+.ref-read__chapter h4 { margin: .5rem 0 .25rem; font-size: .95rem; opacity: .8; }
+.ref-read__listen { margin-bottom: .5rem; }
