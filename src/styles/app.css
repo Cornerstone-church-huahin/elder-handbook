@@ -1058,3 +1058,22 @@ html[data-scale='150'] body.reading .nb-card--open .nb-card__body { height: calc
   :root:not([data-theme='light']) .acc--old .acc__bar--era { background: #3a2a24; }
   :root:not([data-theme='light']) .acc--new .acc__bar--era { background: #1f3530; }
 }
+/* เลือกหัวข้อแบบกดเลือก (แทนปุ่มหัวข้อจำนวนมาก) */
+.theme-pick-row { display: flex; gap: 0.4rem; }
+.theme-pick { flex: 1; display: flex; justify-content: space-between; align-items: center; min-height: 44px; padding: 0 0.9rem; border-radius: var(--radius); border: 1.5px solid var(--navy); background: var(--surface); color: var(--ink); font: inherit; font-weight: 600; cursor: pointer; }
+.theme-pick__clear { width: 44px; border-radius: var(--radius); border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+.theme-group { font-size: 0.85rem; color: var(--ink-soft); font-family: var(--font-body); margin: 0.3rem 0 0.2rem; }
+.theme-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+.theme-list--grid { display: grid; grid-template-columns: 1fr 1fr; }
+.theme-row { display: flex; gap: 0.3rem; align-items: center; }
+.theme-row .theme-item { flex: 1; }
+.theme-item { width: 100%; min-height: 42px; text-align: left; padding: 0.3rem 0.7rem; border-radius: 0.6rem; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-size: 0.9rem; cursor: pointer; }
+.theme-item small { color: var(--ink-soft); font-size: 0.72rem; }
+.theme-item--on { background: var(--navy); color: #fff; border-color: var(--navy); }
+.mini--danger { background: #b3261e; color: #fff; border-color: #b3261e; }
+.theme-new { display: flex; flex-direction: column; gap: 0.45rem; flex: 1; min-height: 0; }
+.theme-people { list-style: none; margin: 0; padding: 0; flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 0.25rem; }
+.theme-person { display: flex; gap: 0.5rem; align-items: center; padding: 0.35rem 0.6rem; border-radius: 0.6rem; border: 1px solid var(--line); background: var(--surface); cursor: pointer; }
+.theme-person input { width: 20px; height: 20px; accent-color: var(--navy); flex: none; }
+.theme-person small { color: var(--ink-soft); font-size: 0.72rem; }
+.theme-person--on { border-color: var(--navy); background: var(--surface-2); }

@@ -5,6 +5,7 @@ import { AiError, getAiProvider } from '../lib/ai'
 import { comparePeople, teachPerson, TEACH_MODES, type AiSection, type Comparison, type TeachMode } from '../lib/peopleAi'
 import PeoplePicker from '../components/PeoplePicker'
 import { IconSearch } from '../components/Icons'
+import { suggestPeople, useCustomThemes, type CustomTheme } from '../lib/customThemes'
 
 export function usePeople() {
   const [doc, setDoc] = useState<PeopleDoc | null>(null)
@@ -81,9 +82,13 @@ export function PeopleHome() {
   const theme = params.get('theme') ?? ''
   const navigate = useNavigate()
   const [q, setQ] = useState('')
+  const themes = useCustomThemes()
+  const [pickTheme, setPickTheme] = useState(false)
 
   if (!doc) return <Loading failed={failed} retry={retry} />
-  const shown = theme ? doc.people.filter((x) => x.themes.includes(theme)) : doc.people
+  const custom = themes.list.find((c) => c.name === theme)
+  const shown = custom ? doc.people.filter((x) => custom.people.includes(x.id)) : theme ? doc.people.filter((x) => x.themes.includes(theme)) : doc.people
+  const builtIn = Object.values(doc.situation_themes).flat().filter((t, i, a) => a.indexOf(t) === i)
 
   const onCompare = (e: FormEvent) => {
     e.preventDefault()
@@ -118,16 +123,25 @@ export function PeopleHome() {
         </form>
       </section>
 
-      <section className="section">
-        <h2 className="section__title">เลือกตามหัวข้อ</h2>
-        <div className="theme-chips">
-          {theme && <button type="button" className="chip chip--on" onClick={() => setParams({})}>✕ {theme}</button>}
-          {!theme &&
-            Object.values(doc.situation_themes).flat().filter((t, i, a) => a.indexOf(t) === i).map((t) => (
-              <button key={t} type="button" className="chip" onClick={() => setParams({ theme: t })}>{t}</button>
-            ))}
-        </div>
-      </section>
+      <div className="theme-pick-row">
+        <button type="button" className="theme-pick" onClick={() => setPickTheme(true)} aria-haspopup="dialog">
+          <span>🏷 {theme ? theme : 'เลือกตามหัวข้อ'}</span>
+          <span aria-hidden="true">▾</span>
+        </button>
+        {theme && <button type="button" className="theme-pick__clear" aria-label="ล้างหัวข้อ" onClick={() => setParams({})}>✕</button>}
+      </div>
+      {pickTheme && (
+        <ThemeSheet
+          doc={doc}
+          builtIn={builtIn}
+          custom={themes.list}
+          current={theme}
+          onPick={(t) => { setPickTheme(false); setParams(t ? { theme: t } : {}) }}
+          onSave={(t) => { themes.save(t); setPickTheme(false); setParams({ theme: t.name.trim() }) }}
+          onRemove={(id) => { if (themes.list.find((c) => c.id === id)?.name === theme) setParams({}); themes.remove(id) }}
+          onClose={() => setPickTheme(false)}
+        />
+      )}
 
       <section className="section">
         <h2 className="section__title">{theme ? `หัวข้อ “${theme}” ${shown.length} คน` : 'รายชื่อตามลำดับเวลา'}</h2>
@@ -440,5 +454,98 @@ export function PeopleCompare() {
         </section>
       )}
     </>
+  )
+}
+
+/** เลือกหัวข้อ (ตั้งต้น + ที่สร้างเอง) และสร้างหัวข้อใหม่พร้อมเลือกบุคคล */
+function ThemeSheet({
+  doc, builtIn, custom, current, onPick, onSave, onRemove, onClose,
+}: {
+  doc: PeopleDoc; builtIn: string[]; custom: CustomTheme[]; current: string
+  onPick: (t: string) => void; onSave: (t: { id?: string; name: string; people: string[] }) => void; onRemove: (id: string) => void; onClose: () => void
+}) {
+  const [mode, setMode] = useState<'pick' | 'new'>('pick')
+  const [f, setF] = useState('')
+  const [name, setName] = useState('')
+  const [editId, setEditId] = useState<string | undefined>(undefined)
+  const [sel, setSel] = useState<string[]>([])
+  const [pf, setPf] = useState('')
+  const [confirmDel, setConfirmDel] = useState<string | null>(null)
+  const match = (t: string) => !f.trim() || t.toLowerCase().includes(f.trim().toLowerCase())
+  const startNew = (preset = '') => {
+    setMode('new'); setEditId(undefined); setName(preset); setSel(preset ? suggestPeople(doc, preset) : []); setPf('')
+  }
+  const startEdit = (c: CustomTheme) => {
+    setMode('new'); setEditId(c.id); setName(c.name); setSel(c.people); setPf('')
+  }
+  const toggle = (id: string) => setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
+  const people = doc.people.filter((p) => !pf.trim() || [p.th, p.role].join(' ').includes(pf.trim()))
+  return (
+    <div className="sheet-backdrop" onClick={onClose}>
+      <div className="sheet" role="dialog" aria-modal="true" aria-label="เลือกหัวข้อ" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet__head">
+          <div className="sheet__title"><strong>{mode === 'pick' ? '🏷 เลือกหัวข้อ' : editId ? '✏️ แก้ไขหัวข้อ' : '＋ หัวข้อใหม่'}</strong></div>
+          <button type="button" className="sheet__close" onClick={mode === 'pick' ? onClose : () => setMode('pick')}>{mode === 'pick' ? 'ปิด' : '‹ กลับ'}</button>
+        </div>
+        {mode === 'pick' ? (
+          <>
+            <input className="sheet__search" type="search" placeholder="ค้นหาหัวข้อ เช่น การรับใช้" value={f} onChange={(e) => setF(e.target.value)} />
+            <div className="sheet__list">
+              <button type="button" className="btn btn--gold" onClick={() => startNew(f.trim())}>＋ สร้างหัวข้อใหม่{f.trim() ? ` “${f.trim()}”` : ''}</button>
+              {custom.filter((c) => match(c.name)).length > 0 && (
+                <section>
+                  <h3 className="theme-group">หัวข้อของฉัน</h3>
+                  <ul className="theme-list">
+                    {custom.filter((c) => match(c.name)).map((c) => (
+                      <li key={c.id} className="theme-row">
+                        <button type="button" className={`theme-item${current === c.name ? ' theme-item--on' : ''}`} onClick={() => onPick(c.name)}>{c.name} <small>{c.people.length} คน</small></button>
+                        {confirmDel === c.id ? (
+                          <>
+                            <button type="button" className="mini mini--danger" onClick={() => { onRemove(c.id); setConfirmDel(null) }}>ลบ</button>
+                            <button type="button" className="mini" onClick={() => setConfirmDel(null)}>ไม่</button>
+                          </>
+                        ) : (
+                          <>
+                            <button type="button" className="mini" aria-label={`แก้ไข ${c.name}`} onClick={() => startEdit(c)}>✏️</button>
+                            <button type="button" className="mini" aria-label={`ลบ ${c.name}`} onClick={() => setConfirmDel(c.id)}>🗑️</button>
+                          </>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+              <section>
+                <h3 className="theme-group">หัวข้อตั้งต้น</h3>
+                <ul className="theme-list theme-list--grid">
+                  {builtIn.filter(match).map((t) => (
+                    <li key={t}><button type="button" className={`theme-item${current === t ? ' theme-item--on' : ''}`} onClick={() => onPick(t)}>{t}</button></li>
+                  ))}
+                </ul>
+              </section>
+            </div>
+          </>
+        ) : (
+          <form className="theme-new" onSubmit={(e) => { e.preventDefault(); if (name.trim() && sel.length) onSave({ id: editId, name, people: sel }) }}>
+            <label className="ai-keys__label" htmlFor="theme-name">ชื่อหัวข้อ</label>
+            <input id="theme-name" className="sheet__search" type="text" placeholder="เช่น การรับใช้" value={name} onChange={(e) => setName(e.target.value)} />
+            <button type="button" className="mini" onClick={() => setSel([...new Set([...sel, ...suggestPeople(doc, name)])])} disabled={!name.trim()}>✨ เลือกบุคคลที่เกี่ยวข้องให้อัตโนมัติ</button>
+            <input className="sheet__search" type="search" placeholder="ค้นหาชื่อบุคคล" value={pf} onChange={(e) => setPf(e.target.value)} />
+            <p className="source-note">เลือกแล้ว {sel.length} คน · แตะเพื่อเลือกหรือเอาออก</p>
+            <ul className="theme-people">
+              {people.map((p) => (
+                <li key={p.id}>
+                  <label className={`theme-person${sel.includes(p.id) ? ' theme-person--on' : ''}`}>
+                    <input type="checkbox" checked={sel.includes(p.id)} onChange={() => toggle(p.id)} />
+                    <span><b>{p.th}</b> <small>{p.role}</small></span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+            <button type="submit" className="btn btn--gold" disabled={!name.trim() || !sel.length}>💾 บันทึกหัวข้อ</button>
+          </form>
+        )}
+      </div>
+    </div>
   )
 }
