@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { eraTitle, loadPeople, peopleForText, peopleForThemes, type PeopleDoc, type Person } from '../data/people'
 import { AiError, getAiProvider } from '../lib/ai'
@@ -377,6 +378,8 @@ function RefReader({ text }: { text: string }) {
   )
 }
 
+const SHORT: Record<TeachMode, string> = { story: 'เรื่องราว', lessons: 'บทเรียน', teach: 'สอน', pastoral: 'อภิบาล', questions: 'คำถาม' }
+
 function TeachPanel({ p }: { p: Person }) {
   const [mode, setMode] = useState<TeachMode>('story')
   const [base, setBase] = useState<PersonContent | null>(null)
@@ -397,8 +400,37 @@ function TeachPanel({ p }: { p: Person }) {
 
   const key = `${p.id}:${mode}`
   const edit = edits.items.find((x) => x.id === key)
-  const sections = edit?.sections ?? base?.[mode] ?? []
+  const sectionsOf = (m: TeachMode) => edits.items.find((x) => x.id === `${p.id}:${m}`)?.sections ?? base?.[m] ?? []
+  const sections = sectionsOf(mode)
   const label = TEACH_MODES.find((m) => m.id === mode)!.label
+
+  // ฟังเสียง: หน้านี้ หรือ ต่อเนื่องทั้ง 5 แท็บ (แท็บเลื่อนตามเสียงเอง) — แบบเดียวกับสมุดคำอธิษฐาน
+  const tts = useSpeech()
+  const [slot, setSlot] = useState<HTMLElement | null>(null)
+  useEffect(() => setSlot(document.getElementById('topbar-slot')), [])
+  const modeRef = useRef<TeachMode>(mode)
+  modeRef.current = mode
+  const autoMode = useRef(false)
+  const { stop } = tts
+  useEffect(() => {
+    if (autoMode.current) return void (autoMode.current = false) // เปลี่ยนแท็บเพราะฟังต่อเนื่อง → อ่านต่อ
+    stop()
+  }, [mode, stop])
+  const speakText = (m: TeachMode) =>
+    sectionsOf(m)
+      .map((x) => [x.heading, x.text, ...x.items].filter(Boolean).map((t) => speakableRef(t)).join('\n'))
+      .join('\n')
+  const listenAll = () => {
+    const start = TEACH_MODES.findIndex((m) => m.id === mode)
+    const secs = TEACH_MODES.slice(start).map((m) => ({ id: m.id, text: speakText(m.id) ? `${m.label}.\n${speakText(m.id)}` : '' })).filter((x) => x.text)
+    tts.speakSections(secs, (id) => {
+      if (id !== modeRef.current) {
+        autoMode.current = true
+        modeRef.current = id as TeachMode
+        setMode(id as TeachMode)
+      }
+    })
+  }
 
   const startEdit = (from = sections) => {
     setDraft(sectionsToText(from))
@@ -426,13 +458,16 @@ function TeachPanel({ p }: { p: Person }) {
 
   return (
     <>
-      <div className="teach-buttons">
+      <div className="nb-tabs teach-tabs" role="tablist">
         {TEACH_MODES.map((m) => (
-          <button key={m.id} type="button" className="teach-btn" aria-pressed={mode === m.id} onClick={() => setMode(m.id)}>
-            <span aria-hidden="true">{m.icon}</span> {m.label}
+          <button key={m.id} type="button" role="tab" className="teach-btn" aria-selected={mode === m.id} aria-label={m.label} onClick={() => setMode(m.id)}>
+            <span aria-hidden="true">{m.icon}</span>
+            <span>{SHORT[m.id]}</span>
           </button>
         ))}
       </div>
+      <h3 className="teach-mode-title">{label}</h3>
+      {tts.noVoice && <p className="nb-none">มือถือเครื่องนี้ยังไม่มีเสียงภาษาไทย · ติดตั้งเสียงไทยในการตั้งค่าการอ่านออกเสียงของเครื่อง</p>}
 
       {editing ? (
         <div className="teach-edit">
@@ -475,6 +510,25 @@ function TeachPanel({ p }: { p: Person }) {
             <button type="button" className="mini" onClick={() => startEdit(ai.sections)}>✏️ ใช้ฉบับ AI แทน แล้วแก้ไข</button>
           </div>
         </>
+      )}
+
+      {tts.supported && slot && base && createPortal(
+        <div className="nb-fab" role="group" aria-label="ฟังเสียงอ่าน">
+          {tts.speaking ? (
+            <button type="button" className="nb-fab__btn nb-fab__btn--stop" onClick={tts.pause} aria-label="หยุดชั่วคราว">⏸ หยุด</button>
+          ) : tts.paused ? (
+            <>
+              <button type="button" className="nb-fab__btn" onClick={tts.resume} aria-label="ฟังต่อ">▶ ฟังต่อ</button>
+              <button type="button" className="nb-fab__btn" onClick={tts.stop} aria-label="เริ่มใหม่">↺</button>
+            </>
+          ) : (
+            <>
+              <button type="button" className="nb-fab__btn" disabled={!speakText(mode)} onClick={() => tts.speak(`${label}.\n${speakText(mode)}`)} aria-label="ฟังแท็บนี้">🔊 หน้านี้</button>
+              <button type="button" className="nb-fab__btn" onClick={listenAll} aria-label="ฟังต่อเนื่องทุกแท็บ">▶ ต่อเนื่อง</button>
+            </>
+          )}
+        </div>,
+        slot,
       )}
     </>
   )

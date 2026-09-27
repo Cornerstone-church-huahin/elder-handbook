@@ -46,7 +46,7 @@ check(await p.locator('.ref-read__listen').count() === 1, 'passage has listen bu
 // เนื้อหาพร้อมใช้ทันที (ไม่ต้องใช้ AI) + แก้ไขได้ + คืนค่าเดิม
 await p.waitForSelector('.ai-sec')
 check(await p.locator('.ai-sec').count() >= 2 && await p.evaluate(() => window.__prompts.length) === 0, 'life story shows immediately without AI')
-for (const m of ['จุดเด่น', 'โครงบทเรียน', 'อภิบาล', 'คำถาม']) {
+for (const m of ['บทเรียน', 'สอน', 'อภิบาล', 'คำถาม']) {
   await p.click(`.teach-btn:has-text("${m}")`); await p.waitForTimeout(150)
   check(await p.locator('.ai-sec').count() >= 1, 'mode has content: ' + m)
 }

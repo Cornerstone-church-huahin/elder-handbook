@@ -63,6 +63,7 @@ export function useSpeech() {
   const q = useRef<{ items: Item[]; pos: number; offset: number; onSection?: (id: string) => void } | null>(null)
 
   const watch = useRef<number | undefined>(undefined)
+  const [me0] = useState(() => Symbol('speech'))
 
   /** หยุดทั้งหมด (ล้างตำแหน่ง) */
   const stop = useCallback(() => {
@@ -84,6 +85,7 @@ export function useSpeech() {
     const cur = q.current
     if (!cur || !canSpeak()) return
     const synth = window.speechSynthesis
+    window.dispatchEvent(new CustomEvent('khatha-speech', { detail: me0 })) // ให้ปุ่มฟังอื่นในหน้าหยุดก่อน (อ่านทีละแหล่ง)
     const id = ++run.current
     const voice = thaiVoice()
     setNoVoice(!voice && synth.getVoices().length > 0)
@@ -143,7 +145,7 @@ export function useSpeech() {
     }, 400)
     synth.cancel()
     window.setTimeout(next, 150)
-  }, [rate])
+  }, [rate, me0])
 
   /** หยุดชั่วคราว: จำคำที่กำลังอ่านไว้ กดฟังต่อจะอ่านต่อจากตรงนั้น */
   const pause = useCallback(() => {
@@ -181,12 +183,22 @@ export function useSpeech() {
 
   // โหลดรายชื่อเสียงล่วงหน้า (บางเครื่องโหลดช้า) และหยุดอ่านเมื่อออกจากหน้า
   useEffect(() => {
+    const other = (e: Event) => {
+      if ((e as CustomEvent).detail === me0 || !q.current) return
+      run.current++
+      q.current = null
+      window.clearInterval(watch.current)
+      setSpeaking(false)
+      setPaused(false)
+    }
+    window.addEventListener('khatha-speech', other)
     if (canSpeak()) window.speechSynthesis.getVoices()
     return () => {
+      window.removeEventListener('khatha-speech', other)
       run.current++
-      if (canSpeak()) window.speechSynthesis.cancel()
+      if (q.current && canSpeak()) window.speechSynthesis.cancel()
     }
-  }, [])
+  }, [me0])
 
   return { speak, speakSections, stop, pause, resume, speaking, paused, rate, setRate, noVoice, supported: canSpeak() }
 }

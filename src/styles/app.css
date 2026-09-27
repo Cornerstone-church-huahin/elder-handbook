@@ -1094,3 +1094,9 @@ html[data-scale='150'] body.reading .nb-card--open .nb-card__body { height: calc
 .ref-read__body sup { font-size: .7em; opacity: .7; margin-right: .15em; }
 .ref-read__chapter h4 { margin: .5rem 0 .25rem; font-size: .95rem; opacity: .8; }
 .ref-read__listen { margin-bottom: .5rem; }
+
+/* แท็บเนื้อหาบุคคล (แบบเดียวกับสมุดคำอธิษฐาน) */
+.teach-tabs { grid-template-columns: repeat(5, 1fr); top: 3.6rem; margin-bottom: .5rem; }
+.teach-tabs button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .1rem; line-height: 1.2; font-size: .78rem; }
+.teach-tabs button span:first-child { font-size: 1.05rem; }
+.teach-mode-title { margin: .25rem 0 .4rem; font-size: 1rem; color: var(--accent-ink); }
