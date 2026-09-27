@@ -105,17 +105,16 @@ export default function Search() {
       </div>
 
       <form className="search" role="search" onSubmit={onSubmit}>
-        <IconSearch />
         <input
           id="search-q"
           type="search"
           enterKeyHint="search"
-          placeholder="เช่น สามีเสียชีวิต"
+          placeholder="พิมพ์ค้นหาได้ทุกอย่าง"
           aria-label="คำค้นหา"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
-        <button type="submit">ค้นหา</button>
+        <button type="submit" className="search__go" aria-label="ค้นหา"><IconSearch /></button>
       </form>
 
       {initial && (

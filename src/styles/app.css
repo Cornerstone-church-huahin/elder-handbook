@@ -1194,3 +1194,5 @@ html[data-scale='150'] body.reading .nb-card--open .nb-card__body { height: calc
 .ai-app--chatgpt { background: #10a37f; }
 .ai-app--claude { background: #c96442; }
 .ai-apps__hint { margin: .3rem 0 0; font-size: .7rem; color: var(--ink-soft); }
+.search .search__go { flex: 0 0 auto; width: 3rem; padding: 0; display: flex; align-items: center; justify-content: center; }
+.search .search__go svg { width: 1.35rem; height: 1.35rem; color: var(--parchment); stroke: currentColor; }

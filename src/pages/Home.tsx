@@ -37,16 +37,15 @@ export default function Home() {
       <section className="section">
         <label htmlFor="home-search" className="sr-only">ค้นหา</label>
         <form className="search" role="search" onSubmit={onSubmit}>
-          <IconSearch />
           <input
             id="home-search"
             type="search"
             enterKeyHint="search"
-            placeholder="พิมพ์เรื่องที่พบ เช่น ป่วย"
+            placeholder="พิมพ์ค้นหาได้ทุกอย่าง"
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
-          <button type="submit">ค้นหา</button>
+          <button type="submit" className="search__go" aria-label="ค้นหา"><IconSearch /></button>
         </form>
       </section>
 
