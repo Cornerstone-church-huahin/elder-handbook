@@ -1024,3 +1024,25 @@ body.reading .nb-card--open .nb-card__body { height: calc(100dvh - 11.8rem - env
 html[data-scale='85'] body.reading .nb-card--open .nb-card__body { height: calc(100dvh - 12.3rem - env(safe-area-inset-bottom, 0px)); }
 html[data-scale='125'] body.reading .nb-card--open .nb-card__body { height: calc(100dvh - 12.3rem - env(safe-area-inset-bottom, 0px)); }
 html[data-scale='150'] body.reading .nb-card--open .nb-card__body { height: calc(100dvh - 13.4rem - env(safe-area-inset-bottom, 0px)); }
+/* บุคคลในพระคัมภีร์: พันธสัญญา → ยุค → รายชื่อ แบบกดขยาย/ยุบ ประหยัดพื้นที่ */
+.acc { border-radius: var(--radius); }
+.acc > summary { list-style: none; cursor: pointer; }
+.acc > summary::-webkit-details-marker { display: none; }
+.acc__bar { display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto; column-gap: 0.5rem; align-items: center; min-height: 48px; padding: 0.45rem 0.8rem; border-radius: var(--radius); }
+.acc__title { font-family: var(--font-display); font-weight: 600; }
+.acc__bar small { grid-column: 1; font-size: 0.75rem; }
+.acc__chev { grid-column: 2; grid-row: 1 / span 2; font-size: 1rem; transition: transform 0.2s; }
+.acc[open] > summary .acc__chev { transform: rotate(180deg); }
+.acc__bar--testament { background: var(--navy); color: var(--parchment); }
+.acc__bar--testament .acc__title { font-size: 1.05rem; }
+.acc__bar--testament small { color: #e9d99a; }
+.acc--testament + .acc--testament { margin-top: 0.45rem; }
+.acc__body { display: flex; flex-direction: column; gap: 0.35rem; padding: 0.4rem 0 0.2rem 0.5rem; }
+.acc__bar--era { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--gold); }
+.acc__bar--era .acc__title { font-size: 0.95rem; }
+.acc__bar--era small { color: var(--ink-soft); }
+.acc__list { padding: 0.35rem 0 0.3rem 0.4rem; gap: 0.35rem; }
+.acc__list .result { min-height: 0; padding: 0.4rem 0.65rem; gap: 0.55rem; }
+.acc__list .art-no { min-width: 1.8rem; font-size: 0.85rem; }
+.acc__list .result__title { font-size: 0.95rem; }
+.acc__list .art-where { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }

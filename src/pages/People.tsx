@@ -135,36 +135,40 @@ export function PeopleHome() {
           const eras = doc.eras.filter((e) => e.testament === t.id && shown.some((x) => x.era === e.id))
           if (!eras.length) return null
           return (
-            <div key={t.id} className="testament-block">
-              <h2 className="testament-head">
-                <span>{t.title}</span>
-                <small>{t.span}</small>
-              </h2>
-              {eras.map((era) => {
-                const people = shown.filter((x) => x.era === era.id)
-                return (
-                  <div key={era.id} className="era-block">
-                    <h3 className="era-block__title">
-                      {eraTitle(era)}
-                      <small>ลำดับ {people[0].order}{people.length > 1 ? `–${people[people.length - 1].order}` : ''} · {people.length} คน</small>
-                    </h3>
-                    <ul className="results">
-                      {people.map((p) => (
-                        <li key={p.id}>
-                          <Link to={`/people/${p.id}`} className="result">
-                            <span className="art-no">{p.order}</span>
-                            <span className="result__body">
-                              <span className="result__title">{p.th}</span>
-                              <span className="art-where">{p.role}</span>
-                            </span>
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )
-              })}
-            </div>
+            <details key={t.id} className="acc acc--testament" open={!!theme}>
+              <summary className="acc__bar acc__bar--testament">
+                <span className="acc__title">{t.title}</span>
+                <small>{t.span} · {shown.filter((x) => eras.some((e) => e.id === x.era)).length} คน</small>
+                <span className="acc__chev" aria-hidden="true">▾</span>
+              </summary>
+              <div className="acc__body">
+                {eras.map((era) => {
+                  const people = shown.filter((x) => x.era === era.id)
+                  return (
+                    <details key={era.id} className="acc acc--era" open={!!theme}>
+                      <summary className="acc__bar acc__bar--era">
+                        <span className="acc__title">{eraTitle(era)}</span>
+                        <small>ลำดับ {people[0].order}{people.length > 1 ? `–${people[people.length - 1].order}` : ''} · {people.length} คน</small>
+                        <span className="acc__chev" aria-hidden="true">▾</span>
+                      </summary>
+                      <ul className="results acc__list">
+                        {people.map((p) => (
+                          <li key={p.id}>
+                            <Link to={`/people/${p.id}`} className="result">
+                              <span className="art-no">{p.order}</span>
+                              <span className="result__body">
+                                <span className="result__title">{p.th}</span>
+                                <span className="art-where">{p.role}</span>
+                              </span>
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  )
+                })}
+              </div>
+            </details>
           )
         })}
       </section>

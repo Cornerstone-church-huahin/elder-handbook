@@ -16,11 +16,14 @@ await p.addInitScript(() => {
   const o = window.scrollTo.bind(window); window.scrollTo = (...a) => { o(...a); return {} }
 })
 await p.goto(URL); await p.waitForTimeout(700)
-await p.click('.action:has-text("บุคคลในพระคัมภีร์")'); await p.waitForSelector('.testament-head')
-const heads = await p.locator('.testament-block > .testament-head span').allTextContents()
+await p.click('.action:has-text("บุคคลในพระคัมภีร์")'); await p.waitForSelector('.acc--testament')
+const heads = await p.locator('.acc__bar--testament .acc__title').allTextContents()
 check(heads.join('|') === 'พันธสัญญาเดิม|พันธสัญญาใหม่', 'list split into Old / New Testament: ' + heads.join('|'))
-check(await p.locator('.era-block').count() === 9, 'list shows 9 eras')
-const firstLast = await p.locator('.era-block .result__title').evaluateAll(els => [els[0].textContent, els[els.length - 1].textContent])
+check(await p.locator('.acc--era').count() === 9, 'list shows 9 eras')
+check(await p.locator('.acc__list .result:visible').count() === 0, 'names hidden until a bar is tapped (saves space)')
+await p.click('.acc__bar--testament >> nth=0'); check(await p.locator('.acc__bar--era:visible').count() > 0 && await p.locator('.acc__list .result:visible').count() === 0, 'tap testament → eras show')
+await p.click('.acc__bar--era >> nth=0'); check((await p.locator('.acc__list .result:visible').first().textContent()).includes('อาดัม'), 'tap era → names show')
+const firstLast = await p.locator('.acc__list .result__title').evaluateAll(els => [els[0].textContent, els[els.length - 1].textContent])
 check(firstLast[0] === 'อาดัม' && firstLast[1] === 'ลูกา', 'order Genesis (Adam) → Early Church (Luke)')
 // ป๊อปอัพ
 await p.click('text=📜 เลือกดูรายชื่อทั้ง 100 คน'); await p.waitForSelector('.sheet')
