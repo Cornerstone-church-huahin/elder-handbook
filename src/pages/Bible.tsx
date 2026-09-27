@@ -87,11 +87,34 @@ export function BibleHome() {
   )
 }
 
-// ---------- เล่ม: เลือกบท ----------
+// ---------- เล่ม: เลือกบท → เลือกข้อ ----------
 export function BibleBookPage() {
   const b = BIBLE_BOOKS[Number(useParams().book) - 1]
   const nav = useNavigate()
+  const [sp] = useSearchParams()
+  const c = Number(sp.get('c')) || 0 // บทที่เลือกแล้ว → แสดงตารางข้อ
+  const [count, setCount] = useState<number | null>(null)
+  useEffect(() => {
+    setCount(null)
+    if (b && c) loadBook(b.no).then((all) => setCount(all?.[c - 1]?.length ?? 0))
+  }, [b, c])
   if (!b) return <p className="empty">ไม่พบพระธรรมเล่มนี้</p>
+  if (c >= 1 && c <= b.chapters)
+    return (
+      <div className="page bible">
+        <p className="bible__crumb"><Link to={`/bible/${b.no}`} replace>{b.name}</Link> › บทที่ {c}</p>
+        <h1 className="bible__title">{b.name} {c} <small>{count ? `${count} ข้อ` : ''}</small></h1>
+        <Link className="btn btn--gold bible-listen-book" to={`/bible/${b.no}/${c}`}>📖 อ่านทั้งบท</Link>
+        <p className="source-note">เลือกข้อ — เปิดที่ข้อนั้น และฟังตั้งแต่ข้อนั้นเป็นต้นไปได้</p>
+        {count === null ? <p className="empty">กำลังเปิด…</p> : !count ? <p className="empty">เปิดบทนี้ไม่ได้ตอนนี้ (อาจออฟไลน์)</p> : (
+          <ul className="bible-chapters">
+            {Array.from({ length: count }, (_, i) => (
+              <li key={i}><Link to={`/bible/${b.no}/${c}?v=${i + 1}`} className="bible-ch bible-v">{i + 1}</Link></li>
+            ))}
+          </ul>
+        )}
+      </div>
+    )
   return (
     <div className="page bible">
       <p className="bible__crumb"><Link to={b.testament === 'new' ? '/bible?t=new' : '/bible'}>{b.testament === 'new' ? 'พันธสัญญาใหม่' : 'พันธสัญญาเดิม'}</Link></p>
@@ -99,10 +122,10 @@ export function BibleBookPage() {
       <button type="button" className="btn btn--gold bible-listen-book" onClick={() => nav(`/bible/${b.no}/1?play=all`)}>
         🔊 ฟังทั้งเล่ม (ต่อเนื่องตั้งแต่บทที่ 1)
       </button>
-      <p className="source-note">เลือกบท</p>
+      <p className="source-note">เลือกบท แล้วเลือกข้อ</p>
       <ul className="bible-chapters">
         {Array.from({ length: b.chapters }, (_, i) => (
-          <li key={i}><Link to={`/bible/${b.no}/${i + 1}`} className="bible-ch">{i + 1}</Link></li>
+          <li key={i}><Link to={`/bible/${b.no}?c=${i + 1}`} className="bible-ch">{i + 1}</Link></li>
         ))}
       </ul>
     </div>
@@ -183,14 +206,17 @@ export function BibleChapterPage() {
       nav(`/bible/${bookNo}/${c}`, { replace: true })
     }
   }
-  const chapterSections = (c: number) => {
+  // ข้อเริ่มต้น: ข้อที่เลือกจากตารางข้อ (?v=) หรือข้อที่แตะเลือกไว้ข้อเดียว → ฟังตั้งแต่ข้อนั้นเป็นต้นไป
+  const start = sel.length === 1 ? sel[0] : vParam && sel.includes(vParam) ? vParam : 1
+  const chapterSections = (c: number, from = 1) => {
     const vs = all?.[c - 1] ?? []
-    return [{ id: `${c}:0`, text: `${b.name} บทที่ ${c}` }, ...vs.map((t, i) => ({ id: `${c}:${i + 1}`, text: t })).filter((x) => x.text)]
+    const head = from > 1 ? `${b.name} บทที่ ${c} ข้อ ${from}` : `${b.name} บทที่ ${c}`
+    return [{ id: `${c}:0`, text: head }, ...vs.map((t, i) => ({ id: `${c}:${i + 1}`, text: t })).filter((x, i) => x.text && i + 1 >= from)]
   }
-  const listenChapter = () => tts.speakSections(chapterSections(ch), onSection)
+  const listenChapter = () => tts.speakSections(chapterSections(ch, start), onSection)
   const listenOn = () => {
-    const secs = []
-    for (let c = ch; c <= b.chapters; c++) secs.push(...chapterSections(c))
+    const secs = [...chapterSections(ch, start)]
+    for (let c = ch + 1; c <= b.chapters; c++) secs.push(...chapterSections(c))
     tts.speakSections(secs, onSection)
   }
   const listenSelected = () =>
@@ -238,7 +264,7 @@ export function BibleChapterPage() {
     <div className="page bible bible--read">
       <div className="bible-head">
         <Link className="bible-nav" to={ch > 1 ? `/bible/${bookNo}/${ch - 1}` : `/bible/${bookNo}`} aria-label="บทก่อน">◀</Link>
-        <Link className="bible-head__title" to={`/bible/${bookNo}`} aria-label="เลือกบท">{b.name} {ch} <span aria-hidden="true">▾</span></Link>
+        <Link className="bible-head__title" to={`/bible/${bookNo}?c=${ch}`} aria-label="เลือกข้อ">{b.name} {ch} <span aria-hidden="true">▾</span></Link>
         <Link className="bible-nav" to={ch < b.chapters ? `/bible/${bookNo}/${ch + 1}` : `/bible/${bookNo}`} aria-label="บทถัดไป" aria-disabled={ch >= b.chapters}>▶</Link>
       </div>
       {tts.noVoice && <p className="nb-none">มือถือเครื่องนี้ยังไม่มีเสียงภาษาไทย · ติดตั้งเสียงไทยในการตั้งค่าการอ่านออกเสียงของเครื่อง</p>}
@@ -272,6 +298,7 @@ export function BibleChapterPage() {
           <button type="button" onClick={copy} aria-label="คัดลอก">📋</button>
           <button type="button" onClick={share} aria-label="ส่ง">📤</button>
           <button type="button" onClick={listenSelected} aria-label="ฟังข้อที่เลือก">🔊</button>
+          {sel.length === 1 && <button type="button" onClick={listenOn} aria-label="ฟังตั้งแต่ข้อนี้เป็นต้นไป">⏩</button>}
           <button type="button" onClick={() => setSel([])} aria-label="ยกเลิกการเลือก">✕</button>
         </div>
       )}
@@ -287,7 +314,7 @@ export function BibleChapterPage() {
             </>
           ) : (
             <>
-              <button type="button" className="nb-fab__btn" onClick={listenChapter} aria-label="ฟังบทนี้">🔊 บทนี้</button>
+              <button type="button" className="nb-fab__btn" onClick={listenChapter} aria-label="ฟังบทนี้">{start > 1 ? `🔊 ข้อ ${start}–จบบท` : '🔊 บทนี้'}</button>
               <button type="button" className="nb-fab__btn" onClick={listenOn} aria-label="ฟังต่อเนื่องจนจบเล่ม">▶ ต่อเนื่อง</button>
             </>
           )}
