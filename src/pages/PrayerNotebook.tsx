@@ -359,7 +359,7 @@ function NoteCard({
                     <a key={r} className="nb-verse" href={ref ? refUrl(ref) : undefined} target="_blank" rel="noreferrer">
                       <span className="nb-verse__ref">📖 <Spoken text={v?.ref?.label ?? r} id={`verses|${r}|label`} follow={fw.follow} onTap={busy ? tapRead : undefined} /> <small>ฉบับ 1971 ↗</small></span>
                       <span className="nb-verse__text">
-                        {v === undefined ? 'กำลังเปิดพระคัมภีร์…' : v.verses.length ? <Spoken text={v.verses.map((x) => x.text).join(' ')} id={`verses|${r}`} follow={fw.follow} onTap={busy ? tapRead : undefined} /> : 'แตะเพื่อเปิดอ่านข้อนี้'}
+                        {v === undefined ? 'กำลังเปิดพระคัมภีร์…' : v.verses.length ? <Spoken text={v.verses.map((x) => x.text).join(' ')} id={`verses|${r}`} follow={fw.follow} onTap={busy ? tapRead : undefined} verse={ref && ref.verses.length ? { book: ref.book, ch: ref.chapter, verses: ref.verses } : undefined} /> : 'แตะเพื่อเปิดอ่านข้อนี้'}
                       </span>
                     </a>
                   )

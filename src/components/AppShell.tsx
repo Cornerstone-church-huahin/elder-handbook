@@ -2,6 +2,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-do
 import { useEffect } from 'react'
 import PronEditor from './PronEditor'
 import TextTools from './TextTools'
+import { TextHlContext, useTextHighlightsStore } from '../lib/textHighlights'
 import { IconBack, IconCalendarCheck, IconHome, IconPeople, IconSearch, IconSettings, StaffMark } from './Icons'
 
 const TABS = [
@@ -16,12 +17,14 @@ export default function AppShell() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const isTabRoot = TAB_ROOTS.includes(pathname)
+  const textHl = useTextHighlightsStore()
 
   useEffect(() => {
     window.scrollTo(0, 0)
   }, [pathname])
 
   return (
+    <TextHlContext.Provider value={textHl}>
     <div className="app">
       <header className="topbar">
         {isTabRoot ? (
@@ -65,5 +68,6 @@ export default function AppShell() {
         </ul>
       </nav>
     </div>
+    </TextHlContext.Provider>
   )
 }

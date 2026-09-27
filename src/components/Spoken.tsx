@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useTextHighlights } from '../lib/textHighlights'
 
 /** ตำแหน่งที่กำลังอ่านออกเสียง: ส่วน (id) + ช่วงตัวอักษร [at, end) ของวลี/คำที่กำลังอ่าน */
 export type Follow = { id: string; at: number; end: number } | null
@@ -53,9 +54,13 @@ export type PronEditDetail = { text: string; start: number; end: number }
 export const openPronEditor = (d: PronEditDetail) => window.dispatchEvent(new CustomEvent<PronEditDetail>(PRON_EVENT, { detail: d }))
 /** กดค้างที่ข้อความ → แถบเครื่องมือ (TextTools ใน AppShell): ฟังจากตรงนี้ · คัดลอก · แชร์ · แก้คำอ่าน */
 export const TOOLS_EVENT = 'khatha-text-tools'
-export type ToolsDetail = PronEditDetail & { read?: () => void }
+/** ข้อพระคัมภีร์ (ถ้าข้อความนี้คือพระคำ) → ภาษาอังกฤษใช้ฉบับ WEB */
+export type VerseInfo = { book: number; ch: number; verses: number[] }
+export type ToolsDetail = PronEditDetail & { read?: () => void; verse?: VerseInfo }
 
-export function Spoken({ text, id, follow, word = false, onTap, onPress }: { text: string; id: string; follow: Follow; word?: boolean; onTap?: (id: string, at: number) => void; onPress?: () => void }) {
+export function Spoken({ text, id, follow, word = false, onTap, onPress, verse }: { text: string; id: string; follow: Follow; word?: boolean; onTap?: (id: string, at: number) => void; onPress?: () => void; verse?: VerseInfo }) {
+  const thl = useTextHighlights()
+  const hlColor = onPress || word ? undefined : thl?.colorOf(text)
   const ref = useRef<HTMLElement>(null)
   const box = useRef<HTMLSpanElement>(null)
   const press = useRef<{ x: number; y: number; t: number } | null>(null)
@@ -89,7 +94,7 @@ export function Spoken({ text, id, follow, word = false, onTap, onPress }: { tex
           window.setTimeout(() => { longDone.current = false }, 900) // กันเฉพาะการแตะที่ตามมาทันที
           window.getSelection()?.removeAllRanges()
           if (onPress) return onPress()
-          const detail: ToolsDetail = { text, start: w.index, end: w.index + w.segment.length, read: onTap ? () => onTap(id, w.index) : undefined }
+          const detail: ToolsDetail = { text, start: w.index, end: w.index + w.segment.length, read: onTap ? () => onTap(id, w.index) : undefined, verse }
           window.dispatchEvent(new CustomEvent<ToolsDetail>(TOOLS_EVENT, { detail }))
         }, 600)
         press.current = { x, y, t }
@@ -109,7 +114,7 @@ export function Spoken({ text, id, follow, word = false, onTap, onPress }: { tex
     onPointerCancel: cancel,
     onContextMenu: word ? undefined : (e: React.MouseEvent) => e.preventDefault(),
   }
-  const cls = `spoken${onTap ? ' spoken--tap' : ''}${word ? '' : ' spoken--press'}`
+  const cls = `spoken${onTap ? ' spoken--tap' : ''}${word ? '' : ' spoken--press'}${hlColor ? ` hl--${hlColor}` : ''}`
   const on = !!follow && follow.id === id
   useEffect(() => {
     if (on) ref.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })

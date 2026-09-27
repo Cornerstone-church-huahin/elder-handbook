@@ -376,7 +376,7 @@ function RefReader({ text }: { text: string }) {
                 {ps.blocks.map((b) => (
                   <div key={b.chapter} className="ref-read__chapter">
                     {ps.blocks.length > 1 && <h4>บทที่ {b.chapter}</h4>}
-                    <p>{b.verses.map((v) => <span key={v.n}><sup>{v.n}</sup><Spoken text={v.text} id={`${b.chapter}:${v.n}`} follow={rfw.follow} onTap={(id, at) => speakFrom({ id, at })} /> </span>)}</p>
+                    <p>{b.verses.map((v) => <span key={v.n}><sup>{v.n}</sup><Spoken text={v.text} id={`${b.chapter}:${v.n}`} follow={rfw.follow} onTap={(id, at) => speakFrom({ id, at })} verse={head ? { book: head.book, ch: b.chapter, verses: b.verses.map((x) => x.n) } : undefined} /> </span>)}</p>
                   </div>
                 ))}
                 <p className="source-note">พระคริสตธรรมคัมภีร์ ฉบับ 1971 · {link && <a href={link} target="_blank" rel="noreferrer">เปิดในแอปพระคัมภีร์ ↗</a>}</p>
