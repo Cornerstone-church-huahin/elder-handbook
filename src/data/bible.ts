@@ -167,3 +167,23 @@ export interface BibleBook { no: number; name: string; code: string; chapters: n
 export const BIBLE_BOOKS: BibleBook[] = BOOKS.map(([names, code], i) => ({ no: i + 1, name: names[0], code, chapters: CHAPTERS[i], testament: i < 39 ? 'old' : 'new' }))
 export const chapterUrl = (book: number, ch: number, v?: [number, number]) =>
   `https://www.bible.com/th/bible/275/${BOOKS[book - 1][1]}.${ch}${v ? `.${v[0]}${v[1] !== v[0] ? '-' + v[1] : ''}` : ''}.TH1971`
+
+export interface BibleHit { book: number; chapter: number; verse: number; text: string }
+/** ค้นคำในพระคัมภีร์ทั้งเล่ม (ฉบับ 1971) — โหลดทีละหลายเล่ม · onProgress(เล่มที่โหลดแล้ว, 66) */
+export async function searchBible(term: string, onProgress?: (done: number, total: number) => void): Promise<BibleHit[]> {
+  const t = term.trim()
+  if (!t) return []
+  const hits: BibleHit[][] = Array.from({ length: 66 }, () => [])
+  let done = 0
+  let next = 1
+  const worker = async () => {
+    while (next <= 66) {
+      const b = next++
+      const c = await loadBook(b)
+      c?.forEach((vs, ci) => vs.forEach((text, vi) => { if (text.includes(t)) hits[b - 1].push({ book: b, chapter: ci + 1, verse: vi + 1, text }) }))
+      onProgress?.(++done, 66)
+    }
+  }
+  await Promise.all(Array.from({ length: 6 }, worker))
+  return hits.flat()
+}

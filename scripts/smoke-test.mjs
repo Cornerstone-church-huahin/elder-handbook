@@ -24,7 +24,7 @@ const p = await b.newPage({ viewport: { width: 390, height: 800 } })
 const cases = { 'สมาชิกกลัวการผ่าตัด': 'ก่อนผ่าตัด', 'สามีเสียชีวิต': 'สูญเสีย', 'ทะเลาะกับลูก': 'ครอบครัว', 'เป็นหนี้และเครียด': 'การเงิน', 'รู้สึกว่าพระเจ้าทอดทิ้ง': 'หมดกำลังใจ' }
 for (const [q, want] of Object.entries(cases)) {
   await p.goto(URL + '#/'); await p.fill('#home-search', q); await p.press('#home-search', 'Enter'); await p.waitForTimeout(200)
-  const first = await p.locator('.result .result__title').first().textContent().catch(() => '')
+  const first = await p.locator('.result:has(.badge) .result__title').first().textContent().catch(() => '')
   check(first.includes(want), `search "${q}" → first result "${first}"`)
 }
 // ขนาดปุ่ม

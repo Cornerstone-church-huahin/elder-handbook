@@ -7,6 +7,7 @@ import { loadNotebook, scoreNote } from '../lib/prayerNotebook'
 import type { SearchResult, SourceType } from '../data/types'
 import { IconSearch } from '../components/Icons'
 import { RelatedPeople } from './People'
+import ScriptureResults from '../components/ScriptureResults'
 
 // Source Badge ตาม Blueprint ข้อ 16 — ผู้ใช้ต้องรู้เสมอว่าผลลัพธ์มาจากแหล่งใด
 const BADGE: Record<SourceType, string> = {
@@ -108,11 +109,15 @@ export default function Search() {
         <Link to={`/prayer?q=${encodeURIComponent(initial)}`} className="btn btn--gold">🙏 หาคำอธิษฐานเรื่องนี้</Link>
       )}
 
+      {initial && <RelatedPeople text={initial} />}
+
+      {initial && <ScriptureResults text={initial} />}
+
       {initial && (
         <section className="section" aria-live="polite">
           {results.length > 0 ? (
             <>
-              <h2 className="section__title">ผลการค้นหา</h2>
+              <h2 className="section__title">📜 ธรรมนูญ ระเบียบ และคู่มือ</h2>
               <ul className="results">
                 {results.map((r) => (
                   <li key={`${r.type}-${r.id}`}>
@@ -133,7 +138,6 @@ export default function Search() {
         </section>
       )}
 
-      {initial && <RelatedPeople text={initial} />}
     </>
   )
 }

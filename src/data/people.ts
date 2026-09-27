@@ -82,12 +82,17 @@ export function peopleForThemes(doc: PeopleDoc, themes: string[], limit = 6): Pe
 }
 
 /** บุคคลที่เกี่ยวข้องกับข้อความ: ชื่อที่พิมพ์ตรง ๆ มาก่อน แล้วตามหัวข้อ */
+// คำค้นที่มีบุคคลตัวอย่างชัดเจน (มาก่อนผลจากหัวข้อ)
+const PREFERRED: [RegExp, string[]][] = [
+  [/ผู้ปกครอง|ผู้ดูแล|ศิษยาภิบาล|ผู้เลี้ยง|ผู้อาวุโส|มัคนายก/, ['moses', 'jethro', 'samuel', 'nehemiah', 'peter', 'paul', 'barnabas']],
+]
 export function peopleForText(doc: PeopleDoc, text: string, limit = 6): Person[] {
   const n = norm(text)
+  const pref = PREFERRED.filter(([re]) => re.test(text)).flatMap(([, ids]) => ids.map((id) => doc.people.find((x) => x.id === id)).filter((x): x is Person => !!x))
   const byName = n.length >= 2 ? doc.people.filter((x) => n.includes(norm(x.th)) || norm(x.th).includes(n)) : []
   const byTheme = peopleForThemes(doc, themesInText(doc, text), limit)
   const seen = new Set<string>()
-  return [...byName, ...byTheme].filter((x) => !seen.has(x.id) && seen.add(x.id)).slice(0, limit)
+  return [...byName, ...pref, ...byTheme].filter((x) => !seen.has(x.id) && seen.add(x.id)).slice(0, limit)
 }
 
 /** หาบุคคลจากชื่อที่ AI เขียนมา (เช่น "เฮเซคียาห์") เพื่อทำลิงก์ */

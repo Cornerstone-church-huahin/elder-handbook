@@ -1132,3 +1132,9 @@ html[data-scale='150'] body.reading .nb-card--open .nb-card__body { height: calc
 .bible-selbar { position: fixed; left: .5rem; right: .5rem; bottom: calc(env(safe-area-inset-bottom, 0px) + 4.2rem); z-index: 11; max-width: calc(var(--maxw) - 1rem); margin: 0 auto; display: flex; align-items: center; gap: .2rem; padding: .35rem .4rem .35rem .9rem; border-radius: 999px; background: var(--navy); color: #fff; box-shadow: 0 6px 20px rgba(0,0,0,.25); }
 .bible-selbar__ref { flex: 1; min-width: 0; font-size: .85rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bible-selbar button { width: 40px; height: 40px; border: 0; border-radius: 50%; background: rgba(255,255,255,.12); color: #fff; font-size: 1.05rem; cursor: pointer; }
+
+/* ข้อพระคัมภีร์ในผลการค้นหา */
+.sr-verse { align-items: flex-start; }
+.sr-verse__text { display: block; font-size: .88rem; line-height: 1.6; color: var(--ink-soft); margin-top: .15rem; }
+.sr-verse__text mark { background: rgba(212, 167, 44, .35); color: inherit; border-radius: 3px; padding: 0 .1em; }
+.sr-full { width: 100%; margin-top: .5rem; }
