@@ -58,6 +58,35 @@ export const TOOLS_EVENT = 'khatha-text-tools'
 export type VerseInfo = { book: number; ch: number; verses: number[] }
 export type ToolsDetail = PronEditDetail & { read?: () => void; verse?: VerseInfo }
 
+/**
+ * ให้ไฮไลต์ที่กำลังอ่านอยู่ในจอเสมอ: ถ้าเลื่อนลงไปใกล้ขอบล่าง (หรือถูกแถบล่างบัง) หรือหลุดขึ้นไปด้านบน
+ * → เลื่อนหน้าให้บรรทัดที่กำลังอ่านขึ้นมาอยู่ด้านบนของจอ แล้วอ่านไล่ลงไปใหม่
+ */
+function scrollParent(el: HTMLElement): HTMLElement | null {
+  for (let p = el.parentElement; p; p = p.parentElement) {
+    const o = getComputedStyle(p).overflowY
+    if ((o === 'auto' || o === 'scroll') && p.scrollHeight > p.clientHeight + 4) return p
+  }
+  return null
+}
+function keepInView(mark: HTMLElement) {
+  const r = mark.getBoundingClientRect()
+  const box = scrollParent(mark)
+  if (box) {
+    const b = box.getBoundingClientRect()
+    if (r.bottom > b.bottom - 24 || r.top < b.top + 4) box.scrollTo({ top: box.scrollTop + r.top - b.top - 12, behavior: 'smooth' })
+    return
+  }
+  // แถบบน + หัวที่ติดด้านบน (เช่นชื่อบทในหน้าพระคัมภีร์) · แถบเมนูล่าง
+  const topbar = (document.querySelector('.topbar') as HTMLElement | null)?.getBoundingClientRect().bottom ?? 60
+  const sticky = (document.querySelector('.bible-head') as HTMLElement | null)?.getBoundingClientRect()
+  const top = Math.max(topbar, sticky && sticky.top <= topbar + 2 ? sticky.bottom : 0)
+  const nav = (document.querySelector('.bottomnav') as HTMLElement | null)?.getBoundingClientRect().top ?? window.innerHeight
+  const bar = (document.querySelector('.bible-selbar') as HTMLElement | null)?.getBoundingClientRect().top
+  const bottom = Math.min(nav, bar ?? nav) - 32
+  if (r.bottom > bottom || r.top < top + 4) window.scrollTo({ top: window.scrollY + r.top - top - 16, behavior: 'smooth' })
+}
+
 export function Spoken({ text, id, follow, word = false, onTap, onPress, verse }: { text: string; id: string; follow: Follow; word?: boolean; onTap?: (id: string, at: number) => void; onPress?: () => void; verse?: VerseInfo }) {
   const thl = useTextHighlights()
   const hlColor = onPress || word ? undefined : thl?.colorOf(text)
@@ -117,7 +146,7 @@ export function Spoken({ text, id, follow, word = false, onTap, onPress, verse }
   const cls = `spoken${onTap ? ' spoken--tap' : ''}${word ? '' : ' spoken--press'}${hlColor ? ` hl--${hlColor}` : ''}`
   const on = !!follow && follow.id === id
   useEffect(() => {
-    if (on) ref.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    if (on && ref.current) keepInView(ref.current)
   }, [on, follow?.at]) // eslint-disable-line react-hooks/exhaustive-deps
   if (!on) return <span ref={box} className={cls} {...handlers}>{text}</span>
   const at = Math.max(0, Math.min(follow.at, text.length))

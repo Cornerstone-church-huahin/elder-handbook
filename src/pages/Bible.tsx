@@ -207,7 +207,7 @@ export function BibleChapterPage() {
 
   // ข้อที่กำลังอ่าน → เลื่อนให้เห็น
   useEffect(() => {
-    if (reading && reading.c === ch && reading.v > 0 && tts.speaking) document.getElementById(`v${reading.v}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    // เลื่อนตามเสียงอ่าน: Spoken จัดการให้ (ขึ้นไปด้านบนเมื่อถึงขอบล่าง)
   }, [reading, ch, tts.speaking])
 
   const onSection = (id: string) => {
@@ -401,7 +401,7 @@ function EnglishSheet({ book, ch, verses, onClose, onOpen }: { book: number; ch:
     )
   const active = (tts.speaking || tts.paused) && at
   useEffect(() => {
-    if (active && at.v) document.getElementById(`en${at.v}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    // เลื่อนตามเสียงอ่าน: Spoken จัดการให้
   }, [active, at?.v]) // eslint-disable-line react-hooks/exhaustive-deps
   const renderLine = (v: number, t: string) => <Spoken text={t} id={String(v)} follow={active ? { id: String(at.v), at: at.i, end } : null} word onTap={(id, i) => play({ id, at: i })} />
   const copy = async () => {
