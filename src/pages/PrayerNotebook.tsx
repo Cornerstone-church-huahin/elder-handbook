@@ -3,13 +3,14 @@ import { createPortal } from 'react-dom'
 import { Link, useSearchParams } from 'react-router-dom'
 import { parseRef, refUrl } from '../data/bible'
 import { Spoken, useFollow } from '../components/Spoken'
-import { cleanStory, scoreNote, usePrayerNotebook, type NotePrayer } from '../lib/prayerNotebook'
+import { autoCheer } from '../lib/cheer'
+import { cleanStory, refsWithSuggest, scoreNote, usePrayerNotebook, type NotePrayer } from '../lib/prayerNotebook'
 import type { SyncStatus } from '../lib/sync'
 import { speakableRef, useSpeech, type SpeechSection } from '../lib/speech'
 import { PrayerMode, useVerseTexts } from './Prayer'
 
-type Draft = { title: string; category: string; ref1: string; ref2: string; story: string; text: string; notes: string }
-const EMPTY: Draft = { title: '', category: '', ref1: '', ref2: '', story: '', text: '', notes: '' }
+type Draft = { title: string; category: string; ref1: string; ref2: string; ref3: string; ref4: string; story: string; text: string; notes: string }
+const EMPTY: Draft = { title: '', category: '', ref1: '', ref2: '', ref3: '', ref4: '', story: '', text: '', notes: '' }
 
 /** เตรียมคำอธิษฐาน — สมุดคำอธิษฐาน: ค้นหา · เปิดอ่าน · เพิ่ม · แก้ไข · ลบ (บันทึกในเครื่องนี้) */
 export default function PrayerNotebookPage() {
@@ -75,7 +76,8 @@ export default function PrayerNotebookPage() {
   }
   const startEdit = (p: NotePrayer) => {
     setEditing(p.id)
-    setDraft({ title: p.title, category: p.category, ref1: p.refs[0] ?? '', ref2: p.refs[1] ?? '', story: cleanStory(p.story), text: p.text, notes: p.notes })
+    const rs = refsWithSuggest(p).refs
+    setDraft({ title: p.title, category: p.category, ref1: rs[0] ?? '', ref2: rs[1] ?? '', ref3: rs[2] ?? '', ref4: rs[3] ?? '', story: cleanStory(p.story), text: p.text, notes: p.notes })
     setConfirmDel(null)
   }
   const cancel = () => {
@@ -84,7 +86,7 @@ export default function PrayerNotebookPage() {
   }
   const save = () => {
     const d = {
-      title: draft.title.trim(), category: draft.category.trim(), refs: [draft.ref1.trim(), draft.ref2.trim()].filter(Boolean),
+      title: draft.title.trim(), category: draft.category.trim(), refs: [draft.ref1, draft.ref2, draft.ref3, draft.ref4].map((r) => r.trim()).filter(Boolean),
       story: draft.story.trim(), text: draft.text.trim(), notes: draft.notes.trim(),
     }
     if (!d.text) return
@@ -155,6 +157,7 @@ export default function PrayerNotebookPage() {
                 onCancelDelete={() => setConfirmDel(null)}
                 onDelete={() => { remove(p.id); setConfirmDel(null); setOpen(null) }}
                 onSaveNotes={(notes) => update(p.id, { notes })}
+                onSaveCheer={(cheer) => update(p.id, { cheer })}
               />
             ),
           )}
@@ -174,12 +177,12 @@ export default function PrayerNotebookPage() {
 
 const paras = (t: string) => t.split(/\n\s*\n/).map((x) => x.trim()).filter(Boolean)
 
-type Tab = 'verses' | 'story' | 'prayer' | 'notes'
+type Tab = 'verses' | 'story' | 'prayer' | 'cheer'
 const TABS: { id: Tab; label: string }[] = [
   { id: 'verses', label: '📖 พระคำ' },
   { id: 'story', label: '👤 เรื่องราว' },
   { id: 'prayer', label: '🙏 อธิษฐาน' },
-  { id: 'notes', label: '📝 บันทึก' },
+  { id: 'cheer', label: '💛 หนุนใจ' },
 ]
 
 /** เวลาแบบสั้น: วันนี้ → 06:16 น. · วันอื่น → 26 ก.ย. 16:16 น. */
@@ -211,20 +214,25 @@ function SyncLine({ sync, onRetry, list }: { sync: SyncStatus; onRetry: () => vo
 }
 
 function NoteCard({
-  p, open, flash, elRef, onToggle, onEdit, onBig, confirming, onAskDelete, onCancelDelete, onDelete, onSaveNotes,
+  p, open, flash, elRef, onToggle, onEdit, onBig, confirming, onAskDelete, onCancelDelete, onDelete, onSaveNotes, onSaveCheer,
 }: {
   p: NotePrayer; open: boolean; flash: boolean; elRef: (el: HTMLElement | null) => void; onToggle: () => void; onEdit: () => void; onBig: () => void
-  confirming: boolean; onAskDelete: () => void; onCancelDelete: () => void; onDelete: () => void; onSaveNotes: (notes: string) => void
+  confirming: boolean; onAskDelete: () => void; onCancelDelete: () => void; onDelete: () => void; onSaveNotes: (notes: string) => void; onSaveCheer: (cheer: string) => void
 }) {
   const [tab, setTab] = useState<Tab>('verses')
   const tabRef = useRef<Tab>('verses')
   tabRef.current = tab
-  const refs = p.refs.filter((r) => parseRef(r))
+  const refs = refsWithSuggest(p).refs // ครบ 4 ข้อ (เติมข้อที่นิยมใช้และเกี่ยวข้องให้อัตโนมัติ)
   const verses = useVerseTexts(open ? refs : [])
   const [copied, setCopied] = useState('')
   const [notes, setNotes] = useState(p.notes)
   const [notesSaved, setNotesSaved] = useState(false)
   useEffect(() => setNotes(p.notes), [p.notes])
+  // คำหนุนใจ: ที่แก้ไว้เอง หรือสร้างให้อัตโนมัติจากหัวข้อและเนื้อหา
+  const cheer = (p.cheer || autoCheer({ ...p, story: cleanStory(p.story), refs })).trim()
+  const [cheerEdit, setCheerEdit] = useState<string | null>(null)
+  const [cheerMsg, setCheerMsg] = useState('')
+  const [showNotes, setShowNotes] = useState(false)
   const tts = useSpeech()
   const [slot, setSlot] = useState<HTMLElement | null>(null)
   useEffect(() => setSlot(document.getElementById('topbar-slot')), [])
@@ -248,7 +256,7 @@ function NoteCard({
     if (t === 'verses') return versesText()
     if (t === 'story') return parasOf('story', cleanStory(p.story))
     if (t === 'prayer') return parasOf('prayer', p.text)
-    return notes.trim() ? [{ id: 'notes|0', text: notes }] : []
+    return paras(cheer).map((x, i) => ({ id: `cheer|${i}`, text: x }))
   }
   const titleSec = (): SpeechSection => ({ id: 'title|0', text: p.title })
   const allMode = useRef(false)
@@ -267,6 +275,7 @@ function NoteCard({
       ...(refs.length ? [{ id: 'verses|head', text: 'พระคำ.' }, ...versesText()] : []),
       ...(p.story ? [{ id: 'story|head', text: 'เรื่องราว.' }, ...parasOf('story', cleanStory(p.story))] : []),
       ...(p.text ? [{ id: 'prayer|head', text: 'คำอธิษฐาน.' }, ...parasOf('prayer', p.text)] : []),
+      ...(cheer ? [{ id: 'cheer|head', text: 'คำหนุนใจ.' }, ...paras(cheer).map((x, i) => ({ id: `cheer|${i}`, text: x }))] : []),
     ]
     tts.speakSections(secs, (id) => {
       const t = id.split('|')[0] as Tab
@@ -369,20 +378,46 @@ function NoteCard({
                   )
                 })
               ) : (
-                <p className="nb-none">ยังไม่ได้ใส่ข้อพระคำ · กด ✏️ แก้ไข เพื่อเพิ่มได้ 2 ข้อ</p>
+                <p className="nb-none">ยังไม่ได้ใส่ข้อพระคำ · กด ✏️ แก้ไข เพื่อเพิ่มได้ 4 ข้อ</p>
               ))}
             {tab === 'story' && (p.story ? <div className="nb-prose">{paras(cleanStory(p.story)).map((x, i) => <p key={i}><Spoken text={x} id={`story|${i}`} follow={fw.follow} onTap={tapRead} /></p>)}</div> : <p className="nb-none">ยังไม่มีเรื่องราว · กด ✏️ แก้ไข เพื่อเขียนเรื่องของบุคคลในพระคัมภีร์ที่เกี่ยวข้อง</p>)}
             {tab === 'prayer' && <div className="nb-card__text">{paras(p.text).map((x, i) => <p key={i}><Spoken text={x} id={`prayer|${i}`} follow={fw.follow} onTap={tapRead} /></p>)}</div>}
-            {tab === 'notes' && (
-              <div className="nb-notes">
-                <textarea
-                  id={`nb-notes-${p.id}`}
-                  placeholder="บันทึกของท่าน เช่น ใช้เมื่อไร กับใคร คำตอบของคำอธิษฐาน"
-                  value={notes}
-                  onChange={(e) => { setNotes(e.target.value); setNotesSaved(false) }}
-                />
-                <button type="button" className="btn btn--gold" disabled={notes === p.notes} onClick={() => { onSaveNotes(notes.trim()); setNotesSaved(true) }}>💾 บันทึก</button>
-                {notesSaved && notes === p.notes && <p className="source-note">บันทึกแล้ว</p>}
+            {tab === 'cheer' && (
+              <div className="nb-cheer">
+                {cheerEdit === null ? (
+                  <>
+                    <div className="nb-prose nb-cheer__text">{paras(cheer).map((x, i) => <p key={i}><Spoken text={x} id={`cheer|${i}`} follow={fw.follow} onTap={tapRead} /></p>)}</div>
+                    {!p.cheer && <p className="source-note">คำหนุนใจนี้ระบบเรียบเรียงจากหัวข้อคำอธิษฐาน · กด ✏️ เพื่อแก้เป็นถ้อยคำของท่านเอง</p>}
+                    <div className="nb-cheer__btns">
+                      <button type="button" className="mini" onClick={() => setCheerEdit(cheer)}>✏️ แก้ไข</button>
+                      <button type="button" className="mini" onClick={async () => { try { await navigator.clipboard.writeText(cheer); setCheerMsg('คัดลอกแล้ว') } catch { setCheerMsg('คัดลอกไม่ได้') } window.setTimeout(() => setCheerMsg(''), 1500) }}>📋 คัดลอก</button>
+                      <button type="button" className="mini" onClick={async () => { if (navigator.share) { try { await navigator.share({ text: cheer }) } catch { /* ยกเลิก */ } } else { try { await navigator.clipboard.writeText(cheer); setCheerMsg('คัดลอกแล้ว') } catch { /* ignore */ } } }}>📤 ส่งให้</button>
+                      {p.cheer && <button type="button" className="mini" onClick={() => onSaveCheer('')}>↺ ใช้แบบอัตโนมัติ</button>}
+                    </div>
+                    {cheerMsg && <p className="source-note">{cheerMsg}</p>}
+                  </>
+                ) : (
+                  <div className="nb-notes">
+                    <textarea id={`nb-cheer-${p.id}`} value={cheerEdit} onChange={(e) => setCheerEdit(e.target.value)} placeholder="เช่น ขอพระเจ้าทรงอวยพรและอยู่กับคุณเสมอนะ" />
+                    <div className="nb-cheer__btns">
+                      <button type="button" className="btn btn--gold" onClick={() => { onSaveCheer(cheerEdit.trim()); setCheerEdit(null) }}>💾 บันทึก</button>
+                      <button type="button" className="btn btn--ghost" onClick={() => setCheerEdit(null)}>ยกเลิก</button>
+                    </div>
+                  </div>
+                )}
+                <button type="button" className="linkish" onClick={() => setShowNotes(!showNotes)}>{showNotes ? '▴' : '▾'} 📝 บันทึกส่วนตัว{p.notes ? ' (มี)' : ''}</button>
+                {showNotes && (
+                  <div className="nb-notes">
+                    <textarea
+                      id={`nb-notes-${p.id}`}
+                      placeholder="บันทึกของท่าน เช่น ใช้เมื่อไร กับใคร คำตอบของคำอธิษฐาน"
+                      value={notes}
+                      onChange={(e) => { setNotes(e.target.value); setNotesSaved(false) }}
+                    />
+                    <button type="button" className="btn btn--gold" disabled={notes === p.notes} onClick={() => { onSaveNotes(notes.trim()); setNotesSaved(true) }}>💾 บันทึก</button>
+                    {notesSaved && notes === p.notes && <p className="source-note">บันทึกแล้ว</p>}
+                  </div>
+                )}
               </div>
             )}
             {p.updated > 0 && (
@@ -422,7 +457,7 @@ function Editor({
   useEffect(() => {
     if (isNew) first.current?.focus()
   }, [isNew])
-  const bad = [draft.ref1, draft.ref2].filter((r) => r.trim() && !parseRef(r))
+  const bad = [draft.ref1, draft.ref2, draft.ref3, draft.ref4].filter((r) => r.trim() && !parseRef(r))
   const set = (k: keyof Draft) => (e: { target: { value: string } }) => setDraft({ ...draft, [k]: e.target.value })
   return (
     <form className="nb-editor" onSubmit={(e) => { e.preventDefault(); onSave() }}>
@@ -444,6 +479,16 @@ function Editor({
         <label>
           📖 พระคำข้อที่ 2
           <input id="nb-ref2" type="text" placeholder="เช่น สดุดี 34:18" value={draft.ref2} onChange={set('ref2')} />
+        </label>
+      </div>
+      <div className="nb-editor__row">
+        <label>
+          📖 พระคำข้อที่ 3
+          <input id="nb-ref3" type="text" placeholder="เช่น ฟีลิปปี 4:6–7" value={draft.ref3} onChange={set('ref3')} />
+        </label>
+        <label>
+          📖 พระคำข้อที่ 4
+          <input id="nb-ref4" type="text" placeholder="เช่น อิสยาห์ 41:10" value={draft.ref4} onChange={set('ref4')} />
         </label>
       </div>
       {bad.length > 0 && <p className="ai-keys__err">ไม่พบ “{bad.join('”, “')}” ลองเขียนแบบ “ชื่อเล่ม บท:ข้อ” เช่น สดุดี 23:1</p>}

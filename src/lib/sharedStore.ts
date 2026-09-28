@@ -20,6 +20,7 @@ export function useSharedStore<T extends SharedItem>(opts: { localKey: string; f
   const latest = useRef(all)
   latest.current = all
   const timer = useRef<number | undefined>(undefined)
+  const [me] = useState(() => Symbol('store'))
 
   const setLocal = useCallback(
     (next: T[]) => {
@@ -30,9 +31,24 @@ export function useSharedStore<T extends SharedItem>(opts: { localKey: string; f
       } catch {
         /* ignore */
       }
+      // ส่วนอื่นของแอปที่ใช้ข้อมูลชุดเดียวกัน (เช่นตัวเลขแจ้งเตือนที่แถบเมนู) อัปเดตตามทันที
+      window.dispatchEvent(new CustomEvent('khatha-store', { detail: { key: localKey, from: me } }))
     },
-    [localKey],
+    [localKey, me],
   )
+  useEffect(() => {
+    const on = (e: Event) => {
+      const d = (e as CustomEvent<{ key: string; from: symbol }>).detail
+      if (d.key !== localKey || d.from === me) return
+      const v = read()
+      if (v) {
+        latest.current = v
+        setAll(v)
+      }
+    }
+    window.addEventListener('khatha-store', on)
+    return () => window.removeEventListener('khatha-store', on)
+  }, [localKey, me]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const syncNow = useCallback(async () => {
     const cfg = getSync()

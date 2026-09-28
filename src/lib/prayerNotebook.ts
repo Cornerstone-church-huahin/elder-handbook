@@ -1,3 +1,5 @@
+import { topicRefs } from '../data/bibleTopics'
+import { parseRef } from '../data/bible'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { loadSavedPrayers } from '../data/savedPrayers'
 import { getSync, pullRemote, pushRemote, type SyncStatus } from './sync'
@@ -5,7 +7,7 @@ import { autoTags, tagsForQuery } from './autoTags'
 
 /**
  * สมุดคำอธิษฐาน — ผู้ปกครองเพิ่ม แก้ไข ลบได้เอง
- * แต่ละคำอธิษฐานมี 4 ส่วน: พระคำ (2 ข้อ) · เรื่องราวบุคคล · คำอธิษฐาน · บันทึก
+ * แต่ละคำอธิษฐานมี 4 ส่วน: พระคำ (4 ข้อ) · เรื่องราวบุคคล · คำอธิษฐาน · หนุนใจ (+ บันทึก)
  * เก็บในเครื่องเสมอ (ใช้ออฟไลน์ได้) และถ้าตั้งค่า "ใช้ร่วมกันออนไลน์" ไว้ จะซิงก์กับ repo ส่วนตัวบน GitHub ทันทีที่บันทึก
  */
 export interface NotePrayer {
@@ -13,16 +15,17 @@ export interface NotePrayer {
   title: string
   category: string
   icon: string
-  refs: string[] // ข้อพระคำ 0–2 ข้อ เช่น ["ยอห์น 11:25", "สดุดี 34:18"]
+  refs: string[] // ข้อพระคำ 0–4 ข้อ เช่น ["ยอห์น 11:25", "สดุดี 34:18"]
   story: string // เรื่องราวบุคคลในพระคัมภีร์ที่เกี่ยวข้อง
   text: string // คำอธิษฐาน
   notes: string // บันทึกของผู้ปกครอง
+  cheer: string // คำหนุนใจท้ายคำอธิษฐาน (ว่าง = สร้างให้อัตโนมัติ)
   keywords: string[]
   updated: number
   by?: string
   deleted?: boolean // ลบแล้ว (เก็บไว้เพื่อให้เครื่องอื่นรู้ว่าถูกลบ)
 }
-export type NoteInput = Pick<NotePrayer, 'title' | 'category' | 'refs' | 'story' | 'text' | 'notes'>
+export type NoteInput = Pick<NotePrayer, 'title' | 'category' | 'refs' | 'story' | 'text' | 'notes'> & { cheer?: string }
 
 const KEY = 'khatha.prayerbook.v2'
 const OLD_KEY = 'khatha.prayerbook.v1'
@@ -34,10 +37,11 @@ export function normalize(x: Partial<NotePrayer> & { ref?: string }): NotePrayer
     title: x.title ?? '',
     category: x.category ?? '',
     icon: x.icon ?? '🙏',
-    refs: (Array.isArray(x.refs) ? x.refs : x.ref ? [x.ref] : []).filter(Boolean).slice(0, 2),
+    refs: (Array.isArray(x.refs) ? x.refs : x.ref ? [x.ref] : []).filter(Boolean).slice(0, 4),
     story: x.story ?? '',
     text: x.text ?? '',
     notes: x.notes ?? '',
+    cheer: x.cheer ?? '',
     keywords: Array.isArray(x.keywords) ? x.keywords : [],
     updated: Number(x.updated) || 0,
     by: x.by,
@@ -68,17 +72,17 @@ function write(list: NotePrayer[]): boolean {
 // พระคำข้อที่ 2 และเรื่องราวบุคคล สำหรับคำอธิษฐานตั้งต้น (ถ้อยคำของผู้จัดทำ — ข้อความพระคัมภีร์แสดงจากฉบับ 1971)
 const SEED_EXTRA: Record<string, { refs: string[]; story: string }> = {
   offering: {
-    refs: ['1 พงศาวดาร 29:14', '2 โครินธ์ 9:7'],
+    refs: ['1 พงศาวดาร 29:14', '2 โครินธ์ 9:7', 'มาลาคี 3:10', 'สุภาษิต 3:9–10'],
     story:
       'ดาวิดกับการถวายเพื่อสร้างพระวิหาร (1 พงศาวดาร 29)\n\nในบั้นปลายชีวิต ดาวิดเตรียมการสร้างพระวิหารให้พระเจ้า ท่านถวายทรัพย์ส่วนตัวก่อน แล้วบรรดาผู้นำและประชาชนก็พากันถวายด้วยใจยินดี ดาวิดจึงยืนขึ้นสรรเสริญพระเจ้าต่อหน้าที่ประชุม และยอมรับว่าทุกสิ่งที่ถวายล้วนมาจากพระหัตถ์ของพระองค์\n\nเชื่อมกับวันนี้: เหมือนประชาชนในสมัยดาวิด เราถวายด้วยความเต็มใจ ไม่ว่ามากหรือน้อย เพราะเรากำลังถวายคืนสิ่งที่เป็นของพระองค์อยู่แล้ว และพระเจ้าทรงรักผู้ที่ให้ด้วยใจยินดี',
   },
   meal: {
-    refs: ['ยอห์น 6:11', '1 ทิโมธี 4:4–5'],
+    refs: ['ยอห์น 6:11', '1 ทิโมธี 4:4–5', 'มัทธิว 6:11', 'สดุดี 145:15–16'],
     story:
       'พระเยซูทรงเลี้ยงคนห้าพันคน (ยอห์น 6:1–13)\n\nฝูงชนติดตามพระเยซูมาในที่เปลี่ยว มีเด็กคนหนึ่งมีขนมปังห้าก้อนกับปลาสองตัว พระเยซูทรงรับไว้ โมทนาพระคุณ แล้วแจกจนทุกคนอิ่ม และยังเหลืออีกสิบสองกระบุง\n\nเชื่อมกับวันนี้: ทุกคนที่อยู่รอบโต๊ะนี้ได้รับการเลี้ยงดูจากพระเยซูองค์เดียวกัน เราจึงขอบพระคุณก่อนรับประทาน เหมือนที่พระองค์ทรงโมทนาพระคุณก่อนแจกอาหาร และอาหารที่รับด้วยการขอบพระคุณก็ถูกชำระโดยพระวจนะและคำอธิษฐาน',
   },
   finance: {
-    refs: ['มาลาคี 3:10', 'ฟีลิปปี 4:19'],
+    refs: ['ฟีลิปปี 4:19', 'มัทธิว 6:33', 'สุภาษิต 3:5–6', 'ฮีบรู 13:5'],
     story:
       'หญิงม่ายที่ศาเรฟัทกับเอลียาห์ (1 พงศ์กษัตริย์ 17:8–16)\n\nในยามกันดารอาหาร หญิงม่ายเหลือแป้งเพียงกำมือเดียวกับน้ำมันนิดหน่อย เอลียาห์ขอให้เธอทำขนมให้ท่านก่อน เธอเชื่อฟังพระวจนะ และแป้งในหม้อกับน้ำมันในไหก็ไม่หมดจนผ่านพ้นความแห้งแล้ง\n\nเชื่อมกับวันนี้: เมื่อเรานำภาระการเงินมาวางต่อพระเจ้าและให้พระองค์เป็นที่หนึ่ง พระองค์ทรงสัตย์ซื่อที่จะจัดเตรียมสิ่งจำเป็นให้ทีละวัน เหมือนที่ทรงเลี้ยงดูครอบครัวของหญิงม่ายทุกวัน',
   },
@@ -200,9 +204,9 @@ export function usePrayerNotebook() {
           changed = true
           return d
         }
-        if (x.story && x.refs.length >= 2 && x.keywords.length) return x
+        if (x.story && x.refs.length >= 4 && x.keywords.length) return x
         changed = true
-        const up = { ...x, story: x.story || d.story, refs: x.refs.length >= 2 ? x.refs : [...new Set([...x.refs, ...d.refs])].slice(0, 2) }
+        const up = { ...x, story: x.story || d.story, refs: x.refs.length >= 4 ? x.refs : [...new Set([...x.refs, ...d.refs])].slice(0, 4) }
         return { ...up, keywords: [...new Set([...autoTags(up), ...x.keywords])].slice(0, 10) }
       })
       if (changed) setLocal(next)
@@ -258,4 +262,28 @@ export function usePrayerNotebook() {
 /** ตัดคำนำหน้า "[เรื่องราว: …]" ออก (แท็บชื่อ "เรื่องราว" อยู่แล้ว ไม่ต้องอ่านซ้ำ) → เหลือชื่อเรื่อง เช่น "องค์พระเยซูคริสต์กับการอธิษฐานแต่เช้ามืด" */
 export function cleanStory(t: string): string {
   return (t ?? '').replace(/^\s*\[?\s*เรื่องราว\s*[:：]\s*([^\]\n]*?)\s*\]?\s*(\n|$)/, (_m, title: string, nl: string) => (title ? title + nl : ''))
+}
+
+/**
+ * พระคำครบ 4 ข้อ: ข้อที่ผู้ใช้ใส่เอง + ข้อที่นิยมใช้และเกี่ยวข้องที่สุด (คัดไว้ตามหัวข้อ ตรวจกับฉบับ 1971 แล้ว)
+ * เลือกเฉพาะข้อสั้น (ไม่เกิน 3 ข้อต่อตอน) เพื่อใช้ในคำอธิษฐาน
+ */
+export function refsWithSuggest(p: Pick<NotePrayer, 'refs' | 'title' | 'category' | 'story' | 'text'>, max = 4): { refs: string[]; suggested: string[] } {
+  const own = p.refs.filter((r) => parseRef(r)).slice(0, max)
+  if (own.length >= max) return { refs: own, suggested: [] }
+  const key = (r: string) => parseRef(r)?.label ?? r
+  const have = new Set(own.map(key))
+  const short = (r: string) => {
+    const x = parseRef(r)
+    return !!x && x.verses.length > 0 && x.verses.length <= 3
+  }
+  const pick: string[] = []
+  // หัวข้อและหมวดสำคัญกว่าเนื้อความ
+  for (const text of [`${p.title} ${p.category}`, `${p.title} ${p.category} ${p.story} ${p.text}`]) {
+    for (const r of topicRefs(text, 30)) {
+      if (own.length + pick.length >= max) break
+      if (short(r) && !have.has(key(r))) { have.add(key(r)); pick.push(r) }
+    }
+  }
+  return { refs: [...own, ...pick], suggested: pick }
 }

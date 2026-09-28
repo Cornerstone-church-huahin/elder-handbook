@@ -18,6 +18,9 @@ export const IconPeople = () => (
 export const IconCalendarCheck = () => (
   <svg {...base}><rect x="3.5" y="5" width="17" height="15.5" rx="2" /><path d="M3.5 10h17M8 3v4M16 3v4" /><path d="m9 15 2 2 4-4" /></svg>
 )
+export const IconNote = () => (
+  <svg {...base}><path d="M6 3h9l4 4v14H6z" /><path d="M14 3v5h5" /><path d="M9 12h7M9 16h5" /></svg>
+)
 export const IconSearch = () => (
   <svg {...base}><circle cx="11" cy="11" r="6.5" /><path d="m20 20-4.2-4.2" /></svg>
 )
