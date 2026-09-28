@@ -35,6 +35,6 @@ await p.evaluate(() => (window.__said = [])); await p.click('[aria-label^="ฟ�
 await p.waitForSelector('[aria-label="ฟังหน้านี้"]', { timeout: 60000 })
 const said = await p.evaluate(() => window.__said.map((x) => x.text).join(' | '))
 const i = said.indexOf('เรื่องราว.')
-check(i >= 0 && said.slice(i + 'เรื่องราว.'.length).trimStart().replace(/^\|\s*/, '').startsWith('องค์พระเยซูคริสต์') && (said.match(/เรื่องราว/g) ?? []).length === 1, 'reads tab name "เรื่องราว" once, then the title: ' + said.slice(i, i + 50))
+check(i >= 0 && said.slice(i + 'เรื่องราว.'.length).trimStart().replace(/^\|\s*/, '').startsWith('องค์พระเยซูคริสต์') && (said.slice(i).match(/เรื่องราว/g) ?? []).length === 1, 'reads tab name "เรื่องราว" once, then the title: ' + said.slice(i, i + 50))
 check(errs.length === 0, 'no JS errors ' + errs.join(';'))
 await b.close(); console.log(fail ? fail + ' FAILED' : 'ALL PASSED'); process.exit(fail ? 1 : 0)

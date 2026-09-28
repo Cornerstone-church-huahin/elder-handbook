@@ -69,21 +69,33 @@ function scrollParent(el: HTMLElement): HTMLElement | null {
   }
   return null
 }
+/** ขอบบนที่มองเห็นได้จริง: แถบบน + แถบ/หัวที่ติดอยู่ด้านบน (ช่องค้นหาสมุดคำอธิษฐาน, ชื่อบทพระคัมภีร์) */
+function visibleTop(): number {
+  let top = (document.querySelector('.topbar') as HTMLElement | null)?.getBoundingClientRect().bottom ?? 60
+  for (const sel of ['.bible-head', '.nb-bar']) {
+    const r = (document.querySelector(sel) as HTMLElement | null)?.getBoundingClientRect()
+    if (r && r.height > 0 && r.top <= top + 4 && r.bottom > top) top = r.bottom
+  }
+  return top
+}
 function keepInView(mark: HTMLElement) {
   const r = mark.getBoundingClientRect()
-  const box = scrollParent(mark)
-  if (box) {
-    const b = box.getBoundingClientRect()
-    if (r.bottom > b.bottom - 24 || r.top < b.top + 4) box.scrollTo({ top: box.scrollTop + r.top - b.top - 12, behavior: 'smooth' })
-    return
-  }
-  // แถบบน + หัวที่ติดด้านบน (เช่นชื่อบทในหน้าพระคัมภีร์) · แถบเมนูล่าง
-  const topbar = (document.querySelector('.topbar') as HTMLElement | null)?.getBoundingClientRect().bottom ?? 60
-  const sticky = (document.querySelector('.bible-head') as HTMLElement | null)?.getBoundingClientRect()
-  const top = Math.max(topbar, sticky && sticky.top <= topbar + 2 ? sticky.bottom : 0)
+  const top = visibleTop()
   const nav = (document.querySelector('.bottomnav') as HTMLElement | null)?.getBoundingClientRect().top ?? window.innerHeight
   const bar = (document.querySelector('.bible-selbar') as HTMLElement | null)?.getBoundingClientRect().top
-  const bottom = Math.min(nav, bar ?? nav) - 32
+  const bottom = Math.min(nav, window.innerHeight, bar ?? nav) - 32
+  const box = scrollParent(mark)
+  if (box) {
+    // กล่องที่เลื่อนได้ในตัว (เช่นการ์ดคำอธิษฐาน): ให้หัวกล่องอยู่ใต้แถบค้นหาก่อน แล้วเลื่อนในกล่อง
+    const b = box.getBoundingClientRect()
+    if (b.top < top - 1 || (b.top > top + 40 && b.bottom > bottom)) window.scrollTo({ top: window.scrollY + b.top - top - 8, behavior: 'smooth' })
+    const shift = b.top < top || (b.top > top + 40 && b.bottom > bottom) ? top + 8 - b.top : 0
+    const bTop = b.top + shift
+    const bBottom = Math.min(b.bottom + shift - 16, bottom)
+    const rt = r.top + shift
+    if (r.bottom + shift > bBottom || rt < bTop + 4) box.scrollTo({ top: box.scrollTop + rt - bTop - 12, behavior: 'smooth' })
+    return
+  }
   if (r.bottom > bottom || r.top < top + 4) window.scrollTo({ top: window.scrollY + r.top - top - 16, behavior: 'smooth' })
 }
 

@@ -250,10 +250,12 @@ function NoteCard({
     if (t === 'prayer') return parasOf('prayer', p.text)
     return notes.trim() ? [{ id: 'notes|0', text: notes }] : []
   }
+  const titleSec = (): SpeechSection => ({ id: 'title|0', text: p.title })
   const allMode = useRef(false)
   const listenThis = (from?: { id: string; at: number }) => {
     allMode.current = false
-    tts.speakSections(listenSecs(tabRef.current), undefined, fw.onWord, from)
+    const body = listenSecs(tabRef.current)
+    tts.speakSections(body.length ? [titleSec(), ...body] : body, undefined, fw.onWord, from)
   }
   // แตะที่ข้อความตรงไหน อ่านจากตรงนั้น · ข้อพระคำแตะได้ระหว่างฟัง (ตอนไม่ได้ฟัง แตะเพื่อเปิดแอปพระคัมภีร์ตามเดิม)
   const busy = tts.speaking || tts.paused
@@ -261,12 +263,14 @@ function NoteCard({
   const listenAll = (from?: { id: string; at: number }) => {
     allMode.current = true
     const secs: SpeechSection[] = [
+      titleSec(), // เริ่มด้วยชื่อคำอธิษฐาน (ไฮไลต์ที่หัวการ์ด)
       ...(refs.length ? [{ id: 'verses|head', text: 'พระคำ.' }, ...versesText()] : []),
       ...(p.story ? [{ id: 'story|head', text: 'เรื่องราว.' }, ...parasOf('story', cleanStory(p.story))] : []),
       ...(p.text ? [{ id: 'prayer|head', text: 'คำอธิษฐาน.' }, ...parasOf('prayer', p.text)] : []),
     ]
     tts.speakSections(secs, (id) => {
       const t = id.split('|')[0] as Tab
+      if (!TABS.some((x) => x.id === t)) return
       // เทียบกับแท็บที่แสดงอยู่ "ตอนนี้" (ไม่ใช่ตอนกดปุ่ม) — เดิมถ้าเริ่มจากแท็บอธิษฐาน เสียงจะหยุดก่อนถึงคำอธิษฐาน
       if (t !== tabRef.current) {
         autoTab.current = true
@@ -309,7 +313,7 @@ function NoteCard({
         <button type="button" className="nb-card__head" onClick={onToggle} aria-expanded={open}>
           <span className="nb-card__icon" aria-hidden="true">{p.icon}</span>
           <span className="nb-card__main">
-            <span className="nb-card__title">{p.title}</span>
+            <span className="nb-card__title"><Spoken text={p.title} id="title|0" follow={fw.follow} /></span>
             {!open && <span className="nb-card__sub">{p.category ? `${p.category} · ` : ''}{preview}…</span>}
           </span>
           {!open && <span className="nb-card__chev" aria-hidden="true">▼</span>}
