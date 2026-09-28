@@ -29,7 +29,7 @@ await p.goto(URL + '#/people/noah'); await p.waitForSelector('.story-btn')
 check((await p.textContent('.story-btn')).includes('เรื่องเล่าชีวิต'), 'person page has story button next to choose-person')
 await p.click('.story-btn'); await p.waitForSelector('.story__sec')
 const heads = await p.locator('.story__sec h2').allTextContents()
-check(heads[0].includes('ใคร') && heads.some((h) => h.includes('นิสัย')) && heads.some((h) => h.includes('ยุค')) && heads.at(-1).includes('บทส่งท้าย'), 'story sections: who / character / era / … / epilogue: ' + heads.join(' · '))
+check(heads[0].startsWith('ยุคสมัย') && heads[1] === 'ที่มาและการเกิด' && heads.at(-3) === 'บทสุดท้ายของชีวิต' && heads.at(-2).endsWith('เป็นคนอย่างไร') && heads.at(-1) === 'บทส่งท้าย', 'chronological order: era → origin/birth → life → last chapter → character → epilogue: ' + heads.join(' · '))
 const txt = await p.textContent('.story')
 check(!/\d+\s*:\s*\d+/.test(txt.replace(/ลำดับที่ \d+ จาก 100/, '')), 'no scripture references interrupting the story')
 // ฟัง + ไฮไลต์
