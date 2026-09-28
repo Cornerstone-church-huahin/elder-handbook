@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { Link, useSearchParams } from 'react-router-dom'
 import { parseRef, refUrl } from '../data/bible'
 import { Spoken, useFollow } from '../components/Spoken'
-import { scoreNote, usePrayerNotebook, type NotePrayer } from '../lib/prayerNotebook'
+import { cleanStory, scoreNote, usePrayerNotebook, type NotePrayer } from '../lib/prayerNotebook'
 import type { SyncStatus } from '../lib/sync'
 import { speakableRef, useSpeech, type SpeechSection } from '../lib/speech'
 import { PrayerMode, useVerseTexts } from './Prayer'
@@ -75,7 +75,7 @@ export default function PrayerNotebookPage() {
   }
   const startEdit = (p: NotePrayer) => {
     setEditing(p.id)
-    setDraft({ title: p.title, category: p.category, ref1: p.refs[0] ?? '', ref2: p.refs[1] ?? '', story: p.story, text: p.text, notes: p.notes })
+    setDraft({ title: p.title, category: p.category, ref1: p.refs[0] ?? '', ref2: p.refs[1] ?? '', story: cleanStory(p.story), text: p.text, notes: p.notes })
     setConfirmDel(null)
   }
   const cancel = () => {
@@ -246,7 +246,7 @@ function NoteCard({
   const parasOf = (t: 'story' | 'prayer', text: string): SpeechSection[] => paras(text).map((x, i) => ({ id: `${t}|${i}`, text: x }))
   const listenSecs = (t: Tab): SpeechSection[] => {
     if (t === 'verses') return versesText()
-    if (t === 'story') return parasOf('story', p.story)
+    if (t === 'story') return parasOf('story', cleanStory(p.story))
     if (t === 'prayer') return parasOf('prayer', p.text)
     return notes.trim() ? [{ id: 'notes|0', text: notes }] : []
   }
@@ -262,7 +262,7 @@ function NoteCard({
     allMode.current = true
     const secs: SpeechSection[] = [
       ...(refs.length ? [{ id: 'verses|head', text: 'พระคำ.' }, ...versesText()] : []),
-      ...(p.story ? [{ id: 'story|head', text: 'เรื่องราว.' }, ...parasOf('story', p.story)] : []),
+      ...(p.story ? [{ id: 'story|head', text: 'เรื่องราว.' }, ...parasOf('story', cleanStory(p.story))] : []),
       ...(p.text ? [{ id: 'prayer|head', text: 'คำอธิษฐาน.' }, ...parasOf('prayer', p.text)] : []),
     ]
     tts.speakSections(secs, (id) => {
@@ -367,7 +367,7 @@ function NoteCard({
               ) : (
                 <p className="nb-none">ยังไม่ได้ใส่ข้อพระคำ · กด ✏️ แก้ไข เพื่อเพิ่มได้ 2 ข้อ</p>
               ))}
-            {tab === 'story' && (p.story ? <div className="nb-prose">{paras(p.story).map((x, i) => <p key={i}><Spoken text={x} id={`story|${i}`} follow={fw.follow} onTap={tapRead} /></p>)}</div> : <p className="nb-none">ยังไม่มีเรื่องราว · กด ✏️ แก้ไข เพื่อเขียนเรื่องของบุคคลในพระคัมภีร์ที่เกี่ยวข้อง</p>)}
+            {tab === 'story' && (p.story ? <div className="nb-prose">{paras(cleanStory(p.story)).map((x, i) => <p key={i}><Spoken text={x} id={`story|${i}`} follow={fw.follow} onTap={tapRead} /></p>)}</div> : <p className="nb-none">ยังไม่มีเรื่องราว · กด ✏️ แก้ไข เพื่อเขียนเรื่องของบุคคลในพระคัมภีร์ที่เกี่ยวข้อง</p>)}
             {tab === 'prayer' && <div className="nb-card__text">{paras(p.text).map((x, i) => <p key={i}><Spoken text={x} id={`prayer|${i}`} follow={fw.follow} onTap={tapRead} /></p>)}</div>}
             {tab === 'notes' && (
               <div className="nb-notes">

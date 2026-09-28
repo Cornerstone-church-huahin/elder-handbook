@@ -254,3 +254,8 @@ export function usePrayerNotebook() {
     },
   }
 }
+
+/** ตัดคำนำหน้า "[เรื่องราว: …]" ออก (แท็บชื่อ "เรื่องราว" อยู่แล้ว ไม่ต้องอ่านซ้ำ) → เหลือชื่อเรื่อง เช่น "องค์พระเยซูคริสต์กับการอธิษฐานแต่เช้ามืด" */
+export function cleanStory(t: string): string {
+  return (t ?? '').replace(/^\s*\[?\s*เรื่องราว\s*[:：]\s*([^\]\n]*?)\s*\]?\s*(\n|$)/, (_m, title: string, nl: string) => (title ? title + nl : ''))
+}
