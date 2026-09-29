@@ -333,7 +333,7 @@ function Sections({ sections, badge = '🤖 ร่างโดย AI · ตร�
 
 /** เนื้อหาสอนและอภิบาล: มีเนื้อหาพร้อมทุกคน แก้ไขได้ (ใช้ร่วมกันออนไลน์) และให้ AI ช่วยเขียนใหม่ได้ถ้าใส่คีย์ไว้ */
 /** ข้ออ้างอิงที่กดอ่านข้อความจริงฉบับ 1971 ได้ในแอป + ฟังเสียง + ลิงก์เปิดแอปพระคัมภีร์ */
-function RefReader({ text }: { text: string }) {
+export function RefReader({ text }: { text: string }) {
   const [open, setOpen] = useState(false)
   const [ps, setPs] = useState<Passage | null | undefined>(undefined)
   const sp = useSpeech()

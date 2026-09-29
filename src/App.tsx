@@ -3,6 +3,7 @@ import AppShell from './components/AppShell'
 import Home from './pages/Home'
 import Search from './pages/Search'
 import NotesPage from './pages/Notes'
+import { OccasionPage, OccasionsHome } from './pages/Occasions'
 import Settings from './pages/Settings'
 import { AskPage, ComingSoon, KitPage } from './pages/Placeholders'
 import { CharterArticlePage, CharterAsk, CharterHome } from './pages/Charter'
@@ -27,6 +28,8 @@ export default function App() {
           <Route index element={<Home />} />
           <Route path="search" element={<Search />} />
           <Route path="notes" element={<NotesPage />} />
+          <Route path="occasions" element={<OccasionsHome />} />
+          <Route path="occasions/:id" element={<OccasionPage />} />
           <Route path="settings" element={<Settings />} />
           <Route path="settings/duties" element={<ElderDutiesPage />} />
           <Route path="kit/:slug" element={<KitPage />} />

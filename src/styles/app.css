@@ -1265,3 +1265,20 @@ html[data-scale='150'] body.reading .nb-card--open .nb-card__body { height: calc
 .note-when { display: grid; grid-template-columns: 1.4fr 1fr; gap: .5rem; }
 .note-private { display: flex; align-items: center; gap: .5rem; font-size: .9rem; }
 .note-private input { width: 1.2rem; height: 1.2rem; min-height: 0; }
+
+/* พิธี / วันสำคัญ */
+.occ-tabs { grid-template-columns: 1fr 1fr; position: static; margin-bottom: .7rem; }
+.occ-tabs small { opacity: .7; font-weight: 500; }
+.occ-subtabs { grid-template-columns: repeat(3, 1fr); position: sticky; top: 3.6rem; margin: .5rem 0 .7rem; }
+.occ-subtabs button { font-size: .8rem; }
+.occ-sub { display: block; font-size: .85rem; color: var(--ink-soft); }
+.occ-title { margin: .2rem 0 .1rem; font-size: 1.35rem; }
+.occ-body p { line-height: 1.85; margin: 0 0 .8rem; font-size: 1.02rem; }
+.occ-plan h3, .occ-dates h3 { font-size: 1rem; margin: .8rem 0 .3rem; color: var(--accent-ink); }
+.occ-plan ul { margin: 0 0 .4rem; padding-left: 1.2rem; }
+.occ-plan li { margin: .2rem 0; line-height: 1.7; }
+.occ-dates ul, .occ-next ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .35rem; }
+.occ-dates li { display: flex; align-items: center; justify-content: space-between; gap: .5rem; padding: .5rem .7rem; border-radius: var(--radius); background: var(--surface-2); font-size: .9rem; }
+.occ-next li a { display: flex; justify-content: space-between; gap: .5rem; padding: .5rem .7rem; border-radius: var(--radius); background: var(--surface); border: 1.5px solid var(--line); border-left: 4px solid var(--gold); color: var(--ink); text-decoration: none; font-size: .9rem; }
+.occ-next li a span { color: var(--ink-soft); white-space: nowrap; }
+.occ-next { margin-bottom: .6rem; }
