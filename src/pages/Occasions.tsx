@@ -2,12 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { DAYS, findOccasion, RITES, upcomingDates } from '../data/ceremonies'
-import { useSpeech, type SpeechSection } from '../lib/speech'
+import { speakableRef, useSpeech, type SpeechSection } from '../lib/speech'
 import { Spoken, useFollow } from '../components/Spoken'
 import { useNotes, todayStr } from '../lib/notes'
 import { RefReader } from './People'
 
-/** พิธี / วันสำคัญ: 2 แท็บหลัก (พิธีสำคัญ · วันสำคัญ) → แต่ละเรื่องมี 3 แท็บย่อย */
+/** พิธี / วันสำคัญ: 2 แท็บหลัก (พิธีสำคัญ · วันสำคัญ) → แต่ละเรื่องมี 4 แท็บย่อย อ่านต่อเนื่องข้ามแท็บได้ */
 const thDate = (d: Date) => d.toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
 
 export function OccasionsHome() {
@@ -55,36 +55,59 @@ export function OccasionsHome() {
   )
 }
 
-type Sub = 'history' | 'meaning' | 'plan'
+type Sub = 'history' | 'meaning' | 'plan' | 'prayer'
+const SUB_IDS: Sub[] = ['history', 'meaning', 'plan', 'prayer']
 
 export function OccasionPage() {
   const { id = '' } = useParams()
   const [sp, setSp] = useSearchParams()
   const o = findOccasion(id)
-  const sub = (['history', 'meaning', 'plan'].includes(sp.get('tab') ?? '') ? sp.get('tab') : 'history') as Sub
+  const sub = (SUB_IDS.includes(sp.get('tab') as Sub) ? sp.get('tab') : 'history') as Sub
   const tts = useSpeech()
   const fw = useFollow(tts.speaking || tts.paused)
   const [slot, setSlot] = useState<HTMLElement | null>(null)
   useEffect(() => setSlot(document.getElementById('topbar-slot')), [])
   const { stop } = tts
-  useEffect(() => stop(), [sub, id, stop])
+  // เปลี่ยนแท็บเพราะการอ่านต่อเนื่อง → อ่านต่อ · ผู้ใช้เปลี่ยนแท็บหรือเรื่องเอง → หยุด
+  const autoTab = useRef(false)
+  const subRef = useRef<Sub>(sub)
+  subRef.current = sub
+  useEffect(() => {
+    if (autoTab.current) return void (autoTab.current = false)
+    stop()
+  }, [sub, id, stop])
   const notes = useNotes()
   const [added, setAdded] = useState<string[]>([])
   const year = new Date().getFullYear()
   const topRef = useRef<HTMLDivElement>(null)
   if (!o) return <p className="empty">ไม่พบเรื่องนี้ · <Link to="/occasions">กลับ</Link></p>
   const planLabel = o.kind === 'rite' ? 'โอกาสและขั้นตอน' : 'วันที่และการจัด'
-  const SUBS: [Sub, string][] = [['history', '📜 ความเป็นมา'], ['meaning', '💡 ความหมาย'], ['plan', o.kind === 'rite' ? '📋 โอกาสและขั้นตอน' : '🗓️ วันที่และการจัด']]
+  const prayer = o.prayer ?? []
+  const SUBS: [Sub, string][] = [['history', '📜 ความเป็นมา'], ['meaning', '💡 ความหมาย'], ['plan', o.kind === 'rite' ? '📋 โอกาสและขั้นตอน' : '🗓️ วันที่และการจัด'], ...(prayer.length ? [['prayer', '🙏 อธิษฐาน'] as [Sub, string]] : [])]
   const setSub = (s: Sub) => setSp(s === 'history' ? {} : { tab: s }, { replace: true })
-
-  const secs = (): SpeechSection[] => {
-    const out: SpeechSection[] = [{ id: 'title', text: `${o.title}. ${sub === 'history' ? 'ความเป็นมา' : sub === 'meaning' ? 'ความหมาย' : planLabel}` }]
-    if (sub === 'history') o.history.forEach((t, i) => out.push({ id: `h|${i}`, text: t }))
-    if (sub === 'meaning') o.meaning.forEach((t, i) => out.push({ id: `m|${i}`, text: t }))
-    if (sub === 'plan') o.plan.forEach((b, i) => { out.push({ id: `p|${i}|h`, text: b.heading }); b.items.forEach((t, k) => out.push({ id: `p|${i}|${k}`, text: t })) })
-    return out
+  const label = (s: Sub) => (s === 'history' ? 'ความเป็นมา' : s === 'meaning' ? 'ความหมาย' : s === 'plan' ? planLabel : 'คำกล่าวและคำอธิษฐาน')
+  const blocks = (b: { heading: string; items: string[] }[], k: string): SpeechSection[] =>
+    b.flatMap((x, i) => [{ id: `${k}|${i}|h`, text: x.heading }, ...x.items.map((t, j) => ({ id: `${k}|${i}|${j}`, text: t, say: speakableRef }))])
+  const tabSecs = (s: Sub): SpeechSection[] => [
+    { id: `${s}|head`, text: `${label(s)}.` },
+    ...(s === 'history' ? o.history.map((t, i) => ({ id: `h|${i}`, text: t }))
+      : s === 'meaning' ? o.meaning.map((t, i) => ({ id: `m|${i}`, text: t }))
+      : s === 'plan' ? blocks(o.plan, 'p') : blocks(prayer, 'r')),
+  ]
+  const tabOf = (sid: string): Sub | undefined => {
+    const k = sid.split('|')[0]
+    return ({ h: 'history', m: 'meaning', p: 'plan', r: 'prayer' } as Record<string, Sub>)[k] ?? (SUB_IDS.includes(k as Sub) ? (k as Sub) : undefined)
   }
-  const play = (from?: { id: string; at: number }) => tts.speakSections(secs(), undefined, fw.onWord, from)
+  // อ่านต่อเนื่องจากแท็บที่เปิดอยู่จนจบแท็บสุดท้าย แล้วเปลี่ยนแท็บให้อัตโนมัติ
+  const play = (from?: { id: string; at: number }) => {
+    const order = SUBS.map(([s]) => s)
+    const start = order.indexOf(from ? tabOf(from.id) ?? subRef.current : subRef.current)
+    const secs: SpeechSection[] = [{ id: 'title', text: o.title }, ...order.slice(start).flatMap(tabSecs)]
+    tts.speakSections(secs, (sid) => {
+      const t = tabOf(sid)
+      if (t && t !== subRef.current) { autoTab.current = true; subRef.current = t; setSub(t); window.scrollTo({ top: 0 }) }
+    }, fw.onWord, from)
+  }
   const tap = (sid: string, at: number) => play({ id: sid, at })
   const S = (t: string, sid: string) => <Spoken text={t} id={sid} follow={fw.follow} onTap={tap} />
   const dateList = o.dates ? [...o.dates(year), ...o.dates(year + 1)].filter(([, d]) => d >= new Date(new Date().toDateString())).slice(0, 6) : []
@@ -131,6 +154,12 @@ export function OccasionPage() {
             ))}
           </>
         )}
+        {sub === 'prayer' && prayer.map((b, i) => (
+          <section key={i} className="occ-plan occ-prayer">
+            <h3>{S(b.heading, `r|${i}|h`)}</h3>
+            {b.items.map((t, k) => <p key={k}>{S(t, `r|${i}|${k}`)}</p>)}
+          </section>
+        ))}
       </div>
 
       <section className="section">
@@ -149,7 +178,7 @@ export function OccasionPage() {
               <button type="button" className="nb-fab__btn" onClick={tts.stop} aria-label="เริ่มใหม่">↺</button>
             </>
           ) : (
-            <button type="button" className="nb-fab__btn" onClick={() => play()} aria-label="ฟังแท็บนี้">🔊 ฟังหน้านี้</button>
+            <button type="button" className="nb-fab__btn" onClick={() => play()} aria-label="ฟังต่อเนื่อง">🔊 ฟังต่อเนื่อง</button>
           )}
         </div>,
         slot,

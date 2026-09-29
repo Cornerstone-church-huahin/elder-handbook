@@ -1282,3 +1282,4 @@ html[data-scale='150'] body.reading .nb-card--open .nb-card__body { height: calc
 .occ-next li a { display: flex; justify-content: space-between; gap: .5rem; padding: .5rem .7rem; border-radius: var(--radius); background: var(--surface); border: 1.5px solid var(--line); border-left: 4px solid var(--gold); color: var(--ink); text-decoration: none; font-size: .9rem; }
 .occ-next li a span { color: var(--ink-soft); white-space: nowrap; }
 .occ-next { margin-bottom: .6rem; }
+.occ-prayer p { margin: .3rem 0 .5rem; line-height: 1.8; }
