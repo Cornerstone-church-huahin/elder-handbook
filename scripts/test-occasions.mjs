@@ -70,7 +70,7 @@ check(wh[1].includes('คำอธิษฐานเปิด') && wh.at(-1).inc
 await p.goto(URL + '#/occasions'); await p.waitForSelector('.occ-next li')
 check(!(await p.textContent('.occ-list')).includes('บัพติศมา'), 'no rites inside วันสำคัญ')
 check(await p.locator('.occ-list .result').count() === 11 && await p.locator('.occ-next li').count() === 4, 'days tab: 11 days + upcoming list')
-await p.click('.occ-list .result:has-text("อีสเตอร์")'); await p.click('.occ-subtabs >> text=วันที่และการจัด'); await p.waitForSelector('.occ-dates li')
+await p.click('.occ-list .result:has-text("อีสเตอร์")'); await p.click('.occ-subtabs >> text=วันที่จัด'); await p.waitForSelector('.occ-dates li')
 const d = await p.textContent('.occ-dates')
 check(d.includes('28 มี.ค. 2570') || d.includes('28 มี.ค. 2027'), 'Easter 2027 computed = 28 Mar: ' + d.slice(0, 80))
 await p.click('.occ-dates li >> nth=0 >> text=เพิ่มลงโน้ต'); await p.waitForTimeout(200)

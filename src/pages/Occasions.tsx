@@ -97,9 +97,9 @@ export function OccasionPage() {
   const want = o?.kind === 'rite' ? '/service/' : '/occasions/'
   if (o && !pathname.startsWith(want)) return <Navigate to={want + o.id + search} replace />
   if (!o) return <p className="empty">ไม่พบเรื่องนี้ · <Link to="/">กลับ</Link></p>
-  const planLabel = o.kind === 'rite' ? 'ขั้นตอน' : 'วันที่และการจัด'
+  const planLabel = o.kind === 'rite' ? 'ขั้นตอน' : 'วันที่จัด'
   const prayer = o.prayer ?? []
-  const SUBS: [Sub, string][] = [['history', '📜 ความเป็นมา'], ['meaning', '💡 ความหมาย'], ['plan', o.kind === 'rite' ? '📋 ขั้นตอน' : '🗓️ วันที่และการจัด'], ...(prayer.length ? [['prayer', '🙏 อธิษฐาน'] as [Sub, string]] : [])]
+  const SUBS: [Sub, string][] = [['history', '📜 ความเป็นมา'], ['meaning', '💡 ความหมาย'], ['plan', o.kind === 'rite' ? '📋 ขั้นตอน' : '🗓️ วันที่จัด'], ...(prayer.length ? [['prayer', '🙏 อธิษฐาน'] as [Sub, string]] : [])]
   const setSub = (s: Sub) => setSp(s === 'history' ? {} : { tab: s }, { replace: true })
   const label = (s: Sub) => (s === 'history' ? 'ความเป็นมา' : s === 'meaning' ? 'ความหมาย' : s === 'plan' ? planLabel : 'คำกล่าวและคำอธิษฐาน')
   const blocks = (b: { heading: string; items: string[] }[], k: string): SpeechSection[] =>
