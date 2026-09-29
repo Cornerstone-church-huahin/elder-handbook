@@ -3,7 +3,7 @@ import AppShell from './components/AppShell'
 import Home from './pages/Home'
 import Search from './pages/Search'
 import NotesPage from './pages/Notes'
-import { OccasionPage, OccasionsHome } from './pages/Occasions'
+import { OccasionPage, OccasionsHome, RitesHome } from './pages/Occasions'
 import Settings from './pages/Settings'
 import { AskPage, ComingSoon, KitPage } from './pages/Placeholders'
 import { CharterArticlePage, CharterAsk, CharterHome } from './pages/Charter'
@@ -44,7 +44,8 @@ export default function App() {
           <Route path="bible" element={<BibleHome />} />
           <Route path="bible/:book" element={<BibleBookPage />} />
           <Route path="bible/:book/:ch" element={<BibleChapterPage />} />
-          <Route path="service" element={<ComingSoon icon="⛪" title="เตรียมพิธี" />} />
+          <Route path="service" element={<RitesHome />} />
+          <Route path="service/:id" element={<OccasionPage />} />
           <Route path="people" element={<PeopleHome />} />
           <Route path="people/compare" element={<PeopleCompare />} />
           <Route path="people/:id" element={<PersonPage />} />

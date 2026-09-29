@@ -1,56 +1,69 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useLocation, useParams, useSearchParams } from 'react-router-dom'
 import { DAYS, findOccasion, RITES, upcomingDates } from '../data/ceremonies'
 import { speakableRef, useSpeech, type SpeechSection } from '../lib/speech'
 import { Spoken, useFollow } from '../components/Spoken'
 import { useNotes, todayStr } from '../lib/notes'
 import { RefReader } from './People'
 
-/** พิธี / วันสำคัญ: 2 แท็บหลัก (พิธีสำคัญ · วันสำคัญ) → แต่ละเรื่องมี 4 แท็บย่อย อ่านต่อเนื่องข้ามแท็บได้ */
+/** เตรียมพิธี (/service) และ วันสำคัญ (/occasions) แยกเป็น 2 ไอคอน → แต่ละเรื่องมี 4 แท็บย่อย อ่านต่อเนื่องข้ามแท็บได้ */
 const thDate = (d: Date) => d.toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
 
-export function OccasionsHome() {
-  const [sp, setSp] = useSearchParams()
-  const tab = sp.get('t') === 'day' ? 'day' : 'rite'
-  const list = tab === 'rite' ? RITES : DAYS
-  const next = upcomingDates(new Date(), 4)
+/** รายการเรื่อง (ใช้ร่วมกันทั้งเตรียมพิธีและวันสำคัญ) */
+function OccList({ list, base }: { list: typeof RITES; base: string }) {
+  return (
+    <ul className="results occ-list">
+      {list.map((o) => (
+        <li key={o.id}>
+          <Link to={`${base}/${o.id}`} className="result">
+            <span className="result__icon" aria-hidden="true">{o.icon}</span>
+            <span className="result__body">
+              <span className="result__title">{o.title}</span>
+              <span className="occ-sub">{o.sub}</span>
+            </span>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+/** ไอคอน "เตรียมพิธี" — พิธีสำคัญของคริสตจักร */
+export function RitesHome() {
   return (
     <div className="occ">
       <div className="page-head">
         <span className="page-icon" aria-hidden="true">⛪</span>
-        <h1>พิธี / วันสำคัญ</h1>
-        <p>ความเป็นมา ความหมาย และการจัดในคริสตจักร</p>
+        <h1>เตรียมพิธี</h1>
+        <p>ความเป็นมา ความหมาย ขั้นตอน และคำอธิษฐานของแต่ละพิธี</p>
       </div>
-      <div className="nb-tabs occ-tabs" role="tablist">
-        <button type="button" role="tab" aria-selected={tab === 'rite'} onClick={() => setSp({}, { replace: true })}>🕊️ พิธีสำคัญ <small>{RITES.length}</small></button>
-        <button type="button" role="tab" aria-selected={tab === 'day'} onClick={() => setSp({ t: 'day' }, { replace: true })}>📅 วันสำคัญ <small>{DAYS.length}</small></button>
+      <OccList list={RITES} base="/service" />
+    </div>
+  )
+}
+
+/** ไอคอน "วันสำคัญ" — วันสำคัญตามปฏิทินคริสตจักร */
+export function OccasionsHome() {
+  const next = upcomingDates(new Date(), 4)
+  return (
+    <div className="occ">
+      <div className="page-head">
+        <span className="page-icon" aria-hidden="true">📅</span>
+        <h1>วันสำคัญ</h1>
+        <p>วันสำคัญตามปฏิทินคริสตจักร ความเป็นมา ความหมาย และการจัด</p>
       </div>
-      {tab === 'day' && (
-        <section className="occ-next">
-          <h2 className="section__title">วันสำคัญที่กำลังจะถึง</h2>
-          <ul>
-            {next.map((x) => (
-              <li key={x.label + x.date.toDateString()}>
-                <Link to={`/occasions/${x.o.id}?tab=plan`}><b>{x.label}</b><span>{thDate(x.date)}</span></Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-      <ul className="results occ-list">
-        {list.map((o) => (
-          <li key={o.id}>
-            <Link to={`/occasions/${o.id}`} className="result">
-              <span className="result__icon" aria-hidden="true">{o.icon}</span>
-              <span className="result__body">
-                <span className="result__title">{o.title}</span>
-                <span className="occ-sub">{o.sub}</span>
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ul>
+      <section className="occ-next">
+        <h2 className="section__title">วันสำคัญที่กำลังจะถึง</h2>
+        <ul>
+          {next.map((x) => (
+            <li key={x.label + x.date.toDateString()}>
+              <Link to={`/occasions/${x.o.id}?tab=plan`}><b>{x.label}</b><span>{thDate(x.date)}</span></Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+      <OccList list={DAYS} base="/occasions" />
     </div>
   )
 }
@@ -80,7 +93,10 @@ export function OccasionPage() {
   const [added, setAdded] = useState<string[]>([])
   const year = new Date().getFullYear()
   const topRef = useRef<HTMLDivElement>(null)
-  if (!o) return <p className="empty">ไม่พบเรื่องนี้ · <Link to="/occasions">กลับ</Link></p>
+  const { pathname, search } = useLocation()
+  const want = o?.kind === 'rite' ? '/service/' : '/occasions/'
+  if (o && !pathname.startsWith(want)) return <Navigate to={want + o.id + search} replace />
+  if (!o) return <p className="empty">ไม่พบเรื่องนี้ · <Link to="/">กลับ</Link></p>
   const planLabel = o.kind === 'rite' ? 'โอกาสและขั้นตอน' : 'วันที่และการจัด'
   const prayer = o.prayer ?? []
   const SUBS: [Sub, string][] = [['history', '📜 ความเป็นมา'], ['meaning', '💡 ความหมาย'], ['plan', o.kind === 'rite' ? '📋 โอกาสและขั้นตอน' : '🗓️ วันที่และการจัด'], ...(prayer.length ? [['prayer', '🙏 อธิษฐาน'] as [Sub, string]] : [])]
@@ -118,7 +134,7 @@ export function OccasionPage() {
 
   return (
     <div className="occ" ref={topRef}>
-      <p className="bible__crumb"><Link to={o.kind === 'rite' ? '/occasions' : '/occasions?t=day'}>{o.kind === 'rite' ? 'พิธีสำคัญ' : 'วันสำคัญ'}</Link></p>
+      <p className="bible__crumb"><Link to={o.kind === 'rite' ? '/service' : '/occasions'}>{o.kind === 'rite' ? 'เตรียมพิธี' : 'วันสำคัญ'}</Link></p>
       <h1 className="occ-title"><span aria-hidden="true">{o.icon}</span> {o.title}</h1>
       <p className="occ-sub">{o.sub}</p>
       <div className="nb-tabs occ-subtabs" role="tablist">
