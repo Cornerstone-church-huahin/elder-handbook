@@ -106,11 +106,11 @@ export function PeopleHome() {
       <div className="page-head">
         <span className="page-icon" aria-hidden="true">👥</span>
         <h1>บุคคลในพระคัมภีร์</h1>
-        <p>100 บุคคลสำคัญ เรียงจากปฐมกาลถึงคริสตจักรยุคแรก</p>
+        <p>{doc.people.length} บุคคลสำคัญ เรียงจากปฐมกาลถึงคริสตจักรยุคแรก</p>
       </div>
 
       <button type="button" className="btn btn--gold picker-open" onClick={() => setOpen(true)}>
-        📜 เลือกดูรายชื่อทั้ง 100 คน
+        📜 เลือกดูรายชื่อทั้ง {doc.people.length} คน
       </button>
 
       <section className="section">
@@ -232,7 +232,7 @@ export function PersonPage() {
           <span className={`timeline-tag__t timeline-tag__t--${era?.testament}`}>{testament?.title}</span>
           <span>{era ? eraTitle(era) : ''}</span>
         </p>
-        <p className="eyebrow">ลำดับที่ {p.order} จาก 100</p>
+        <p className="eyebrow">ลำดับที่ {p.order} จาก {doc.people.length}</p>
         <h1>{p.th}</h1>
         <p className="person-head__en">{p.en}</p>
         <p className="person-head__role">{p.role}</p>
@@ -606,7 +606,7 @@ export function PeopleCompare() {
 
       {state === 'loading' && (
         <div className="card ai-loading" role="status">
-          <div className="ai-loading__row"><span className="spinner" aria-hidden="true" /><p><strong>ผู้ช่วย AI กำลังเทียบกับ 100 บุคคล…</strong></p></div>
+          <div className="ai-loading__row"><span className="spinner" aria-hidden="true" /><p><strong>ผู้ช่วย AI กำลังเทียบกับบุคคลในพระคัมภีร์…</strong></p></div>
           <button type="button" className="btn btn--ghost" onClick={() => ctl.current?.abort()}>หยุด</button>
         </div>
       )}

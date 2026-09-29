@@ -100,7 +100,7 @@ function PersonStory() {
 
   return (
     <div className="story">
-      <p className="eyebrow">📖 เรื่องเล่าชีวิต · ลำดับที่ {p.order} จาก 100{era ? ` · ${eraTitle(era)}` : ''}</p>
+      <p className="eyebrow">📖 เรื่องเล่าชีวิต · ลำดับที่ {p.order} จาก {people.length}{era ? ` · ${eraTitle(era)}` : ''}</p>
       <h1 className="story__title">{p.th}</h1>
       <p className="person-head__role">{p.role}</p>
       <label className="story__auto">

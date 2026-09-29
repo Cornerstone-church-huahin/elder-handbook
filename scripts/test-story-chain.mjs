@@ -36,6 +36,8 @@ const iEveTitle = said.indexOf('เรื่องเล่าชีวิตข
 const adamCount = said.split(adam1).length - 1
 check(adamCount === 1, 'Adam content read once (not repeated under Eve): ' + adamCount)
 check(iEveTitle > 0 && iEve > iEveTitle, 'after Adam → Eve title then Eve content')
+const iCainTitle = said.indexOf('เรื่องเล่าชีวิตของคาอิน')
+check(iCainTitle > iEve && iCainTitle < iAbelTitle, 'Cain (elder brother) comes between Eve and Abel')
 check(iAbelTitle > iEve && iAbel > iAbelTitle, 'after Eve → Abel title then Abel content (keeps going)')
 check((await p.textContent('.story__title')) === 'อาแบล' && await p.locator('[aria-label="หยุดชั่วคราว"]').count() === 1, 'Abel page is playing')
 check(errs.length === 0, 'no JS errors ' + errs.join(';'))

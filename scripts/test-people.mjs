@@ -26,8 +26,8 @@ await p.click('.acc__bar--era >> nth=0'); check((await p.locator('.acc__list .re
 const firstLast = await p.locator('.acc__list .result__title').evaluateAll(els => [els[0].textContent, els[els.length - 1].textContent])
 check(firstLast[0] === 'อาดัม' && firstLast[1] === 'ลูกา', 'order Genesis (Adam) → Early Church (Luke)')
 // ป๊อปอัพ
-await p.click('text=📜 เลือกดูรายชื่อทั้ง 100 คน'); await p.waitForSelector('.sheet')
-check(await p.locator('.sheet .pick').count() === 100, 'picker lists 100 names')
+await p.click('text=📜 เลือกดูรายชื่อทั้ง 150 คน'); await p.waitForSelector('.sheet')
+check(await p.locator('.sheet .pick').count() === 150, "picker lists 150 names")
 check((await p.locator('.sheet .testament-head').count()) === 2, 'picker grouped by testament')
 await p.click('.sheet__era-group button:has-text("พระกิตติคุณ")'); await p.waitForTimeout(200)
 const st = await p.locator('.sheet__list').evaluate(el => el.scrollTop)

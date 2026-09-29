@@ -1,6 +1,6 @@
 import { keyWords } from './bible'
 /**
- * บุคคลสำคัญในพระคัมภีร์ 100 คน (public/data/bible-people.json สร้างด้วย scripts/build_people.py)
+ * บุคคลสำคัญในพระคัมภีร์ 150 คน (public/data/bible-people.json สร้างด้วย scripts/build_people.py)
  * เรียงตามลำดับเวลา จากปฐมกาลถึงคริสตจักรยุคแรก
  */
 
