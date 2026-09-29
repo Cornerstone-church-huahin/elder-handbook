@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Link, Navigate, useLocation, useParams, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { DAYS, findOccasion, RITES, upcomingDates } from '../data/ceremonies'
 import { speakableRef, useSpeech, type SpeechSection } from '../lib/speech'
 import { Spoken, useFollow } from '../components/Spoken'
@@ -71,8 +71,17 @@ export function OccasionsHome() {
 type Sub = 'history' | 'meaning' | 'plan' | 'prayer'
 const SUB_IDS: Sub[] = ['history', 'meaning', 'plan', 'prayer']
 
+const AUTO_KEY = 'khatha.occ.autonext'
+
+/** เปลี่ยนเรื่อง → สร้างหน้าใหม่ทั้งหน้า (กันเสียง/สถานะของเรื่องก่อนค้างมา) */
 export function OccasionPage() {
   const { id = '' } = useParams()
+  return <OccasionView key={id} />
+}
+
+function OccasionView() {
+  const { id = '' } = useParams()
+  const nav = useNavigate()
   const [sp, setSp] = useSearchParams()
   const o = findOccasion(id)
   const sub = (SUB_IDS.includes(sp.get('tab') as Sub) ? sp.get('tab') : 'history') as Sub
@@ -93,6 +102,34 @@ export function OccasionPage() {
   const [added, setAdded] = useState<string[]>([])
   const year = new Date().getFullYear()
   const topRef = useRef<HTMLDivElement>(null)
+  // อ่านจบเรื่องนี้ → ต่อเรื่องถัดไปในหมวดเดียวกัน (เตรียมพิธี หรือ วันสำคัญ)
+  const list = o?.kind === 'rite' ? RITES : DAYS
+  const idx = o ? list.findIndex((x) => x.id === o.id) : -1
+  const next = idx >= 0 ? list[idx + 1] : undefined
+  const prev = idx > 0 ? list[idx - 1] : undefined
+  const base = o?.kind === 'rite' ? '/service' : '/occasions'
+  const [autoNext, setAutoNextState] = useState(() => {
+    try { return localStorage.getItem(AUTO_KEY) !== '0' } catch { return true }
+  })
+  const setAutoNext = (v: boolean) => {
+    setAutoNextState(v)
+    try { localStorage.setItem(AUTO_KEY, v ? '1' : '0') } catch { /* ignore */ }
+  }
+  const reachedEnd = useRef(false)
+  const playRef = useRef<() => void>(() => {})
+  const autoplay = sp.get('play') === '1'
+  useEffect(() => {
+    if (!autoplay) return
+    setSp({}, { replace: true })
+    window.scrollTo(0, 0)
+    playRef.current()
+  }, [autoplay]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (tts.speaking || tts.paused || !reachedEnd.current) return
+    reachedEnd.current = false
+    if (autoNext && next) nav(`${base}/${next.id}?play=1`, { replace: true })
+  }, [tts.speaking, tts.paused, autoNext, next, base, nav])
+  useEffect(() => () => stop(), [stop])
   const { pathname, search } = useLocation()
   const want = o?.kind === 'rite' ? '/service/' : '/occasions/'
   if (o && !pathname.startsWith(want)) return <Navigate to={want + o.id + search} replace />
@@ -118,12 +155,16 @@ export function OccasionPage() {
   const play = (from?: { id: string; at: number }) => {
     const order = SUBS.map(([s]) => s)
     const start = order.indexOf(from ? tabOf(from.id) ?? subRef.current : subRef.current)
-    const secs: SpeechSection[] = [{ id: 'title', text: o.title }, ...order.slice(start).flatMap(tabSecs)]
+    const end = next && autoNext ? `จบ${o.title} ต่อไปคือ${next.title}` : `จบ${o.title}`
+    const secs: SpeechSection[] = [{ id: 'title', text: o.title }, ...order.slice(start).flatMap(tabSecs), { id: '__end', text: end }]
+    reachedEnd.current = false
     tts.speakSections(secs, (sid) => {
+      if (sid === '__end') { reachedEnd.current = true; return }
       const t = tabOf(sid)
       if (t && t !== subRef.current) { autoTab.current = true; subRef.current = t; setSub(t); window.scrollTo({ top: 0 }) }
     }, fw.onWord, from)
   }
+  playRef.current = () => play()
   const tap = (sid: string, at: number) => play({ id: sid, at })
   const S = (t: string, sid: string) => <Spoken text={t} id={sid} follow={fw.follow} onTap={tap} />
   const dateList = o.dates ? [...o.dates(year), ...o.dates(year + 1)].filter(([, d]) => d >= new Date(new Date().toDateString())).slice(0, 6) : []
@@ -137,6 +178,12 @@ export function OccasionPage() {
       <p className="bible__crumb"><Link to={o.kind === 'rite' ? '/service' : '/occasions'}>{o.kind === 'rite' ? 'เตรียมพิธี' : 'วันสำคัญ'}</Link></p>
       <h1 className="occ-title"><span aria-hidden="true">{o.icon}</span> {o.title}</h1>
       <p className="occ-sub">{o.sub}</p>
+      {next && (
+        <label className="story__auto">
+          <input type="checkbox" checked={autoNext} onChange={(e) => setAutoNext(e.target.checked)} />
+          อ่านจบแล้วต่อเรื่องถัดไปอัตโนมัติ ({next.title})
+        </label>
+      )}
       <div className="nb-tabs occ-subtabs" role="tablist">
         {SUBS.map(([s, label]) => <button key={s} type="button" role="tab" aria-selected={sub === s} onClick={() => setSub(s)}>{label}</button>)}
       </div>
@@ -183,6 +230,11 @@ export function OccasionPage() {
         <ul className="ref-list">{o.refs.map((r) => <li key={r}><RefReader text={r} /></li>)}</ul>
         <p className="source-note">กดเพื่ออ่านข้อความจริงฉบับ 1971 · ↗ เปิดในแอปพระคัมภีร์</p>
       </section>
+
+      <nav className="pager story__pager" aria-label="เรื่องก่อนหน้าและถัดไป">
+        {prev ? <Link className="btn btn--ghost" to={`${base}/${prev.id}`}>◀ {prev.title}</Link> : <span />}
+        {next ? <Link className="btn btn--ghost" to={`${base}/${next.id}`}>{next.title} ▶</Link> : <span />}
+      </nav>
 
       {tts.supported && slot && createPortal(
         <div className="nb-fab" role="group" aria-label="ฟังเสียงอ่าน">
