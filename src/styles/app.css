@@ -1269,8 +1269,8 @@ html[data-scale='150'] body.reading .nb-card--open .nb-card__body { height: calc
 /* พิธี / วันสำคัญ */
 .occ-tabs { grid-template-columns: 1fr 1fr; position: static; margin-bottom: .7rem; }
 .occ-tabs small { opacity: .7; font-weight: 500; }
-.occ-subtabs { grid-template-columns: repeat(3, 1fr); position: sticky; top: 3.6rem; margin: .5rem 0 .7rem; }
-.occ-subtabs button { font-size: .8rem; }
+.occ-subtabs { grid-template-columns: repeat(4, 1fr); position: sticky; top: 3.6rem; margin: .5rem 0 .7rem; }
+.occ-subtabs button { font-size: .78rem; line-height: 1.25; padding: .2rem .15rem; }
 .occ-sub { display: block; font-size: .85rem; color: var(--ink-soft); }
 .occ-title { margin: .2rem 0 .1rem; font-size: 1.35rem; }
 .occ-body p { line-height: 1.85; margin: 0 0 .8rem; font-size: 1.02rem; }
