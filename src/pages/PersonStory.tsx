@@ -21,7 +21,13 @@ function loadStory(id: string) {
 const AUTO_KEY = 'khatha.story.autoNext'
 const paras = (t: string) => t.split(/\n\s*\n/).map((x) => x.trim()).filter(Boolean)
 
-export default function PersonStory() {
+/** เปลี่ยนคน = เริ่มหน้าใหม่ทั้งหมด (กันเนื้อหาของคนก่อนค้างอยู่ตอนเล่าต่อคนถัดไป) */
+export default function PersonStoryPage() {
+  const { id = '' } = useParams()
+  return <PersonStory key={id} />
+}
+
+function PersonStory() {
   const { id = '' } = useParams()
   const [sp, setSp] = useSearchParams()
   const nav = useNavigate()
@@ -41,7 +47,7 @@ export default function PersonStory() {
 
   useEffect(() => {
     setStory(undefined)
-    loadStory(id).then(setStory)
+    loadStory(id).then((st) => setStory(st && st.id === id ? st : st ? { ...st, id } : st))
   }, [id])
 
   const people = doc ? [...doc.people].sort((a, b) => a.order - b.order) : []
@@ -72,7 +78,7 @@ export default function PersonStory() {
   // เปิดมาจากการเล่าต่อเนื่อง (?play=1) → เริ่มเล่าทันทีเมื่อเนื้อหาพร้อม
   const autoplay = sp.get('play') === '1'
   useEffect(() => {
-    if (!autoplay || !story || !p) return
+    if (!autoplay || !story || !p || story.id !== p.id) return
     setSp({}, { replace: true })
     window.scrollTo(0, 0)
     play()
