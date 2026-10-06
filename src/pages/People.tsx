@@ -390,6 +390,11 @@ export function RefReader({ text }: { text: string }) {
 
 const SHORT: Record<TeachMode, string> = { story: 'เรื่องราว', lessons: 'บทเรียน', teach: 'สอน', pastoral: 'อภิบาล', questions: 'คำถาม' }
 
+/** โหมดเรื่องเล่า: ตัดข้ออ้างอิงพระคัมภีร์ในวงเล็บออก เช่น (ปฐมกาล 12:5) — ไม่แสดงและไม่อ่านออกเสียง จะได้ฟังเป็นเรื่องเล่าต่อเนื่อง (ข้ออ้างอิงดูที่แท็บบทเรียน/สอน) */
+const REF_PAREN = /\s*[(（][^()（）]*\d+\s*:\s*\d+[^()（）]*[)）]/g
+export const stripRefs = (t: string) => t.replace(REF_PAREN, '').replace(/\s+([,.;:!?])/g, '$1').replace(/[ \t]{2,}/g, ' ').trim()
+const cleanSections = (secs: AiSection[]): AiSection[] => secs.map((x) => ({ ...x, heading: stripRefs(x.heading ?? ''), text: stripRefs(x.text ?? ''), items: x.items.map(stripRefs).filter(Boolean) }))
+
 function TeachPanel({ p }: { p: Person }) {
   const [mode, setMode] = useState<TeachMode>('story')
   const [base, setBase] = useState<PersonContent | null>(null)
@@ -410,8 +415,10 @@ function TeachPanel({ p }: { p: Person }) {
 
   const key = `${p.id}:${mode}`
   const edit = edits.items.find((x) => x.id === key)
-  const sectionsOf = (m: TeachMode) => edits.items.find((x) => x.id === `${p.id}:${m}`)?.sections ?? base?.[m] ?? []
+  const rawSectionsOf = (m: TeachMode) => edits.items.find((x) => x.id === `${p.id}:${m}`)?.sections ?? base?.[m] ?? []
+  const sectionsOf = (m: TeachMode) => (m === 'story' ? cleanSections(rawSectionsOf(m)) : rawSectionsOf(m)) // แสดง/อ่านจากฉบับที่ตัดข้ออ้างอิงแล้ว (ข้อมูลเดิมและการแก้ไขยังเก็บครบ)
   const sections = sectionsOf(mode)
+  const rawSections = rawSectionsOf(mode)
   const label = TEACH_MODES.find((m) => m.id === mode)!.label
 
   // ฟังเสียง: หน้านี้ หรือ ต่อเนื่องทั้ง 5 แท็บ (แท็บเลื่อนตามเสียงเอง) — แบบเดียวกับสมุดคำอธิษฐาน
@@ -461,7 +468,7 @@ function TeachPanel({ p }: { p: Person }) {
     }, fw.onWord, from)
   }
 
-  const startEdit = (from = sections) => {
+  const startEdit = (from = rawSections) => {
     setDraft(sectionsToText(from))
     setEditing(true)
   }
@@ -496,6 +503,7 @@ function TeachPanel({ p }: { p: Person }) {
         ))}
       </div>
       <h3 className="teach-mode-title">{label}</h3>
+      {mode === 'story' && <p className="source-note">เรื่องเล่า: ไม่แทรกข้อพระคัมภีร์ จะได้ฟังต่อเนื่อง · ดูข้ออ้างอิงที่แท็บ “บทเรียน” หรือ “สอน”</p>}
       {tts.noVoice && <p className="nb-none">มือถือเครื่องนี้ยังไม่มีเสียงภาษาไทย · ติดตั้งเสียงไทยในการตั้งค่าการอ่านออกเสียงของเครื่อง</p>}
 
       {editing ? (
@@ -535,7 +543,7 @@ function TeachPanel({ p }: { p: Person }) {
         <>
           <Sections sections={ai.sections} />
           <div className="teach-tools">
-            <button type="button" className="mini edit-only" onClick={() => startEdit([...sections, ...ai.sections])}>➕ รวมเข้ากับเนื้อหาเดิม แล้วแก้ไข</button>
+            <button type="button" className="mini edit-only" onClick={() => startEdit([...rawSections, ...ai.sections])}>➕ รวมเข้ากับเนื้อหาเดิม แล้วแก้ไข</button>
             <button type="button" className="mini edit-only" onClick={() => startEdit(ai.sections)}>✏️ ใช้ฉบับ AI แทน แล้วแก้ไข</button>
           </div>
         </>
