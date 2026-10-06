@@ -1345,3 +1345,8 @@ html[data-role=viewer] .edit-only { display: none !important; }
 .story__ctl { display: flex; flex-direction: row; flex-wrap: wrap; gap: .5rem; margin: .6rem 0 .8rem; padding: .7rem .8rem; }
 .story__ctl .btn { flex: 1 1 9rem; }
 .story__mode { flex-basis: 100%; margin: 0; font-size: .85rem; color: var(--ink-soft); }
+.story-modes { display: flex; flex-direction: column; gap: .4rem; margin-top: .6rem; padding: .7rem .8rem; border-radius: var(--radius); background: var(--surface); border: 2px solid var(--gold); }
+.story-modes__t { margin: 0; font-weight: 700; font-family: var(--font-display); }
+.story-modes__t small { font-family: var(--font-body); font-weight: 400; font-size: .8rem; color: var(--ink-soft); }
+.story-modes__btns { display: flex; flex-wrap: wrap; gap: .5rem; }
+.story-modes__btns .btn { flex: 1 1 10rem; }

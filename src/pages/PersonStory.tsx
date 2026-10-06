@@ -118,6 +118,7 @@ function PersonStory() {
                 ? <button type="button" className="btn" onClick={tts.pause}>⏸ หยุดชั่วคราว</button>
                 : <button type="button" className="btn btn--gold" onClick={tts.resume}>▶ ฟังต่อ</button>}
               <button type="button" className="btn btn--ghost" onClick={stopAll}>⏹ หยุด</button>
+              {!cont && <button type="button" className="btn btn--ghost" onClick={() => setCont(true)}>🔁 ต่อเนื่องไปเรื่อย ๆ</button>}
               <p className="story__mode" role="status">{cont ? `🔁 โหมดฟังต่อเนื่อง — จบเรื่องนี้แล้วต่อ ${nextCont?.th ?? ''} ไปเรื่อย ๆ จนกว่าจะกดหยุด` : 'ฟังเรื่องนี้เรื่องเดียว'}</p>
             </>
           ) : (

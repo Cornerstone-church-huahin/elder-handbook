@@ -238,7 +238,14 @@ export function PersonPage() {
         <p className="person-head__role">{p.role}</p>
         <div className="person-head__btns">
           <button type="button" className="btn btn--ghost" onClick={() => setOpen(true)}>📜 เลือกบุคคลอื่น</button>
-          <Link className="btn btn--gold story-btn" to={`/people/${p.id}/story`}>📖 ฟังเรื่องเล่าชีวิต</Link>
+        </div>
+        <div className="story-modes" role="group" aria-label="ฟังเรื่องเล่าชีวิต (ไม่มีข้อพระคัมภีร์)">
+          <p className="story-modes__t">📖 ฟังเรื่องเล่าชีวิต <small>— เล่าเป็นเรื่อง ไม่มีข้อพระคัมภีร์แทรก</small></p>
+          <div className="story-modes__btns">
+            <Link className="btn btn--gold story-btn" to={`/people/${p.id}/story?play=1`}>▶ ฟังเรื่องเล่าของ{p.th}</Link>
+            <Link className="btn btn--ghost story-btn" to={`/people/${p.id}/story?play=1&cont=1`}>🔁 ฟังต่อเนื่องตามรายชื่อ</Link>
+          </div>
+          <p className="source-note">ต่อเนื่อง = เล่าจบแล้วต่อคนถัดไปเรื่อย ๆ จนกว่าจะกดหยุด · ส่วน “เรื่องราว” ด้านล่างมีข้อพระคัมภีร์ประกอบ</p>
         </div>
       </div>
 
@@ -390,11 +397,6 @@ export function RefReader({ text }: { text: string }) {
 
 const SHORT: Record<TeachMode, string> = { story: 'เรื่องราว', lessons: 'บทเรียน', teach: 'สอน', pastoral: 'อภิบาล', questions: 'คำถาม' }
 
-/** โหมดเรื่องเล่า: ตัดข้ออ้างอิงพระคัมภีร์ในวงเล็บออก เช่น (ปฐมกาล 12:5) — ไม่แสดงและไม่อ่านออกเสียง จะได้ฟังเป็นเรื่องเล่าต่อเนื่อง (ข้ออ้างอิงดูที่แท็บบทเรียน/สอน) */
-const REF_PAREN = /\s*[(（][^()（）]*\d+\s*:\s*\d+[^()（）]*[)）]/g
-export const stripRefs = (t: string) => t.replace(REF_PAREN, '').replace(/\s+([,.;:!?])/g, '$1').replace(/[ \t]{2,}/g, ' ').trim()
-const cleanSections = (secs: AiSection[]): AiSection[] => secs.map((x) => ({ ...x, heading: stripRefs(x.heading ?? ''), text: stripRefs(x.text ?? ''), items: x.items.map(stripRefs).filter(Boolean) }))
-
 function TeachPanel({ p }: { p: Person }) {
   const [mode, setMode] = useState<TeachMode>('story')
   const [base, setBase] = useState<PersonContent | null>(null)
@@ -415,10 +417,8 @@ function TeachPanel({ p }: { p: Person }) {
 
   const key = `${p.id}:${mode}`
   const edit = edits.items.find((x) => x.id === key)
-  const rawSectionsOf = (m: TeachMode) => edits.items.find((x) => x.id === `${p.id}:${m}`)?.sections ?? base?.[m] ?? []
-  const sectionsOf = (m: TeachMode) => (m === 'story' ? cleanSections(rawSectionsOf(m)) : rawSectionsOf(m)) // แสดง/อ่านจากฉบับที่ตัดข้ออ้างอิงแล้ว (ข้อมูลเดิมและการแก้ไขยังเก็บครบ)
+  const sectionsOf = (m: TeachMode) => edits.items.find((x) => x.id === `${p.id}:${m}`)?.sections ?? base?.[m] ?? []
   const sections = sectionsOf(mode)
-  const rawSections = rawSectionsOf(mode)
   const label = TEACH_MODES.find((m) => m.id === mode)!.label
 
   // ฟังเสียง: หน้านี้ หรือ ต่อเนื่องทั้ง 5 แท็บ (แท็บเลื่อนตามเสียงเอง) — แบบเดียวกับสมุดคำอธิษฐาน
@@ -468,7 +468,7 @@ function TeachPanel({ p }: { p: Person }) {
     }, fw.onWord, from)
   }
 
-  const startEdit = (from = rawSections) => {
+  const startEdit = (from = sections) => {
     setDraft(sectionsToText(from))
     setEditing(true)
   }
@@ -503,7 +503,7 @@ function TeachPanel({ p }: { p: Person }) {
         ))}
       </div>
       <h3 className="teach-mode-title">{label}</h3>
-      {mode === 'story' && <p className="source-note">เรื่องเล่า: ไม่แทรกข้อพระคัมภีร์ จะได้ฟังต่อเนื่อง · ดูข้ออ้างอิงที่แท็บ “บทเรียน” หรือ “สอน”</p>}
+      {mode === 'story' && <p className="source-note">เรื่องราวนี้มีข้อพระคัมภีร์ประกอบเสมอ (บอกว่าอยู่ตอนไหนของพระคัมภีร์) · อยากฟังเป็นเรื่องเล่าแบบไม่มีข้อพระคัมภีร์ กดปุ่ม “📖 ฟังเรื่องเล่าชีวิต” ด้านบนของหน้านี้</p>}
       {tts.noVoice && <p className="nb-none">มือถือเครื่องนี้ยังไม่มีเสียงภาษาไทย · ติดตั้งเสียงไทยในการตั้งค่าการอ่านออกเสียงของเครื่อง</p>}
 
       {editing ? (
@@ -543,7 +543,7 @@ function TeachPanel({ p }: { p: Person }) {
         <>
           <Sections sections={ai.sections} />
           <div className="teach-tools">
-            <button type="button" className="mini edit-only" onClick={() => startEdit([...rawSections, ...ai.sections])}>➕ รวมเข้ากับเนื้อหาเดิม แล้วแก้ไข</button>
+            <button type="button" className="mini edit-only" onClick={() => startEdit([...sections, ...ai.sections])}>➕ รวมเข้ากับเนื้อหาเดิม แล้วแก้ไข</button>
             <button type="button" className="mini edit-only" onClick={() => startEdit(ai.sections)}>✏️ ใช้ฉบับ AI แทน แล้วแก้ไข</button>
           </div>
         </>
@@ -560,8 +560,8 @@ function TeachPanel({ p }: { p: Person }) {
             </>
           ) : (
             <>
-              <button type="button" className="nb-fab__btn" disabled={!speakText(mode)} onClick={() => listenThis()} aria-label="ฟังแท็บนี้">🔊 หน้านี้</button>
-              <button type="button" className="nb-fab__btn" onClick={() => listenAll()} aria-label="ฟังต่อเนื่องทุกแท็บ">▶ ต่อเนื่อง</button>
+              <button type="button" className="nb-fab__btn" disabled={!speakText(mode)} onClick={() => listenThis()} aria-label={`ฟัง${SHORT[mode]} (มีข้อพระคัมภีร์ประกอบ)`}>🔊 ฟัง{SHORT[mode]}</button>
+              <button type="button" className="nb-fab__btn" onClick={() => listenAll()} aria-label="ฟังต่อเนื่องทุกแท็บ (มีข้อพระคัมภีร์ประกอบ)">▶ ทุกแท็บ</button>
             </>
           )}
         </div>,
