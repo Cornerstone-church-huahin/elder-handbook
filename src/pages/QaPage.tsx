@@ -156,11 +156,16 @@ export default function QaPage() {
             <li key={s.id} id={`qa-${s.id}`} className={`us-card${on ? ' us-card--on' : ''}${isOpen ? '' : ' us-card--fold'}`}>
               {editId === s.id ? formView : (
                 <>
-                  <button type="button" className="qa-q" aria-expanded={isOpen} onClick={() => setOpen({ ...open, [s.id]: !open[s.id] })}>
+                  <div className="us-head">
+                    <button type="button" className="qa-q" aria-expanded={isOpen} onClick={() => setOpen({ ...open, [s.id]: !open[s.id] })}>
                     <span className="qa-q__t">{s.q}</span>
                     {s.tag && <span className="badge">{s.tag}</span>}
                     <span className="qa-q__chev" aria-hidden="true">{isOpen ? '▴' : '▾'}</span>
                   </button>
+                    {isOpen && tts.supported && (on
+                      ? <button type="button" className="us-play us-play--on" onClick={tts.stop} aria-label="หยุดอ่าน">⏹ หยุด</button>
+                      : <button type="button" className="us-play" onClick={() => playFrom(shown.findIndex((x) => x.id === s.id))} aria-label="ฟังต่อเนื่องตั้งแต่นี้">▶ ฟังต่อเนื่อง</button>)}
+                  </div>
                   {isOpen && (
                     <>
                       <p className="us-card__body">{s.a}</p>
@@ -172,9 +177,7 @@ export default function QaPage() {
                         </div>
                       ) : (
                         <div className="duty__btns us-card__btns">
-                          {tts.supported && (on
-                            ? <button type="button" className="btn us-listen" onClick={tts.stop}>⏹ หยุด</button>
-                            : <button type="button" className="btn btn--gold us-listen" onClick={() => playFrom(shown.findIndex((x) => x.id === s.id))} aria-label="ฟังต่อเนื่องตั้งแต่ข้อนี้">▶ ฟังต่อเนื่องจากข้อนี้</button>)}
+                          
                           <button type="button" className="mini" onClick={() => openEdit(s)}>✏️ แก้ไข</button>
                           <button type="button" className="mini" onClick={() => copy(s)}>📋 คัดลอก</button>
                           <button type="button" className="mini" onClick={() => { setDelId(s.id); setEditId(null) }}>🗑️ ลบ</button>

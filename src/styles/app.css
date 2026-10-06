@@ -1357,3 +1357,7 @@ html[data-role=viewer] .edit-only { display: none !important; }
 .us-card--fold .qa-q{min-height:38px;padding:0}
 .us-card--fold .qa-q__t{font-size:.95rem;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .us-list{gap:.45rem}
+.us-head{display:flex;align-items:center;gap:.4rem}
+.us-head .qa-q{flex:1;min-width:0;width:auto}
+.us-play{flex:none;height:32px;padding:0 .7rem;border-radius:999px;border:0;background:var(--gold);color:var(--navy);font:inherit;font-size:.8rem;font-weight:700;white-space:nowrap;cursor:pointer}
+.us-play--on{background:#fff;border:1.5px solid var(--gold)}

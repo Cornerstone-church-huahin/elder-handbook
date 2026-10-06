@@ -177,11 +177,16 @@ export default function UrgentScriptsPage() {
             <li key={s.id} id={`us-${s.id}`} className={`us-card${on ? ' us-card--on' : ''}${isOpen ? '' : ' us-card--fold'}`}>
               {editId === s.id ? formView : (
                 <>
-                  <button type="button" className="qa-q" aria-expanded={isOpen} onClick={() => setOpen({ ...open, [s.id]: !open[s.id] })}>
+                  <div className="us-head">
+                    <button type="button" className="qa-q" aria-expanded={isOpen} onClick={() => setOpen({ ...open, [s.id]: !open[s.id] })}>
                     <span className="qa-q__t">{s.title}</span>
                     {s.tag && <span className="badge">{s.tag}</span>}
                     <span className="qa-q__chev" aria-hidden="true">{isOpen ? '▴' : '▾'}</span>
                   </button>
+                    {isOpen && tts.supported && (on
+                      ? <button type="button" className="us-play us-play--on" onClick={tts.stop} aria-label="หยุดอ่าน">⏹ หยุด</button>
+                      : <button type="button" className="us-play" onClick={() => playAllFrom(shown.findIndex((x) => x.id === s.id))} aria-label="ฟังต่อเนื่องตั้งแต่นี้">▶ ฟังต่อเนื่อง</button>)}
+                  </div>
                   {isOpen && <p className="us-card__body">{s.body}</p>}
                   {!isOpen ? null : delId === s.id ? (
                     <div className="duty__btns duty__btns--warn">
@@ -191,9 +196,7 @@ export default function UrgentScriptsPage() {
                     </div>
                   ) : (
                     <div className="duty__btns us-card__btns">
-                      {tts.supported && (on
-                        ? <button type="button" className="btn us-listen" onClick={tts.stop}>⏹ หยุด</button>
-                        : <button type="button" className="btn btn--gold us-listen" onClick={() => playAllFrom(shown.findIndex((x) => x.id === s.id))} aria-label={`ฟังต่อเนื่องตั้งแต่ ${s.title}`}>▶ ฟังต่อเนื่องจากเรื่องนี้</button>)}
+                      
                       <button type="button" className="mini" onClick={() => openEdit(s)}>✏️ แก้ไข</button>
                       <button type="button" className="mini" onClick={() => copy(s)}>📋 คัดลอก</button>
                       <button type="button" className="mini" onClick={() => { setDelId(s.id); setEditId(null) }}>🗑️ ลบ</button>
