@@ -3,6 +3,7 @@ import { FONT_SCALES, useFontScale } from '../lib/prefs'
 import { useElderDuties } from '../lib/elderDuties'
 import { useState } from 'react'
 import MembersPanel from '../components/MembersPanel'
+import { useRole } from '../lib/members'
 import { DEFAULT_REPO, getSync, saveSync, testSync } from '../lib/sync'
 import { RATES, useSpeech } from '../lib/speech'
 import { BUILTIN_PRON, getVoicePrefs, PITCHES, PRON_KEY, setVoicePrefs, type Pron } from '../lib/voicePrefs'
@@ -12,6 +13,7 @@ import { useEffect } from 'react'
 import { getAiSettings, isStandaloneSite, saveAiSettings, testAiKey, VENDORS, type AiSettings, type AiVendor } from '../lib/ai'
 
 export default function Settings() {
+  const role = useRole()
   const { scale, setScale } = useFontScale()
   const { list } = useElderDuties()
 
@@ -57,7 +59,13 @@ export default function Settings() {
 
       {isStandaloneSite() && <SyncSettings />}
       {isStandaloneSite() && <MembersPanel />}
-      {isStandaloneSite() && <AiKeySettings />}
+      {isStandaloneSite() && role === 'admin' && <AiKeySettings />}
+      {isStandaloneSite() && role !== 'admin' && (
+        <section className="card">
+          <h2 style={{ fontSize: '1.1rem' }}>🔑 แอป AI</h2>
+          <p className="source-note">ปุ่ม Gemini · ChatGPT · Claude ในหน้าแรกเปิดบัญชี AI ของท่านเองตามสิทธิ์ที่ท่านมี ไม่ต้องใส่คีย์ ไม่ผูกกับแอป และไม่เกี่ยวกับคนอื่น (การผูกคีย์เข้ากับแอปเป็นของแอดมินเท่านั้น)</p>
+        </section>
+      )}
 
       <section className="card">
         <h2 style={{ fontSize: '1.2rem' }}>บัญชีผู้ใช้</h2>
