@@ -45,11 +45,11 @@ export default function UrgentScriptsPage() {
     document.getElementById(`us-${cur}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
   }, [cur, active])
 
-  const secs = (s: ScriptItem) =>
-    [{ id: `${s.id}|t`, text: `${s.title}.` }, { id: `${s.id}|b`, text: s.body || '' }].filter((x) => x.text.trim() && x.text.trim() !== '.')
+  const secs = (s: ScriptItem, n: number) =>
+    [{ id: `${s.id}|t`, text: `หัวข้อที่ ${n} ${s.title}.` }, { id: `${s.id}|b`, text: s.body || '' }].filter((x) => x.text.trim() && x.text.trim() !== '.')
   const play = (scripts: ScriptItem[]) => {
     if (!tts.supported || !scripts.length) return
-    const all = scripts.flatMap(secs)
+    const all = scripts.flatMap((x) => secs(x, list.findIndex((y) => y.id === x.id) + 1))
     if (!all.length) return
     setCur(scripts[0].id)
     tts.speakSections(all, (sid) => setCur(String(sid).split('|')[0]))

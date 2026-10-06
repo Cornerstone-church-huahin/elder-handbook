@@ -64,12 +64,12 @@ export default function QaPage() {
     catch { setNote('คัดลอกไม่ได้ กดค้างที่ข้อความเพื่อคัดลอกเอง') }
     window.setTimeout(() => setNote(''), 2200)
   }
-  const secs = (s: QaItem) => [{ id: `${s.id}|q`, text: `${s.q}.` }, { id: `${s.id}|a`, text: s.a || '' }].filter((x) => x.text.trim() && x.text.trim() !== '.')
+  const secs = (s: QaItem, n: number) => [{ id: `${s.id}|q`, text: `ข้อที่ ${n} คำถาม ${s.q}.` }, { id: `${s.id}|a`, text: s.a ? `คำตอบ ${s.a}` : '' }].filter((x) => x.text.trim() && x.text.trim() !== '.')
   const playFrom = (i: number) => {
     const scripts = shown.slice(Math.max(0, i))
     if (!tts.supported || !scripts.length) return
     setCur(scripts[0].id)
-    tts.speakSections(scripts.flatMap(secs), (sid) => setCur(String(sid).split('|')[0]))
+    tts.speakSections(scripts.flatMap((x) => secs(x, list.findIndex((y) => y.id === x.id) + 1)), (sid) => setCur(String(sid).split('|')[0]))
   }
   const curIdx = shown.findIndex((s) => s.id === cur)
   const stepTo = (d: number) => { const i = curIdx < 0 ? 0 : curIdx + d; if (i >= 0 && i < shown.length) playFrom(i) }
