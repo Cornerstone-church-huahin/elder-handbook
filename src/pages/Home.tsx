@@ -29,9 +29,15 @@ export default function Home() {
 
   return (
     <>
-      <div className="greeting">
-        <p className="greeting__date">{today}</p>
-        <h1>วันนี้คุณต้องการทำอะไร?</h1>
+      <div className="greeting greeting--row">
+        <div className="greeting__text">
+          <p className="greeting__date">{today}</p>
+          <h1>วันนี้คุณต้องการทำอะไร?</h1>
+        </div>
+        <div className="greeting__btns">
+          <Link to="/scripts" className="urgent-btn"><span aria-hidden="true">🚨</span><span>สคริปต์เร่งด่วน</span></Link>
+          <Link to="/qa" className="urgent-btn qa-btn"><span aria-hidden="true">💬</span><span>ถามตอบ</span></Link>
+        </div>
       </div>
 
       <section className="section">

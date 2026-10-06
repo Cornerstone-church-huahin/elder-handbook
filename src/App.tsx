@@ -14,6 +14,8 @@ import PrayerAiPage from './pages/Prayer'
 import PrayerNotebookPage from './pages/PrayerNotebook'
 import JoinPage from './pages/Join'
 import ElderDutiesPage from './pages/ElderDuties'
+import UrgentScriptsPage from './pages/UrgentScripts'
+import QaPage from './pages/QaPage'
 import { BibleBookPage, BibleChapterPage, BibleHome } from './pages/Bible'
 
 // HashRouter: ใช้ได้บนทุก Static Hosting โดยไม่ต้องตั้งค่า rewrite
@@ -26,6 +28,8 @@ export default function App() {
       <Routes>
         <Route element={<AppShell />}>
           <Route index element={<Home />} />
+          <Route path="scripts" element={<UrgentScriptsPage />} />
+          <Route path="qa" element={<QaPage />} />
           <Route path="search" element={<Search />} />
           <Route path="notes" element={<NotesPage />} />
           <Route path="occasions" element={<OccasionsHome />} />
