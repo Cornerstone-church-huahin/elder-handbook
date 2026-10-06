@@ -9,22 +9,70 @@ const fmt = (t: number) => (t ? new Date(t).toLocaleDateString('th-TH', { day: '
 export default function MembersPanel() {
   const m = useMembers()
   const [delId, setDelId] = useState<string | null>(null)
+  const [inviteRoles, setInviteRoles] = useState<Record<string, Role>>({})
   const [msg, setMsg] = useState('')
   const [inviteRole, setInviteRole] = useState<'editor' | 'viewer'>('editor')
+  const [inviteFor, setInviteFor] = useState('')
   const cfg = getSync()
   if (!cfg) return null
   const flash = (t: string) => { setMsg(t); window.setTimeout(() => setMsg(''), 3000) }
-  const link = `${location.origin}${location.pathname}#/join?t=${encodeURIComponent(cfg.token)}${cfg.repo !== DEFAULT_REPO ? `&r=${encodeURIComponent(cfg.repo)}` : ''}&role=${inviteRole}`
+  const link = `${location.origin}${location.pathname}#/join?t=${encodeURIComponent(cfg.token)}${cfg.repo !== DEFAULT_REPO ? `&r=${encodeURIComponent(cfg.repo)}` : ''}&role=${inviteRole}${inviteFor.trim() ? `&for=${encodeURIComponent(inviteFor.trim())}` : ''}`
   const share = async () => {
-    const text = `ลิงก์เข้าร่วมแอปคู่มือผู้ปกครองคริสตจักร (สิทธิ์: ${ROLE_LABEL[inviteRole]}) เปิดครั้งเดียวบนมือถือของท่านแล้วพิมพ์ชื่อ:\n${link}`
+    const text = `ขอเชิญร่วมใช้แอปคู่มือผู้ปกครองคริสตจักร${inviteFor.trim() ? ` (ถึง ${inviteFor.trim()})` : ''} — เปิดลิงก์นี้ แล้วพิมพ์ชื่อของท่านเพื่อส่งคำขอ แอดมินอนุมัติแล้วจึงใช้ได้:\n${link}`
     try {
       if (navigator.share) await navigator.share({ title: 'เข้าร่วมแอปคู่มือผู้ปกครองคริสตจักร', text })
       else { await navigator.clipboard.writeText(text); flash('คัดลอกลิงก์แล้ว วางในแชตส่วนตัวได้เลย (อย่าโพสต์ในกลุ่ม)') }
     } catch { /* ผู้ใช้ปิดหน้าต่างแชร์ */ }
   }
   return (
-    <section className="card members" aria-label="ผู้ใช้ร่วม">
-      <h2 style={{ fontSize: '1.1rem' }}>👥 ผู้ใช้ร่วม ({m.members.length} คน)</h2>
+    <section className="card members" aria-label="บัญชีผู้ใช้">
+      <h2 style={{ fontSize: '1.2rem' }}>👤 บัญชีผู้ใช้</h2>
+
+      {m.isAdmin && (
+        <div className="invite">
+          <h3 className="members__h">① ส่งลิงก์เชิญ</h3>
+          <label className="ai-keys__label" htmlFor="invite-for">ส่งให้ใคร (ชื่อ — ไว้เทียบตอนอนุมัติ)</label>
+          <input id="invite-for" className="us-input" type="text" value={inviteFor} maxLength={40} placeholder="เช่น น้องสาว" onChange={(e) => setInviteFor(e.target.value)} />
+          <label className="ai-keys__label" htmlFor="invite-role">สิทธิ์ที่ตั้งใจให้ (เปลี่ยนได้ตอนอนุมัติ)</label>
+          <select id="invite-role" className="us-input" value={inviteRole} onChange={(e) => setInviteRole(e.target.value as 'editor' | 'viewer')}>
+            <option value="editor">{ROLE_LABEL.editor}</option>
+            <option value="viewer">{ROLE_LABEL.viewer}</option>
+          </select>
+          <button type="button" className="btn btn--gold" onClick={share}>📤 ส่งลิงก์ทาง Line หรืออื่น ๆ</button>
+          <p className="source-note">ผู้รับเปิดลิงก์ → พิมพ์ชื่อ → ส่งคำขอ → <b>คุณเห็นคำขอที่นี่และกดอนุมัติ</b> ผู้รับยังใช้แอปไม่ได้จนกว่าจะอนุมัติ · ส่งเฉพาะแชตส่วนตัว อย่าโพสต์ในกลุ่ม</p>
+        </div>
+      )}
+
+      {m.isAdmin && (
+        <div className="members__pending" aria-live="polite">
+          <h3 className="members__h">② คำขอร่วมใช้ที่รออนุมัติ ({m.pending.length})</h3>
+          {m.pending.length === 0 && <p className="source-note">ยังไม่มีคำขอ <button type="button" className="mini" onClick={m.syncNow}>🔄 ตรวจคำขอใหม่</button></p>}
+          <ul className="members__list">
+            {m.pending.map((x) => {
+              const want = inviteRoles[x.id] ?? x.role
+              const matches = !x.invitedFor || x.invitedFor.trim().toLowerCase() === x.name.trim().toLowerCase()
+              return (
+                <li key={x.id} className="members__row members__row--pending">
+                  <div className="members__who">
+                    <b>{x.name}</b>
+                    <small>{x.invitedFor ? (matches ? `✓ ตรงกับชื่อที่ส่งลิงก์ให้ (${x.invitedFor})` : `⚠️ ลิงก์นี้ส่งให้ “${x.invitedFor}” แต่ผู้ขอใช้ชื่อ “${x.name}” — ตรวจให้แน่ใจก่อนอนุมัติ`) : 'ลิงก์ไม่ได้ระบุชื่อผู้รับ — ตรวจว่าเป็นคนที่คุณส่งไปหรือไม่'}</small>
+                  </div>
+                  <div className="members__ctl">
+                    <label className="sr-only" htmlFor={`ap-${x.id}`}>สิทธิ์ที่จะให้ {x.name}</label>
+                    <select id={`ap-${x.id}`} className="us-input members__sel" value={want} onChange={(e) => setInviteRoles({ ...inviteRoles, [x.id]: e.target.value as Role })}>
+                      {(['admin', 'editor', 'viewer'] as Role[]).map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
+                    </select>
+                    <button type="button" className="btn btn--gold" onClick={() => { m.approve(x.id, want); flash(`อนุมัติ ${x.name} แล้ว (${ROLE_LABEL[want]})`) }}>✓ อนุมัติ</button>
+                    <button type="button" className="btn btn--ghost" onClick={() => { m.reject(x.id); flash(`ไม่อนุมัติ ${x.name}`) }}>✕ ไม่อนุมัติ</button>
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
+
+      <h3 className="members__h">{m.isAdmin ? '③ ' : ''}ผู้ใช้ร่วม ({m.members.length} คน)</h3>
       {m.sync.state === 'off' && <p className="source-note">ยังไม่ได้เชื่อมออนไลน์</p>}
       {m.members.length === 0 && <p className="source-note">ยังไม่มีรายชื่อ — จะขึ้นเมื่อซิงก์ครั้งแรกเสร็จ <button type="button" className="mini" onClick={m.syncNow}>🔄 ซิงก์ตอนนี้</button></p>}
       <ul className="members__list">
@@ -61,19 +109,7 @@ export default function MembersPanel() {
         })}
       </ul>
       {msg && <p className="ai-keys__ok" role="status">{msg}</p>}
-      {m.isAdmin ? (
-        <div className="invite">
-          <label className="ai-keys__label" htmlFor="invite-role">เชิญคนเพิ่ม — สิทธิ์เริ่มต้นของผู้ที่เปิดลิงก์</label>
-          <select id="invite-role" className="us-input" value={inviteRole} onChange={(e) => setInviteRole(e.target.value as 'editor' | 'viewer')}>
-            <option value="editor">{ROLE_LABEL.editor}</option>
-            <option value="viewer">{ROLE_LABEL.viewer}</option>
-          </select>
-          <button type="button" className="btn btn--ghost" onClick={share}>📤 ส่งลิงก์เชิญ</button>
-          <p className="source-note">ผู้รับเปิดลิงก์ครั้งเดียว พิมพ์ชื่อ แล้วเข้าใช้ร่วมได้ · อยากให้ภรรยาเป็นแอดมินร่วม: ให้เธอเข้าร่วมก่อน แล้วเปลี่ยนสิทธิ์เธอเป็น "แอดมิน" ในรายชื่อนี้</p>
-        </div>
-      ) : (
-        <p className="source-note">เฉพาะแอดมินเปลี่ยนสิทธิ์ ลบคน หรือส่งลิงก์เชิญได้</p>
-      )}
+      {!m.isAdmin && <p className="source-note">เฉพาะแอดมินส่งลิงก์เชิญ อนุมัติคำขอ เปลี่ยนสิทธิ์ หรือลบคน · อยากให้ภรรยาเป็นแอดมินร่วม: ให้เธอขอร่วมใช้ แล้วเลือกสิทธิ์ “แอดมิน” ตอนอนุมัติ</p>}
       <p className="source-note">โน้ต สคริปต์เร่งด่วน และถามตอบ เป็นส่วนตัวรายคน คนอื่น (รวมแอดมิน) ไม่เห็นในแอป · แอป AI และคีย์ AI เป็นของแต่ละเครื่อง · สิทธิ์และความเป็นส่วนตัวเป็นการกันในแอป ไม่ใช่การล็อกระดับ GitHub — ลบคนแล้วควรเปลี่ยนรหัสเข้าใช้ร่วมใหม่ถ้าต้องการตัดขาดจริง</p>
     </section>
   )

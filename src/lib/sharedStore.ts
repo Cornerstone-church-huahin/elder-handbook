@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { blockIfViewer } from './access'
+import { blockIfViewer, MEMBERS_KEY, myRole } from './access'
 import { getSync, mergeItems, SYNC_EVENT, pullFile, pushFile, type SharedItem, type SyncStatus } from './sync'
 
 /**
@@ -34,6 +34,7 @@ export function useSharedStore<T extends SharedItem>(opts: {
   }
   const [all, setAll] = useState<T[]>(() => fix(read() ?? opts.seed?.() ?? []))
   const [sync, setSync] = useState<SyncStatus>(getSync() ? { state: 'idle' } : { state: 'off' })
+  const syncNowRef = useRef<() => void>(() => undefined)
   const latest = useRef(all)
   latest.current = all
   const timer = useRef<number | undefined>(undefined)
@@ -56,6 +57,7 @@ export function useSharedStore<T extends SharedItem>(opts: {
   useEffect(() => {
     const on = (e: Event) => {
       const d = (e as CustomEvent<{ key: string; from: symbol }>).detail
+      if (scope !== 'members' && d.key === MEMBERS_KEY) { syncNowRef.current() ; return } // รายชื่อ/สิทธิ์เปลี่ยน (เช่น เพิ่งได้รับอนุมัติ): ซิงก์ข้อมูลทันที
       if (d.key !== localKey || d.from === me) return
       const v = read()
       if (v) {
@@ -71,6 +73,8 @@ export function useSharedStore<T extends SharedItem>(opts: {
   const syncNow = useCallback(async () => {
     const cfg = getSync()
     if (!cfg) return setSync({ state: 'off' })
+    // ยังไม่รู้สิทธิ์ (รายชื่อผู้ใช้ร่วมยังไม่เคยซิงก์) หรือรออนุมัติ: ยังไม่ดึง/ส่งข้อมูลที่ใช้ร่วมกันและส่วนตัว
+    if (scope !== 'members' && (localStorage.getItem(MEMBERS_KEY) === null || myRole() === 'pending')) return setSync({ state: 'idle' })
     setSync({ state: 'syncing' })
     try {
       const remote = await pullFile<T>(cfg, file)
@@ -91,6 +95,7 @@ export function useSharedStore<T extends SharedItem>(opts: {
     }
   }, [file, label, setLocal])
 
+  syncNowRef.current = syncNow
   useEffect(() => {
     syncNow()
     const onVis = () => document.visibilityState === 'visible' && syncNow()

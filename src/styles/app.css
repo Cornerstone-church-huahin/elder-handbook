@@ -1337,3 +1337,8 @@ html[data-role=viewer] .edit-only { display: none !important; }
 .members__ctl { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; }
 .members__sel { width: auto; min-width: 9rem; }
 .members__del { display: inline-flex; flex-wrap: wrap; gap: .4rem; }
+.role-bar--req { display: block; background: var(--navy); color: var(--parchment); border-bottom: 2px solid var(--gold); text-decoration: none; font-size: .9rem; }
+.members__h { font-size: 1rem; margin: .4rem 0 .2rem; }
+.members__row--pending { border: 2px solid var(--gold); }
+.members__pending { display: flex; flex-direction: column; gap: .4rem; }
+.invite { display: flex; flex-direction: column; gap: .4rem; }

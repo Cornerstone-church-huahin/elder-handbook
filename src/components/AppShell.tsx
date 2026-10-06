@@ -78,16 +78,32 @@ export default function AppShell() {
       )}
       {ms.removed && (
         <section className="card role-first" role="alert">
-          <h2>ท่านถูกนำออกจากการใช้ร่วมกันแล้ว</h2>
+          <h2>คำขอไม่ได้รับอนุมัติ หรือท่านถูกนำออกจากการใช้ร่วมกัน</h2>
           <p>เครื่องนี้หยุดใช้ร่วมกับคนอื่น ข้อมูลที่อยู่ในเครื่องนี้ยังอยู่ ถ้าต้องการกลับมา ให้ขอลิงก์เชิญใหม่จากแอดมิน</p>
           <button type="button" className="btn btn--ghost" onClick={ms.dismissRemoved}>รับทราบ</button>
         </section>
       )}
+      {role === 'admin' && ms.pendingCount > 0 && (
+        <Link to="/settings" className="role-bar role-bar--req" role="status">🔔 มีผู้ขอร่วมใช้ <b>{ms.pendingCount} คน</b> รอคุณอนุมัติ — กดเพื่อดูชื่อและให้สิทธิ์</Link>
+      )}
       {roToast && <p className="role-toast" role="alert">👁️ สิทธิ์ของท่านดูและฟังอย่างเดียว — เพิ่ม แก้ไข หรือลบไม่ได้</p>}
 
-      <main className="main">
-        <Outlet />
-      </main>
+      {role === 'pending' ? (
+        <main className="main">
+          <section className="card role-first" role="status" aria-live="polite">
+            <h2>⏳ ส่งคำขอร่วมใช้แล้ว — รอแอดมินอนุมัติ</h2>
+            <p>ชื่อที่ส่ง: <b>{ms.myName || '—'}</b> · แอดมินจะเห็นชื่อนี้ในแอปของเขา เมื่ออนุมัติและกำหนดสิทธิ์แล้ว ท่านจะใช้แอปได้ตามสิทธิ์นั้น (แอปตรวจให้อัตโนมัติ หรือกดปุ่มด้านล่าง)</p>
+            <div className="duty__btns">
+              <button type="button" className="btn btn--gold" onClick={ms.syncNow}>🔄 ตรวจว่าอนุมัติแล้วหรือยัง</button>
+              <button type="button" className="btn btn--ghost" onClick={ms.cancelRequest}>ยกเลิกคำขอ</button>
+            </div>
+          </section>
+        </main>
+      ) : (
+        <main className="main">
+          <Outlet />
+        </main>
+      )}
 
       <PronEditor />
       <TextTools />

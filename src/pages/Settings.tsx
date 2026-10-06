@@ -58,7 +58,6 @@ export default function Settings() {
       </Link>
 
       {isStandaloneSite() && <SyncSettings />}
-      {isStandaloneSite() && <MembersPanel />}
       {isStandaloneSite() && role === 'admin' && <AiKeySettings />}
       {isStandaloneSite() && role !== 'admin' && (
         <section className="card">
@@ -67,10 +66,7 @@ export default function Settings() {
         </section>
       )}
 
-      <section className="card">
-        <h2 style={{ fontSize: '1.2rem' }}>บัญชีผู้ใช้</h2>
-        <p style={{ color: 'var(--ink-soft)' }}>ใช้ร่วมกันผ่าน “ใช้ร่วมกันออนไลน์” และดูรายชื่อ/สิทธิ์ผู้ใช้ร่วมที่ “👥 ผู้ใช้ร่วม” ด้านบน — โน้ต สคริปต์เร่งด่วน ถามตอบ เป็นส่วนตัวรายคน</p>
-      </section>
+      {isStandaloneSite() ? <MembersPanel /> : null}
 
       <p className="disclaimer">คู่มือผู้ปกครองคริสตจักร (Church Elder's Handbook) รุ่น 0.1 (ทดลอง)</p>
     </>

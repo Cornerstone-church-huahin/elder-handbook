@@ -7,11 +7,14 @@ import { getSync, type SharedItem } from './sync'
  */
 export type Role = 'admin' | 'editor' | 'viewer'
 export const ROLE_LABEL: Record<Role, string> = { admin: 'แอดมิน', editor: 'แก้ไขได้', viewer: 'ดูและฟังอย่างเดียว' }
-export interface Member extends SharedItem { name: string; role: Role; joined: number }
+/** pending = ขอร่วมใช้ รออนุมัติ (ยังใช้แอปไม่ได้) · ไม่มีสถานะ = ใช้งานได้ (สมาชิกเดิม) */
+export interface Member extends SharedItem { name: string; role: Role; joined: number; status?: 'active' | 'pending'; invitedFor?: string }
+export type AccessRole = Role | 'pending'
 
 export const ME_KEY = 'khatha.me.v1'
 export const MEMBERS_KEY = 'khatha.members.v1'
 export const INVITE_ROLE_KEY = 'khatha.inviteRole'
+export const INVITE_FOR_KEY = 'khatha.inviteFor'
 export const READONLY_EVENT = 'khatha-readonly'
 export const ROLE_EVENT = 'khatha-role'
 
@@ -51,17 +54,19 @@ export function readAllMembers(): Member[] {
 }
 
 /** สิทธิ์ของเครื่องนี้ · ยังไม่เชื่อมออนไลน์ = ใช้คนเดียว (ทำได้ทุกอย่าง) · ยังไม่ลงทะเบียน = แก้ไขได้ชั่วคราว */
-export function myRole(): Role {
+export function myRole(): AccessRole {
   if (!getSync()) return 'admin'
   const me = getMe()
   const mine = me && readAllMembers().find((m) => m.id === me.id)
-  if (mine) return mine.deleted ? 'viewer' : mine.role
-  return 'editor'
+  if (mine) return mine.deleted ? 'pending' : mine.status === 'pending' ? 'pending' : mine.role
+  return members0() ? 'pending' : 'editor'
 }
+/** ยังไม่มีใครในรายชื่อเลย (ก่อนตั้งแอดมินคนแรก) */
+function members0() { return readAllMembers().filter((m) => !m.deleted).length > 0 }
 
 /** ใช้ก่อนเขียนข้อมูลที่ใช้ร่วมกัน: true = ถูกกัน (ดูอย่างเดียว) */
 export function blockIfViewer(): boolean {
-  if (myRole() !== 'viewer') return false
+  if (myRole() !== 'viewer' && myRole() !== 'pending') return false
   window.dispatchEvent(new Event(READONLY_EVENT))
   return true
 }
