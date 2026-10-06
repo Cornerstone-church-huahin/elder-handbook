@@ -242,10 +242,10 @@ export function PersonPage() {
         <div className="story-modes" role="group" aria-label="ฟังเรื่องเล่าชีวิต (ไม่มีข้อพระคัมภีร์)">
           <p className="story-modes__t">📖 ฟังเรื่องเล่าชีวิต <small>— เล่าเป็นเรื่อง ไม่มีข้อพระคัมภีร์แทรก</small></p>
           <div className="story-modes__btns">
-            <Link className="btn btn--gold story-btn" to={`/people/${p.id}/story?play=1`}>▶ ฟังเรื่องเล่าของ{p.th}</Link>
-            <Link className="btn btn--ghost story-btn" to={`/people/${p.id}/story?play=1&cont=1`}>🔁 ฟังต่อเนื่องตามรายชื่อ</Link>
+            <Link className="btn btn--gold story-btn" to={`/people/${p.id}/story?play=1&cont=1`}>▶ ฟังเรื่องเล่าของ{p.th} (ต่อเนื่อง)</Link>
+            <Link className="btn btn--ghost story-btn" to={`/people/${p.id}/story?play=1&cont=0`}>🔊 ฟังเฉพาะเรื่องนี้</Link>
           </div>
-          <p className="source-note">ต่อเนื่อง = เล่าจบแล้วต่อคนถัดไปเรื่อย ๆ จนกว่าจะกดหยุด · ส่วน “เรื่องราว” ด้านล่างมีข้อพระคัมภีร์ประกอบ</p>
+          <p className="source-note">ปุ่มแรก = เล่าจบแล้วต่อคนถัดไปเรื่อย ๆ อัตโนมัติจนกว่าจะกดหยุด · ส่วน “เรื่องราว” ด้านล่างมีข้อพระคัมภีร์ประกอบ</p>
         </div>
       </div>
 

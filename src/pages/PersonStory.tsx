@@ -38,7 +38,7 @@ function PersonStory() {
   const [slot, setSlot] = useState<HTMLElement | null>(null)
   useEffect(() => setSlot(document.getElementById('topbar-slot')), [])
   // โหมดฟังต่อเนื่อง: เริ่มจากปุ่ม หรือมาจากเรื่องก่อนหน้า (?cont=1) · กดหยุดแล้วปิดโหมด
-  const contRef = useRef(sp.get('cont') === '1')
+  const contRef = useRef(sp.get('cont') !== '0')
   const [cont, setContState] = useState(contRef.current)
   const setCont = (v: boolean) => { contRef.current = v; setContState(v) }
 
