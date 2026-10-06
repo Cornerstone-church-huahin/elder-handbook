@@ -50,6 +50,43 @@ function chunks(text: string): string[] {
   return out
 }
 
+
+/**
+ * เล่นต่อเมื่อพับจอ/ปิดหน้าจอ (ลองทำให้ดีที่สุด): เบราว์เซอร์มือถือมักหยุดเสียงอ่านเมื่อแอปไปอยู่เบื้องหลัง
+ * จึงเปิดเสียงเงียบวนไว้ + แจ้งระบบว่า "กำลังเล่นสื่อ" (Media Session) เพื่อไม่ให้ระบบพักแอป
+ */
+let keep: HTMLAudioElement | null = null
+function keepAlive(on: boolean, ctl?: { pause: () => void; resume: () => void; stop: () => void }) {
+  try {
+    if (!on) {
+      keep?.pause()
+      if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'none'
+      return
+    }
+    if (!keep) {
+      const n = 8000, buf = new DataView(new ArrayBuffer(44 + n * 2))
+      const w = (o: number, t: string) => [...t].forEach((c, i) => buf.setUint8(o + i, c.charCodeAt(0)))
+      w(0, 'RIFF'); buf.setUint32(4, 36 + n * 2, true); w(8, 'WAVEfmt '); buf.setUint32(16, 16, true); buf.setUint16(20, 1, true)
+      buf.setUint16(22, 1, true); buf.setUint32(24, 8000, true); buf.setUint32(28, 16000, true); buf.setUint16(32, 2, true); buf.setUint16(34, 16, true)
+      w(36, 'data'); buf.setUint32(40, n * 2, true)
+      for (let i = 0; i < n; i++) buf.setInt16(44 + i * 2, i % 2 ? 1 : -1, true) // เสียงเบามาก (ไม่ได้ยิน)
+      keep = new Audio(URL.createObjectURL(new Blob([buf], { type: 'audio/wav' })))
+      keep.loop = true
+    }
+    void keep.play().catch(() => {})
+    if ('mediaSession' in navigator) {
+      const ms = navigator.mediaSession
+      ms.metadata = new MediaMetadata({ title: 'กำลังอ่านออกเสียง', artist: 'คู่มือผู้ปกครอง' })
+      ms.playbackState = 'playing'
+      if (ctl) {
+        ms.setActionHandler('pause', ctl.pause)
+        ms.setActionHandler('play', ctl.resume)
+        ms.setActionHandler('stop', ctl.stop)
+      }
+    }
+  } catch { /* ignore */ }
+}
+
 type Item = { text: string; section: string; first: boolean; base: number; say?: (s: string) => string }
 export type SpeechSection = { id: string; text: string; say?: (s: string) => string }
 
@@ -70,6 +107,9 @@ export function useSpeech(lang = 'th-TH') {
   // คิวที่กำลังอ่าน + ตำแหน่ง (เพื่อหยุดชั่วคราวแล้วอ่านต่อจากจุดเดิม)
   const q = useRef<{ items: Item[]; pos: number; offset: number; onSection?: (id: string) => void; onWord?: (id: string, at: number, end: number) => void } | null>(null)
 
+  const pauseRef = useRef<() => void>(() => {})
+  const playRef = useRef<() => void>(() => {})
+  const stopRef = useRef<() => void>(() => {})
   const watch = useRef<number | undefined>(undefined)
   const [me0] = useState(() => Symbol('speech'))
   const loop = useRef(false)
@@ -85,6 +125,7 @@ export function useSpeech(lang = 'th-TH') {
     q.current = null
     window.clearInterval(watch.current)
     if (canSpeak()) window.speechSynthesis.cancel()
+    keepAlive(false)
     setSpeaking(false)
     setPaused(false)
   }, [])
@@ -105,6 +146,7 @@ export function useSpeech(lang = 'th-TH') {
     setNoVoice(!voice && synth.getVoices().length > 0)
     setSpeaking(true)
     setPaused(false)
+    keepAlive(true, { pause: () => pauseRef.current(), resume: () => playRef.current(), stop: () => stopRef.current() })
     window.clearInterval(watch.current)
     let active: { done: boolean; startedAt: number } | null = null
 
@@ -124,6 +166,7 @@ export function useSpeech(lang = 'th-TH') {
       if (c.pos >= c.items.length) {
         q.current = null
         window.clearInterval(watch.current)
+        keepAlive(false)
         return setSpeaking(false)
       }
       const it = c.items[c.pos]
@@ -177,10 +220,14 @@ export function useSpeech(lang = 'th-TH') {
     run.current++
     window.clearInterval(watch.current)
     if (canSpeak()) window.speechSynthesis.cancel()
+    keepAlive(false)
     setSpeaking(false)
     setPaused(true)
   }, [])
   const resume = useCallback(() => play(), [play])
+  pauseRef.current = pause
+  playRef.current = resume
+  stopRef.current = stop
 
   /** อ่านหลายส่วนต่อเนื่อง (เช่น พระคำ → เรื่องราว → คำอธิษฐาน) · onSection แจ้งเมื่อเริ่มส่วนใหม่ */
   const speakSections = useCallback(
@@ -240,6 +287,7 @@ export function useSpeech(lang = 'th-TH') {
       window.removeEventListener('khatha-speech', other)
       run.current++
       if (q.current && canSpeak()) window.speechSynthesis.cancel()
+      if (q.current) keepAlive(false)
     }
   }, [me0])
 
