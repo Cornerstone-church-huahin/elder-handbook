@@ -29,6 +29,7 @@ export default function UrgentScriptsPage() {
   const [delId, setDelId] = useState<string | null>(null)
   const [cur, setCur] = useState<string | null>(null)
   const [note, setNote] = useState('')
+  const [open, setOpen] = useState<Record<string, boolean>>({})
 
   const list = [...store.items].sort((a, b) => (a.pos ?? 0) - (b.pos ?? 0) || (a.updated ?? 0) - (b.updated ?? 0))
   const needle = q.trim().toLowerCase()
@@ -118,10 +119,8 @@ export default function UrgentScriptsPage() {
       <div className="page-head">
         <span className="page-icon" aria-hidden="true">🚨</span>
         <h1>สคริปต์เร่งด่วน</h1>
-        <p>{list.length} สคริปต์ · เก็บคำพูดสำคัญไว้ กดฟังได้ทันที เพิ่ม แก้ไข ลบ หรือเรียงลำดับได้</p>
+        <p>{list.length} สคริปต์ · เก็บคำพูดสำคัญไว้ กดฟังได้ทันที กดชื่อเพื่อเปิดอ่าน/พับเก็บ ค้นหาได้จากชื่อ หมวด หรือเนื้อหา</p>
       </div>
-
-      <SharedSyncLine sync={store.sync} items={list} onRetry={store.syncNow} mine />
 
       {list.length > 0 && (
         <section className="card us-bar" aria-label="ฟังต่อเนื่อง">
@@ -146,16 +145,6 @@ export default function UrgentScriptsPage() {
                   <button type="button" className="mini" disabled={curIdx < 0 || curIdx >= shown.length - 1} onClick={() => stepTo(1)} aria-label="สคริปต์ถัดไป">ถัดไป ⏭</button>
                 </div>
               )}
-              <label className="us-loop">
-                <input type="checkbox" checked={!!tts.looping} onChange={(e) => tts.setLoop(e.target.checked)} /> 🔁 วนอ่านซ้ำเมื่อจบ
-              </label>
-              <label className="nb-speed">
-                <span className="nb-speed__label">ความเร็วเสียง: <b>{RATES[rateIdx].label}</b></span>
-                <input type="range" min={0} max={RATES.length - 1} step={1} value={rateIdx} aria-valuetext={RATES[rateIdx].label}
-                  onChange={(e) => { tts.setRate(RATES[+e.target.value].rate); tts.stop() }} />
-                <span className="nb-speed__ends" aria-hidden="true"><span>🐢 ช้าที่สุด</span><span>ปกติ</span></span>
-              </label>
-              {tts.noVoice && <p className="ai-keys__err">เครื่องนี้ยังไม่มีเสียงภาษาไทย · Android: ตั้งค่า › การจัดการทั่วไป › การอ่านออกเสียง › Google › ติดตั้งข้อมูลเสียงภาษาไทย</p>}
             </>
           ) : (
             <p className="ai-keys__err">เบราว์เซอร์นี้ไม่รองรับเสียงอ่าน — ยังอ่านและแก้ไขสคริปต์ได้ตามปกติ</p>
@@ -172,6 +161,12 @@ export default function UrgentScriptsPage() {
         <button type="button" className="btn btn--gold nb-add" onClick={openNew}>＋ เพิ่มสคริปต์</button>
       </div>
 
+      {list.length > 1 && !needle && (
+        <p className="us-fold">
+          <button type="button" className="mini" onClick={() => setOpen(Object.fromEntries(list.map((x) => [x.id, true])))}>▾ ขยายทั้งหมด</button>
+          <button type="button" className="mini" onClick={() => setOpen({})}>▴ พับทั้งหมด</button>
+        </p>
+      )}
       {note && <p className="nb-sync nb-sync--ok" role="status">{note}</p>}
       {editId === 'new' && formView}
 
@@ -186,17 +181,19 @@ export default function UrgentScriptsPage() {
       <ol className="us-list">
         {shown.map((s) => {
           const on = active && cur === s.id
+          const isOpen = !!needle || !!open[s.id] || on || editId === s.id
           const idx = list.findIndex((x) => x.id === s.id)
           return (
             <li key={s.id} id={`us-${s.id}`} className={`us-card${on ? ' us-card--on' : ''}`}>
               {editId === s.id ? formView : (
                 <>
-                  <div className="us-card__head">
-                    <h2 className="us-card__title">{s.title}</h2>
+                  <button type="button" className="qa-q" aria-expanded={isOpen} onClick={() => setOpen({ ...open, [s.id]: !open[s.id] })}>
+                    <span className="qa-q__t">{s.title}</span>
                     {s.tag && <span className="badge">{s.tag}</span>}
-                  </div>
-                  <p className="us-card__body">{s.body}</p>
-                  {delId === s.id ? (
+                    <span className="qa-q__chev" aria-hidden="true">{isOpen ? '▴' : '▾'}</span>
+                  </button>
+                  {isOpen && <p className="us-card__body">{s.body}</p>}
+                  {!isOpen ? null : delId === s.id ? (
                     <div className="duty__btns duty__btns--warn">
                       <span>ลบสคริปต์นี้?</span>
                       <button type="button" className="btn btn--danger" onClick={() => del(s.id)}>ลบ</button>
@@ -220,6 +217,24 @@ export default function UrgentScriptsPage() {
           )
         })}
       </ol>
+
+      {list.length > 0 && tts.supported && (
+        <section className="card us-settings" aria-label="ตั้งค่าเสียงอ่าน">
+          <h2 className="section__title">⚙️ ตั้งค่าเสียงอ่าน</h2>
+          <label className="us-loop">
+            <input type="checkbox" checked={!!tts.looping} onChange={(e) => tts.setLoop(e.target.checked)} /> 🔁 วนอ่านซ้ำเมื่อจบ
+          </label>
+          <label className="nb-speed">
+            <span className="nb-speed__label">ความเร็วเสียง: <b>{RATES[rateIdx].label}</b></span>
+            <input type="range" min={0} max={RATES.length - 1} step={1} value={rateIdx} aria-valuetext={RATES[rateIdx].label}
+              onChange={(e) => { tts.setRate(RATES[+e.target.value].rate); tts.stop() }} />
+            <span className="nb-speed__ends" aria-hidden="true"><span>🐢 ช้าที่สุด</span><span>ปกติ</span></span>
+          </label>
+          {tts.noVoice && <p className="ai-keys__err">เครื่องนี้ยังไม่มีเสียงภาษาไทย · Android: ตั้งค่า › การจัดการทั่วไป › การอ่านออกเสียง › Google › ติดตั้งข้อมูลเสียงภาษาไทย</p>}
+        </section>
+      )}
+
+      <SharedSyncLine sync={store.sync} items={list} onRetry={store.syncNow} mine />
 
       <p className="source-note">สคริปต์เป็นส่วนตัวของท่าน คนอื่นไม่เห็น · เมื่อเชื่อมออนไลน์ ทุกเครื่องของท่านเองเห็นและฟังชุดเดียวกัน (เข้าด้วยชื่อเดิม) · ใช้เสียงอ่านเดียวกับส่วนอื่นของแอป</p>
     </>

@@ -1350,3 +1350,6 @@ html[data-role=viewer] .edit-only { display: none !important; }
 .story-modes__t small { font-family: var(--font-body); font-weight: 400; font-size: .8rem; color: var(--ink-soft); }
 .story-modes__btns { display: flex; flex-wrap: wrap; gap: .5rem; }
 .story-modes__btns .btn { flex: 1 1 10rem; }
+.us-fold{display:flex;gap:.5rem;margin:.25rem 0 .5rem}
+.us-settings{margin-top:1rem}
+.us-settings .section__title{margin:0 0 .5rem}

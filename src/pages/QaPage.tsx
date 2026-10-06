@@ -95,7 +95,6 @@ export default function QaPage() {
         <h1>ถามตอบ</h1>
         <p>{list.length} ข้อ · เก็บคำถามที่มีคนถามมาและคำตอบไว้ ค้นหาเจอได้ทันที</p>
       </div>
-      <SharedSyncLine sync={store.sync} items={list} onRetry={store.syncNow} mine />
       <div className="nb-bar us-tools">
         <label className="nb-search">
           <span className="sr-only">ค้นหาคำถามหรือคำตอบ</span>
@@ -163,6 +162,7 @@ export default function QaPage() {
           )
         })}
       </ul>
+      <SharedSyncLine sync={store.sync} items={list} onRetry={store.syncNow} mine />
       <p className="source-note">คำถาม-คำตอบเป็นส่วนตัวของท่าน คนอื่นไม่เห็น · เมื่อเชื่อมออนไลน์ ทุกเครื่องของท่านเองเห็นและฟังชุดเดียวกัน (เข้าด้วยชื่อเดิม)</p>
     </>
   )
