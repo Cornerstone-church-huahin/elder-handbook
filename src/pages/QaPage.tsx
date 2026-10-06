@@ -1,12 +1,12 @@
 import { useState, type FormEvent } from 'react'
 import { IconSearch } from '../components/Icons'
 import SharedSyncLine from '../components/SharedSyncLine'
-import { useSharedStore } from '../lib/sharedStore'
+import { usePrivateStore } from '../lib/privateStore'
 import { useSpeech } from '../lib/speech'
 import type { SharedItem } from '../lib/sync'
 
 /** ถามตอบ — เก็บคำถามที่มีคนถามมากับคำตอบของท่าน ค้นหาได้ทั้งคำถามและคำตอบ */
-interface QaItem extends SharedItem { q: string; a: string; tag: string; created: number }
+interface QaItem extends SharedItem { ownerId?: string; q: string; a: string; tag: string; created: number }
 
 const SAMPLE = {
   q: 'ตัวอย่าง: ผู้ปกครองต้องประชุมกันบ่อยแค่ไหน?',
@@ -16,7 +16,7 @@ const SAMPLE = {
 const newId = () => `qa_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
 
 export default function QaPage() {
-  const store = useSharedStore<QaItem>({ localKey: 'khatha.qa.v1', file: 'qa.json', label: 'ถามตอบ' })
+  const store = usePrivateStore<QaItem>({ key: 'khatha.qa.v1', name: 'qa', label: 'ถามตอบ', legacyFile: 'qa.json', legacyMine: (x, name) => !!name && x.by === name })
   const tts = useSpeech('th-TH')
   const [q, setQ] = useState('')
   const [tagF, setTagF] = useState('')
@@ -95,7 +95,7 @@ export default function QaPage() {
         <h1>ถามตอบ</h1>
         <p>{list.length} ข้อ · เก็บคำถามที่มีคนถามมาและคำตอบไว้ ค้นหาเจอได้ทันที</p>
       </div>
-      <SharedSyncLine sync={store.sync} items={list} onRetry={store.syncNow} />
+      <SharedSyncLine sync={store.sync} items={list} onRetry={store.syncNow} mine />
       <div className="nb-bar us-tools">
         <label className="nb-search">
           <span className="sr-only">ค้นหาคำถามหรือคำตอบ</span>
@@ -163,7 +163,7 @@ export default function QaPage() {
           )
         })}
       </ul>
-      <p className="source-note">เมื่อเชื่อมออนไลน์ (ตั้งค่า › รหัสเข้าใช้ร่วม) ทุกเครื่องที่ใส่รหัสเดียวกัน ทั้งของท่านและคู่ผู้ปกครอง จะเห็น ฟัง และแก้ไขคำถาม-คำตอบชุดเดียวกัน</p>
+      <p className="source-note">คำถาม-คำตอบเป็นส่วนตัวของท่าน คนอื่นไม่เห็น · เมื่อเชื่อมออนไลน์ ทุกเครื่องของท่านเองเห็นและฟังชุดเดียวกัน (เข้าด้วยชื่อเดิม)</p>
     </>
   )
 }

@@ -119,7 +119,7 @@ export default function PrayerNotebookPage() {
           <input id="nb-q" type="search" placeholder="ค้นหาคำอธิษฐาน เช่น ถวาย อาหาร ป่วย" value={q} onChange={(e) => onSearch(e.target.value)} aria-label="ค้นหาคำอธิษฐาน" />
           {q && <button type="button" className="nb-search__clear" aria-label="ล้างคำค้น" onClick={() => onSearch('')}>✕</button>}
         </label>
-        {editing !== 'new' && <button type="button" className="btn btn--gold nb-add" onClick={startNew}>＋ เพิ่ม</button>}
+        {editing !== 'new' && <button type="button" className="btn btn--gold nb-add edit-only" onClick={startNew}>＋ เพิ่ม</button>}
       </div>
 
       {!saved && <p className="empty">เครื่องนี้บันทึกข้อมูลไม่ได้ (อาจเปิดแบบส่วนตัว) สิ่งที่แก้ไขจะหายเมื่อปิดหน้า</p>}
@@ -167,7 +167,7 @@ export default function PrayerNotebookPage() {
       <SyncLine sync={sync} onRetry={syncNow} list={list ?? []} />
 
       {list && !query && (
-        <button type="button" className="btn btn--ghost nb-restore" onClick={() => restoreDefaults()}>↺ นำคำอธิษฐานตั้งต้นที่ลบไปกลับมา</button>
+        <button type="button" className="btn btn--ghost nb-restore edit-only" onClick={() => restoreDefaults()}>↺ นำคำอธิษฐานตั้งต้นที่ลบไปกลับมา</button>
       )}
 
       {big && <PrayerMode steps={paras(big.text).map((t, i, a) => ({ h: `${big.title} ${i + 1}/${a.length}`, t }))} onClose={() => setBig(null)} />}
@@ -334,8 +334,8 @@ function NoteCard({
           <div className="nb-menu" role="menu">
             <button type="button" role="menuitem" onClick={() => { setMenu(false); onBig() }}>🔠 ตัวอักษรใหญ่</button>
             <button type="button" role="menuitem" onClick={copy}>📋 คัดลอกไปส่ง Line</button>
-            <button type="button" role="menuitem" onClick={() => { setMenu(false); onEdit() }}>✏️ แก้ไข</button>
-            <button type="button" role="menuitem" className="nb-menu__danger" onClick={onAskDelete}>🗑️ ลบ</button>
+            <button type="button" role="menuitem" className="edit-only" onClick={() => { setMenu(false); onEdit() }}>✏️ แก้ไข</button>
+            <button type="button" role="menuitem" className="nb-menu__danger edit-only" onClick={onAskDelete}>🗑️ ลบ</button>
             <button type="button" role="menuitem" onClick={() => { setMenu(false); onToggle() }}>▲ พับการ์ด</button>
             {copied && <p className="nb-menu__note">{copied}</p>}
             {confirming && (
@@ -389,10 +389,10 @@ function NoteCard({
                     <div className="nb-prose nb-cheer__text">{paras(cheer).map((x, i) => <p key={i}><Spoken text={x} id={`cheer|${i}`} follow={fw.follow} onTap={tapRead} /></p>)}</div>
                     {!p.cheer && <p className="source-note">คำหนุนใจนี้ระบบเรียบเรียงจากหัวข้อคำอธิษฐาน · กด ✏️ เพื่อแก้เป็นถ้อยคำของท่านเอง</p>}
                     <div className="nb-cheer__btns">
-                      <button type="button" className="mini" onClick={() => setCheerEdit(cheer)}>✏️ แก้ไข</button>
+                      <button type="button" className="mini edit-only" onClick={() => setCheerEdit(cheer)}>✏️ แก้ไข</button>
                       <button type="button" className="mini" onClick={async () => { try { await navigator.clipboard.writeText(cheer); setCheerMsg('คัดลอกแล้ว') } catch { setCheerMsg('คัดลอกไม่ได้') } window.setTimeout(() => setCheerMsg(''), 1500) }}>📋 คัดลอก</button>
                       <button type="button" className="mini" onClick={async () => { if (navigator.share) { try { await navigator.share({ text: cheer }) } catch { /* ยกเลิก */ } } else { try { await navigator.clipboard.writeText(cheer); setCheerMsg('คัดลอกแล้ว') } catch { /* ignore */ } } }}>📤 ส่งให้</button>
-                      {p.cheer && <button type="button" className="mini" onClick={() => onSaveCheer('')}>↺ ใช้แบบอัตโนมัติ</button>}
+                      {p.cheer && <button type="button" className="mini edit-only" onClick={() => onSaveCheer('')}>↺ ใช้แบบอัตโนมัติ</button>}
                     </div>
                     {cheerMsg && <p className="source-note">{cheerMsg}</p>}
                   </>

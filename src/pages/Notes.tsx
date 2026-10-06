@@ -54,7 +54,6 @@ export default function NotesPage() {
         <span className="memo__title">{n.title}</span>
         {n.date && <span className="memo__when">🗓️ {dateLabel(n.date, n.time)}</span>}
         {n.body && <span className="memo__body">{n.body}</span>}
-        <span className="memo__by">{[n.private ? '🔒 เฉพาะฉัน' : '', n.by ? `โดย ${n.by}` : ''].filter(Boolean).join(' · ')}</span>
       </button>
     </li>
   )
@@ -88,7 +87,7 @@ export default function NotesPage() {
           {showDone && <ul className="notes-list">{done.map(row)}</ul>}
         </>
       )}
-      <p className="source-note">บันทึกออนไลน์ให้ทุกเครื่องเห็น (ยกเว้นที่ติ๊ก “เห็นเฉพาะฉัน”) · อยากให้มือถือเตือนตามเวลา กด “เพิ่มลงปฏิทิน”</p>
+      <p className="source-note">โน้ตเป็นส่วนตัวของท่าน คนอื่นไม่เห็น · ทุกเครื่องของท่านเห็นชุดเดียวกันเมื่อเชื่อมออนไลน์ · อยากให้มือถือเตือนตามเวลา กด “เพิ่มลงปฏิทิน”</p>
 
       {edit && (
         <div className="sheet-backdrop" onClick={() => setEdit(null)}>
@@ -103,7 +102,6 @@ export default function NotesPage() {
               <label className="voice-row"><span>วันที่ (ไม่ใส่ = บันทึกย่อ)</span><input id="note-date" type="date" value={edit.date ?? ''} onChange={(e) => setEdit({ ...edit, date: e.target.value })} /></label>
               <label className="voice-row"><span>เวลา</span><input id="note-time" type="time" value={edit.time ?? ''} disabled={!edit.date} onChange={(e) => setEdit({ ...edit, time: e.target.value })} /></label>
             </div>
-            <label className="note-private"><input type="checkbox" checked={!!edit.private} onChange={(e) => setEdit({ ...edit, private: e.target.checked })} /> 🔒 เห็นเฉพาะฉัน</label>
             <div className="pron-actions">
               <button type="button" className="btn btn--gold" disabled={!edit.title?.trim()} onClick={() => { save({ ...edit, title: edit.title!.trim(), body: (edit.body ?? '').trim(), time: edit.date ? edit.time ?? '' : '' }); setEdit(null) }}>💾 บันทึก</button>
               {edit.id ? <button type="button" className="btn btn--ghost" onClick={() => { remove(edit.id!); setEdit(null) }}>🗑️ ลบ</button> : <button type="button" className="btn btn--ghost" onClick={() => setEdit(null)}>ยกเลิก</button>}

@@ -1,12 +1,29 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { blockIfViewer } from './access'
 import { getSync, mergeItems, SYNC_EVENT, pullFile, pushFile, type SharedItem, type SyncStatus } from './sync'
 
 /**
  * ที่เก็บข้อมูลที่ใช้ร่วมกัน: บันทึกในเครื่องทันที แล้วซิงก์ขึ้น GitHub (repo ส่วนตัว) อัตโนมัติ
  * ทุกเครื่องที่ใส่รหัสเข้าใช้ร่วมจะเห็นและแก้ไขข้อมูลชุดเดียวกัน (ใหม่กว่าชนะ รายการที่ลบถูกจำไว้)
  */
-export function useSharedStore<T extends SharedItem>(opts: { localKey: string; file: string; label: string; seed?: () => T[] }) {
+export function useSharedStore<T extends SharedItem>(opts: {
+  localKey: string
+  file: string
+  label: string
+  seed?: () => T[]
+  /** shared (ค่าเริ่มต้น) = ทุกคนเห็น ผู้ที่ดูอย่างเดียวแก้ไม่ได้ · private = เฉพาะเจ้าของ · members = รายชื่อผู้ใช้ร่วม */
+  scope?: 'shared' | 'private' | 'members'
+  /** กรอง/แปลงรายการทุกครั้งที่อ่านหรือรวมข้อมูล (ใช้กับข้อมูลส่วนตัว: คงไว้เฉพาะของตัวเอง) */
+  adapt?: (items: T[]) => T[]
+  /** ไฟล์เดิมที่เคยเก็บรวมกัน: อ่านอย่างเดียว แล้วนำเฉพาะของตัวเองมาเป็นของส่วนตัว (ไม่ลบ ไม่แก้ไฟล์เดิม) */
+  legacyFile?: string
+  adaptLegacy?: (items: T[]) => T[]
+}) {
   const { localKey, file, label } = opts
+  const scope = opts.scope ?? 'shared'
+  const adaptRef = useRef(opts.adapt)
+  adaptRef.current = opts.adapt
+  const fix = (xs: T[]) => (adaptRef.current ? adaptRef.current(xs) : xs)
   const read = (): T[] | null => {
     try {
       const v = JSON.parse(localStorage.getItem(localKey) ?? 'null')
@@ -15,7 +32,7 @@ export function useSharedStore<T extends SharedItem>(opts: { localKey: string; f
       return null
     }
   }
-  const [all, setAll] = useState<T[]>(() => read() ?? opts.seed?.() ?? [])
+  const [all, setAll] = useState<T[]>(() => fix(read() ?? opts.seed?.() ?? []))
   const [sync, setSync] = useState<SyncStatus>(getSync() ? { state: 'idle' } : { state: 'off' })
   const latest = useRef(all)
   latest.current = all
@@ -42,8 +59,9 @@ export function useSharedStore<T extends SharedItem>(opts: { localKey: string; f
       if (d.key !== localKey || d.from === me) return
       const v = read()
       if (v) {
-        latest.current = v
-        setAll(v)
+        const f = fix(v)
+        latest.current = f
+        setAll(f)
       }
     }
     window.addEventListener('khatha-store', on)
@@ -56,7 +74,11 @@ export function useSharedStore<T extends SharedItem>(opts: { localKey: string; f
     setSync({ state: 'syncing' })
     try {
       const remote = await pullFile<T>(cfg, file)
-      const merged = mergeItems(latest.current, remote.items)
+      let legacy: T[] = []
+      if (opts.legacyFile) {
+        try { legacy = (opts.adaptLegacy ? opts.adaptLegacy((await pullFile<T>(cfg, opts.legacyFile)).items) : []) } catch { /* ไฟล์เดิมไม่มี/อ่านไม่ได้ ไม่เป็นไร */ }
+      }
+      const merged = fix(mergeItems(mergeItems(latest.current, remote.items), legacy))
       setLocal(merged)
       const localNewer = merged.some((x) => {
         const r = remote.items.find((y) => y.id === x.id)
@@ -85,6 +107,7 @@ export function useSharedStore<T extends SharedItem>(opts: { localKey: string; f
   /** บันทึกรายการ (เพิ่ม/แก้ไข) แล้วส่งขึ้นออนไลน์ทันที */
   const put = useCallback(
     (items: T[]) => {
+      if (scope === 'shared' && blockIfViewer()) return
       const by = getSync()?.name
       const now = Date.now()
       const stamped = items.map((x, i) => ({ ...x, updated: now + i, by: by ?? x.by }))
@@ -96,7 +119,7 @@ export function useSharedStore<T extends SharedItem>(opts: { localKey: string; f
         timer.current = window.setTimeout(syncNow, 600)
       }
     },
-    [setLocal, syncNow],
+    [setLocal, syncNow, scope],
   )
 
   return {

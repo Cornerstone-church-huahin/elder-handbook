@@ -1,10 +1,10 @@
 import { useMemo } from 'react'
-import { useSharedStore } from './sharedStore'
+import { usePrivateStore } from './privateStore'
 import { getSync } from './sync'
 
 /**
  * โน้ต: นัดหมาย/ตารางเวลา (มีวันที่ เวลา) และบันทึกย่อเตือนความจำ — บันทึกออนไลน์ (notes.json)
- * ใช้ร่วมกันทุกเครื่อง · ติ๊ก "เห็นเฉพาะฉัน" ได้
+ * ส่วนตัวรายคน: คนอื่นไม่เห็น · ตัวเองเห็นชุดเดียวกันทุกเครื่อง (ใช้ชื่อเดิม)
  */
 export interface Note {
   id: string
@@ -15,6 +15,7 @@ export interface Note {
   done: boolean
   private: boolean
   owner: string
+  ownerId?: string
   updated: number
   deleted?: boolean
   by?: string
@@ -23,9 +24,10 @@ export interface Note {
 export const todayStr = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
 export function useNotes() {
-  const store = useSharedStore<Note>({ localKey: 'khatha.notes.v1', file: 'notes.json', label: 'โน้ต' })
+  // โน้ตเดิมที่เคยเก็บรวมใน notes.json: นำเฉพาะของตัวเอง (ชื่อผู้บันทึกตรงกัน) มาเป็นส่วนตัว — คัดลอก ไม่ลบไฟล์เดิม
+  const store = usePrivateStore<Note>({ key: 'khatha.notes.v1', name: 'notes', label: 'โน้ต', legacyFile: 'notes.json', legacyMine: (x, name) => !!name && (x.owner === name || x.by === name) })
   const me = getSync()?.name.trim() || 'me'
-  const items = useMemo(() => store.items.filter((n) => !n.private || n.owner === me), [store.items, me])
+  const items = useMemo(() => store.items, [store.items])
   const save = (n: Partial<Note> & { title: string }) => {
     const id = n.id ?? `n${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
     const old = store.items.find((x) => x.id === id)

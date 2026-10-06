@@ -9,12 +9,12 @@ function when(t: number) {
 }
 
 /** บรรทัดบอกสถานะออนไลน์ของข้อมูลที่ใช้ร่วมกัน (สคริปต์เร่งด่วน / ถามตอบ) — ให้เห็นชัดว่าอีกเครื่องเห็นข้อมูลนี้หรือยัง */
-export default function SharedSyncLine({ sync, items, onRetry }: { sync: SyncStatus; items: (SharedItem & { title?: string; q?: string })[]; onRetry: () => void }) {
+export default function SharedSyncLine({ sync, items, onRetry, mine }: { sync: SyncStatus; items: (SharedItem & { title?: string; q?: string })[]; onRetry: () => void; mine?: boolean }) {
   const last = items.filter((x) => x.by && x.updated > 0).sort((a, b) => b.updated - a.updated)[0]
   if (sync.state === 'off')
     return (
       <p className="nb-sync nb-sync--off" role="status">
-        📱 <b>ข้อมูลนี้อยู่เฉพาะเครื่องนี้</b> — ยังไม่ได้เชื่อมออนไลน์ อีกเครื่องจะไม่เห็น · <Link to="/settings">ใส่รหัสเข้าใช้ร่วมที่ตั้งค่า ›</Link>
+        📱 <b>ข้อมูลนี้อยู่เฉพาะเครื่องนี้</b> — ยังไม่ได้เชื่อมออนไลน์ เครื่องอื่นของท่านจะไม่เห็น · <Link to="/settings">ใส่รหัสเข้าใช้ร่วมที่ตั้งค่า ›</Link>
       </p>
     )
   if (sync.state === 'error')
@@ -26,8 +26,8 @@ export default function SharedSyncLine({ sync, items, onRetry }: { sync: SyncSta
   if (sync.state === 'ok')
     return (
       <p className="nb-sync nb-sync--ok" role="status">
-        ☁️ ใช้ร่วมกันออนไลน์แล้ว · ซิงก์ล่าสุด {when(sync.at)}
-        {last && <> · แก้ไขล่าสุดโดย <b>{last.by}</b></>} <button type="button" onClick={onRetry}>🔄 ซิงก์ตอนนี้</button>
+        {mine ? '☁️ สำรองออนไลน์แล้ว · เห็นเฉพาะท่าน ทุกเครื่องของท่านเห็นชุดเดียวกัน' : '☁️ ใช้ร่วมกันออนไลน์แล้ว'} · ซิงก์ล่าสุด {when(sync.at)}
+        {!mine && last && <> · แก้ไขล่าสุดโดย <b>{last.by}</b></>} <button type="button" onClick={onRetry}>🔄 ซิงก์ตอนนี้</button>
       </p>
     )
   return <p className="nb-sync" role="status">☁️ กำลังซิงก์ออนไลน์…</p>

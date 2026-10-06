@@ -59,10 +59,10 @@ export default function ElderDutiesPage() {
                     </div>
                   ) : (
                     <div className="duty__btns">
-                      <button type="button" className="mini" onClick={() => { setEditing(d.id); setDraft(d.text); setConfirmDel(null) }}>✏️ แก้ไข</button>
-                      <button type="button" className="mini" onClick={() => setConfirmDel(d.id)}>🗑️ ลบ</button>
-                      <button type="button" className="mini" aria-label="เลื่อนขึ้น" disabled={i === 0} onClick={() => move(d.id, -1)}>▲</button>
-                      <button type="button" className="mini" aria-label="เลื่อนลง" disabled={i === list.length - 1} onClick={() => move(d.id, 1)}>▼</button>
+                      <button type="button" className="mini edit-only" onClick={() => { setEditing(d.id); setDraft(d.text); setConfirmDel(null) }}>✏️ แก้ไข</button>
+                      <button type="button" className="mini edit-only" onClick={() => setConfirmDel(d.id)}>🗑️ ลบ</button>
+                      <button type="button" className="mini edit-only" aria-label="เลื่อนขึ้น" disabled={i === 0} onClick={() => move(d.id, -1)}>▲</button>
+                      <button type="button" className="mini edit-only" aria-label="เลื่อนลง" disabled={i === list.length - 1} onClick={() => move(d.id, 1)}>▼</button>
                     </div>
                   )}
                 </>
@@ -73,7 +73,7 @@ export default function ElderDutiesPage() {
       </ol>
       {list.length === 0 && <p className="empty">ยังไม่มีรายการ เพิ่มหน้าที่ข้อแรกได้ด้านล่าง</p>}
 
-      <form className="card" onSubmit={onAdd}>
+      <form className="card edit-only" onSubmit={onAdd}>
         <label htmlFor="duty-new" className="section__title">เพิ่มหน้าที่</label>
         <textarea id="duty-new" rows={2} className="duty-new" placeholder="เช่น เยี่ยมผู้สูงอายุที่มาโบสถ์ไม่ได้เดือนละครั้ง" value={newText} onChange={(e) => setNewText(e.target.value)} />
         <button type="submit" className="btn btn--gold">＋ เพิ่ม</button>

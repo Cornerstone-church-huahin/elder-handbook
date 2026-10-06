@@ -1,16 +1,16 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { IconSearch } from '../components/Icons'
 import SharedSyncLine from '../components/SharedSyncLine'
-import { useSharedStore } from '../lib/sharedStore'
+import { usePrivateStore } from '../lib/privateStore'
 import { RATES, useSpeech } from '../lib/speech'
 import type { SharedItem } from '../lib/sync'
 
 /**
  * สคริปต์เร่งด่วน — คำพูด/คีย์เวิร์ดที่ต้องใช้ตอนประชุมหรือสถานการณ์เร่งด่วน
  * เพิ่ม แก้ไข ลบ เรียงลำดับได้ กดฟังได้ทีละเรื่องหรือฟังต่อเนื่องทั้งหมด
- * เก็บในเครื่อง และซิงก์ขึ้น GitHub เหมือนโน้ต/หน้าที่ผู้ปกครองเมื่อเข้าสู่ระบบ
+ * ส่วนตัวรายคน: เก็บในเครื่องและสำรองออนไลน์ในโฟลเดอร์ของตัวเอง คนอื่นไม่เห็น
  */
-interface ScriptItem extends SharedItem { title: string; tag: string; body: string; pos: number; created: number }
+interface ScriptItem extends SharedItem { ownerId?: string; title: string; tag: string; body: string; pos: number; created: number }
 
 const SAMPLE = {
   title: 'เปิดประชุมผู้ปกครอง (ตัวอย่าง — ลบหรือแก้ไขได้)',
@@ -20,7 +20,7 @@ const SAMPLE = {
 const newId = () => `us_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
 
 export default function UrgentScriptsPage() {
-  const store = useSharedStore<ScriptItem>({ localKey: 'khatha.urgentScripts.v1', file: 'urgent-scripts.json', label: 'สคริปต์เร่งด่วน' })
+  const store = usePrivateStore<ScriptItem>({ key: 'khatha.urgentScripts.v1', name: 'urgent-scripts', label: 'สคริปต์เร่งด่วน', legacyFile: 'urgent-scripts.json', legacyMine: (x, name) => !!name && x.by === name })
   const tts = useSpeech('th-TH')
   const [q, setQ] = useState('')
   const [editId, setEditId] = useState<string | null>(null)
@@ -121,7 +121,7 @@ export default function UrgentScriptsPage() {
         <p>{list.length} สคริปต์ · เก็บคำพูดสำคัญไว้ กดฟังได้ทันที เพิ่ม แก้ไข ลบ หรือเรียงลำดับได้</p>
       </div>
 
-      <SharedSyncLine sync={store.sync} items={list} onRetry={store.syncNow} />
+      <SharedSyncLine sync={store.sync} items={list} onRetry={store.syncNow} mine />
 
       {list.length > 0 && (
         <section className="card us-bar" aria-label="ฟังต่อเนื่อง">
@@ -221,7 +221,7 @@ export default function UrgentScriptsPage() {
         })}
       </ol>
 
-      <p className="source-note">เมื่อเชื่อมออนไลน์ (ตั้งค่า › รหัสเข้าใช้ร่วม) ทุกเครื่องที่ใส่รหัสเดียวกัน ทั้งของท่านและคู่ผู้ปกครอง จะเห็น ฟัง และแก้ไขสคริปต์ชุดเดียวกัน · ใช้เสียงอ่านเดียวกับส่วนอื่นของแอป</p>
+      <p className="source-note">สคริปต์เป็นส่วนตัวของท่าน คนอื่นไม่เห็น · เมื่อเชื่อมออนไลน์ ทุกเครื่องของท่านเองเห็นและฟังชุดเดียวกัน (เข้าด้วยชื่อเดิม) · ใช้เสียงอ่านเดียวกับส่วนอื่นของแอป</p>
     </>
   )
 }

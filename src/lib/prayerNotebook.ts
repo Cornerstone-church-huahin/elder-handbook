@@ -2,6 +2,7 @@ import { topicRefs } from '../data/bibleTopics'
 import { parseRef } from '../data/bible'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { loadSavedPrayers } from '../data/savedPrayers'
+import { blockIfViewer } from './access'
 import { getSync, pullRemote, pushRemote, type SyncStatus } from './sync'
 import { autoTags, tagsForQuery } from './autoTags'
 
@@ -223,6 +224,7 @@ export function usePrayerNotebook() {
 
   const commit = useCallback(
     (next: NotePrayer[]) => {
+      if (blockIfViewer()) return // ดูและฟังอย่างเดียว: เพิ่ม/แก้/ลบไม่ได้
       setLocal(next)
       if (getSync()) {
         setSync({ state: 'syncing' })

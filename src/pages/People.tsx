@@ -517,9 +517,9 @@ function TeachPanel({ p }: { p: Person }) {
 
       {!editing && (
         <div className="teach-tools">
-          <button type="button" className="mini" onClick={() => startEdit()}>✏️ แก้ไข / เพิ่มเติม</button>
+          <button type="button" className="mini edit-only" onClick={() => startEdit()}>✏️ แก้ไข / เพิ่มเติม</button>
           {edit && <button type="button" className="mini" onClick={() => edits.remove(key)}>↺ ใช้ฉบับเดิม</button>}
-          <button type="button" className="mini" onClick={runAi}>✨ ให้ AI เขียนเพิ่ม</button>
+          <button type="button" className="mini edit-only" onClick={runAi}>✨ ให้ AI เขียนเพิ่ม</button>
         </div>
       )}
 
@@ -535,8 +535,8 @@ function TeachPanel({ p }: { p: Person }) {
         <>
           <Sections sections={ai.sections} />
           <div className="teach-tools">
-            <button type="button" className="mini" onClick={() => startEdit([...sections, ...ai.sections])}>➕ รวมเข้ากับเนื้อหาเดิม แล้วแก้ไข</button>
-            <button type="button" className="mini" onClick={() => startEdit(ai.sections)}>✏️ ใช้ฉบับ AI แทน แล้วแก้ไข</button>
+            <button type="button" className="mini edit-only" onClick={() => startEdit([...sections, ...ai.sections])}>➕ รวมเข้ากับเนื้อหาเดิม แล้วแก้ไข</button>
+            <button type="button" className="mini edit-only" onClick={() => startEdit(ai.sections)}>✏️ ใช้ฉบับ AI แทน แล้วแก้ไข</button>
           </div>
         </>
       )}
@@ -688,13 +688,13 @@ function ThemeSheet({
                         <button type="button" className={`theme-item${current === c.name ? ' theme-item--on' : ''}`} onClick={() => onPick(c.name)}>{c.name} <small>{c.people.length} คน</small></button>
                         {confirmDel === c.id ? (
                           <>
-                            <button type="button" className="mini mini--danger" onClick={() => { onRemove(c.id); setConfirmDel(null) }}>ลบ</button>
+                            <button type="button" className="mini mini--danger edit-only" onClick={() => { onRemove(c.id); setConfirmDel(null) }}>ลบ</button>
                             <button type="button" className="mini" onClick={() => setConfirmDel(null)}>ไม่</button>
                           </>
                         ) : (
                           <>
-                            <button type="button" className="mini" aria-label={`แก้ไข ${c.name}`} onClick={() => startEdit(c)}>✏️</button>
-                            <button type="button" className="mini" aria-label={`ลบ ${c.name}`} onClick={() => setConfirmDel(c.id)}>🗑️</button>
+                            <button type="button" className="mini edit-only" aria-label={`แก้ไข ${c.name}`} onClick={() => startEdit(c)}>✏️</button>
+                            <button type="button" className="mini edit-only" aria-label={`ลบ ${c.name}`} onClick={() => setConfirmDel(c.id)}>🗑️</button>
                           </>
                         )}
                       </li>

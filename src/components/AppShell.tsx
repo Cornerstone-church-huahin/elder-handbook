@@ -1,5 +1,7 @@
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { READONLY_EVENT } from '../lib/access'
+import { useMembership, useRole } from '../lib/members'
 import PronEditor from './PronEditor'
 import { useNotes } from '../lib/notes'
 import TextTools from './TextTools'
@@ -21,6 +23,18 @@ export default function AppShell() {
   const isTabRoot = TAB_ROOTS.includes(pathname)
   const textHl = useTextHighlightsStore()
   const notes = useNotes()
+  const role = useRole()
+  const ms = useMembership()
+  const [roToast, setRoToast] = useState(false)
+  useEffect(() => {
+    document.documentElement.dataset.role = role
+  }, [role])
+  useEffect(() => {
+    let t = 0
+    const on = () => { setRoToast(true); window.clearTimeout(t); t = window.setTimeout(() => setRoToast(false), 3500) }
+    window.addEventListener(READONLY_EVENT, on)
+    return () => { window.removeEventListener(READONLY_EVENT, on); window.clearTimeout(t) }
+  }, [])
 
   useEffect(() => {
     window.scrollTo(0, 0)
@@ -50,6 +64,26 @@ export default function AppShell() {
           <IconSettings />
         </Link>
       </header>
+
+      {role === 'viewer' && <p className="role-bar" role="status">👁️ สิทธิ์ของท่าน: <b>ดูและฟังอย่างเดียว</b> — ส่วนที่ใช้ร่วมกันเพิ่ม แก้ไข ลบไม่ได้ (ขอแอดมินปรับสิทธิ์ได้)</p>}
+      {ms.needAdmin && (
+        <section className="card role-first" role="alertdialog" aria-label="ตั้งแอดมินคนแรก">
+          <h2>ยังไม่มีแอดมินของการใช้ร่วมกัน</h2>
+          <p>เครื่องนี้คือ <b>เจ้าของ/แอดมินคนแรก</b> ใช่ไหม? แอดมินเชิญคนเข้ามา กำหนดสิทธิ์ และลบคนได้ (แอดมินร่วมเพิ่มได้ภายหลังที่ตั้งค่า)</p>
+          <div className="duty__btns">
+            <button type="button" className="btn btn--gold" onClick={ms.becomeAdmin}>✓ ใช่ ฉันเป็นแอดมิน</button>
+            <button type="button" className="btn btn--ghost" onClick={ms.joinAsMember}>ไม่ใช่ ฉันเป็นผู้ใช้ร่วม</button>
+          </div>
+        </section>
+      )}
+      {ms.removed && (
+        <section className="card role-first" role="alert">
+          <h2>ท่านถูกนำออกจากการใช้ร่วมกันแล้ว</h2>
+          <p>เครื่องนี้หยุดใช้ร่วมกับคนอื่น ข้อมูลที่อยู่ในเครื่องนี้ยังอยู่ ถ้าต้องการกลับมา ให้ขอลิงก์เชิญใหม่จากแอดมิน</p>
+          <button type="button" className="btn btn--ghost" onClick={ms.dismissRemoved}>รับทราบ</button>
+        </section>
+      )}
+      {roToast && <p className="role-toast" role="alert">👁️ สิทธิ์ของท่านดูและฟังอย่างเดียว — เพิ่ม แก้ไข หรือลบไม่ได้</p>}
 
       <main className="main">
         <Outlet />
