@@ -1342,3 +1342,6 @@ html[data-role=viewer] .edit-only { display: none !important; }
 .members__row--pending { border: 2px solid var(--gold); }
 .members__pending { display: flex; flex-direction: column; gap: .4rem; }
 .invite { display: flex; flex-direction: column; gap: .4rem; }
+.story__ctl { display: flex; flex-direction: row; flex-wrap: wrap; gap: .5rem; margin: .6rem 0 .8rem; padding: .7rem .8rem; }
+.story__ctl .btn { flex: 1 1 9rem; }
+.story__mode { flex-basis: 100%; margin: 0; font-size: .85rem; color: var(--ink-soft); }
