@@ -49,7 +49,7 @@ export default function JoinPage() {
         <h1>ขอร่วมใช้แอป</h1>
       </div>
       <form className="card ai-keys" onSubmit={(e) => { e.preventDefault(); join() }}>
-        <p><b>ขอร่วมใช้แอปด้วยกัน</b> — พิมพ์ชื่อของท่าน แล้วส่งคำขอให้แอดมิน แอดมินจะเห็นชื่อท่านและกดอนุมัติพร้อมกำหนดสิทธิ์ ท่านใช้แอปได้หลังอนุมัติ · โน้ต สคริปต์เร่งด่วน และถามตอบของท่านเป็นส่วนตัว คนอื่นไม่เห็น · ถ้าเคยใช้แอปนี้จากเครื่องอื่น ให้ใส่ชื่อเดิมของท่าน</p>
+        <p><b>ขอร่วมใช้แอปด้วยกัน</b> — พิมพ์ชื่อของท่าน แล้วส่งคำขอให้แอดมิน แอดมินจะเห็นชื่อท่านและกดอนุมัติพร้อมกำหนดสิทธิ์ ท่านใช้แอปได้หลังอนุมัติ · โน้ต สคริปต์ด่วน และถามตอบของท่านเป็นส่วนตัว คนอื่นไม่เห็น · ถ้าเคยใช้แอปนี้จากเครื่องอื่น ให้ใส่ชื่อเดิมของท่าน</p>
         <label htmlFor="join-name" className="ai-keys__label">ชื่อของท่าน</label>
         <input id="join-name" className="code-input" type="text" placeholder="พิมพ์ชื่อของท่าน" value={name} onChange={(e) => { setName(e.target.value); setMsg(null) }} autoFocus />
         <button type="submit" className="btn btn--gold" disabled={busy || !token}>{busy ? 'กำลังส่งคำขอ…' : '✓ ส่งคำขอร่วมใช้'}</button>

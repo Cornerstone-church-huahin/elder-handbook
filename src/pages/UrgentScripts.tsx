@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { IconSearch } from '../components/Icons'
 import SharedSyncLine from '../components/SharedSyncLine'
 import { usePrivateStore } from '../lib/privateStore'
@@ -6,7 +7,7 @@ import { RATES, useSpeech } from '../lib/speech'
 import type { SharedItem } from '../lib/sync'
 
 /**
- * สคริปต์เร่งด่วน — คำพูด/คีย์เวิร์ดที่ต้องใช้ตอนประชุมหรือสถานการณ์เร่งด่วน
+ * สคริปต์ด่วน — คำพูด/คีย์เวิร์ดที่ต้องใช้ตอนประชุมหรือสถานการณ์เร่งด่วน
  * เพิ่ม แก้ไข ลบ เรียงลำดับได้ กดฟังได้ทีละเรื่องหรือฟังต่อเนื่องทั้งหมด
  * ส่วนตัวรายคน: เก็บในเครื่องและสำรองออนไลน์ในโฟลเดอร์ของตัวเอง คนอื่นไม่เห็น
  */
@@ -20,7 +21,7 @@ const SAMPLE = {
 const newId = () => `us_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
 
 export default function UrgentScriptsPage() {
-  const store = usePrivateStore<ScriptItem>({ key: 'khatha.urgentScripts.v1', name: 'urgent-scripts', label: 'สคริปต์เร่งด่วน', legacyFile: 'urgent-scripts.json', legacyMine: (x, name) => !!name && x.by === name })
+  const store = usePrivateStore<ScriptItem>({ key: 'khatha.urgentScripts.v1', name: 'urgent-scripts', label: 'สคริปต์ด่วน', legacyFile: 'urgent-scripts.json', legacyMine: (x, name) => !!name && x.by === name })
   const tts = useSpeech('th-TH')
   const [q, setQ] = useState('')
   const [editId, setEditId] = useState<string | null>(null)
@@ -29,13 +30,14 @@ export default function UrgentScriptsPage() {
   const [delId, setDelId] = useState<string | null>(null)
   const [cur, setCur] = useState<string | null>(null)
   const [note, setNote] = useState('')
+  const [slot, setSlot] = useState<HTMLElement | null>(null)
+  useEffect(() => setSlot(document.getElementById('topbar-slot')), [])
   const [open, setOpen] = useState<Record<string, boolean>>({})
 
   const list = [...store.items].sort((a, b) => (a.pos ?? 0) - (b.pos ?? 0) || (a.updated ?? 0) - (b.updated ?? 0))
   const needle = q.trim().toLowerCase()
   const shown = needle ? list.filter((s) => [s.title, s.tag, s.body].join('\n').toLowerCase().includes(needle)) : list
   const active = tts.speaking || tts.paused
-  const curScript = list.find((s) => s.id === cur)
   const rateIdx = Math.max(0, RATES.findIndex((x) => x.rate === tts.rate))
 
   useEffect(() => {
@@ -118,39 +120,27 @@ export default function UrgentScriptsPage() {
     <>
       <div className="page-head">
         <span className="page-icon" aria-hidden="true">🚨</span>
-        <h1>สคริปต์เร่งด่วน</h1>
+        <h1>สคริปต์ด่วน</h1>
         <p>{list.length} สคริปต์ · เก็บคำพูดสำคัญไว้ กดฟังได้ทันที กดชื่อเพื่อเปิดอ่าน/พับเก็บ ค้นหาได้จากชื่อ หมวด หรือเนื้อหา</p>
       </div>
 
-      {list.length > 0 && (
-        <section className="card us-bar" aria-label="ฟังต่อเนื่อง">
-          {tts.supported ? (
+      {list.length > 0 && !tts.supported && <p className="ai-keys__err">เบราว์เซอร์นี้ไม่รองรับเสียงอ่าน — ยังอ่านและแก้ไขสคริปต์ได้ตามปกติ</p>}
+      {list.length > 0 && tts.noVoice && <p className="ai-keys__err">เครื่องนี้ยังไม่มีเสียงภาษาไทย · Android: ตั้งค่า › การจัดการทั่วไป › การอ่านออกเสียง › Google › ติดตั้งข้อมูลเสียงภาษาไทย</p>}
+      {list.length > 0 && tts.supported && slot && createPortal(
+        <div className="nb-fab" role="group" aria-label="ฟังสคริปต์ต่อเนื่อง">
+          {active ? (
             <>
-              <div className="us-bar__main">
-                {active ? (
-                  <>
-                    {tts.speaking
-                      ? <button type="button" className="btn" onClick={tts.pause}>⏸ หยุดชั่วคราว</button>
-                      : <button type="button" className="btn" onClick={tts.resume}>▶ ฟังต่อ</button>}
-                    <button type="button" className="btn btn--ghost" onClick={tts.stop}>⏹ หยุด</button>
-                  </>
-                ) : (
-                  <button type="button" className="btn btn--gold us-bar__all" onClick={() => playAllFrom(0)}>▶ ฟังทั้งหมดต่อเนื่อง</button>
-                )}
-              </div>
-              {active && curScript && <p className="us-now" role="status">กำลังอ่าน: {curScript.title}</p>}
-              {active && (
-                <div className="us-bar__step">
-                  <button type="button" className="mini" disabled={curIdx <= 0} onClick={() => stepTo(-1)} aria-label="สคริปต์ก่อนหน้า">⏮ ก่อนหน้า</button>
-                  <button type="button" className="mini" disabled={curIdx < 0 || curIdx >= shown.length - 1} onClick={() => stepTo(1)} aria-label="สคริปต์ถัดไป">ถัดไป ⏭</button>
-                </div>
-              )}
+              {tts.speaking
+                ? <button type="button" className="nb-fab__btn nb-fab__btn--stop" onClick={tts.pause} aria-label="หยุดชั่วคราว">⏸ หยุด</button>
+                : <button type="button" className="nb-fab__btn" onClick={tts.resume} aria-label="ฟังต่อ">▶ ต่อ</button>}
+              <button type="button" className="nb-fab__btn" disabled={curIdx <= 0} onClick={() => stepTo(-1)} aria-label="สคริปต์ก่อนหน้า">⏮</button>
+              <button type="button" className="nb-fab__btn" disabled={curIdx < 0 || curIdx >= shown.length - 1} onClick={() => stepTo(1)} aria-label="สคริปต์ถัดไป">⏭</button>
+              <button type="button" className="nb-fab__btn" onClick={tts.stop} aria-label="หยุดเลย">⏹</button>
             </>
           ) : (
-            <p className="ai-keys__err">เบราว์เซอร์นี้ไม่รองรับเสียงอ่าน — ยังอ่านและแก้ไขสคริปต์ได้ตามปกติ</p>
+            <button type="button" className="nb-fab__btn" onClick={() => playAllFrom(0)} aria-label="ฟังทั้งหมดต่อเนื่อง">▶ ฟังทั้งหมด</button>
           )}
-        </section>
-      )}
+        </div>, slot)}
 
       <div className="nb-bar us-tools">
         <label className="nb-search">
@@ -184,7 +174,7 @@ export default function UrgentScriptsPage() {
           const isOpen = !!needle || !!open[s.id] || on || editId === s.id
           const idx = list.findIndex((x) => x.id === s.id)
           return (
-            <li key={s.id} id={`us-${s.id}`} className={`us-card${on ? ' us-card--on' : ''}`}>
+            <li key={s.id} id={`us-${s.id}`} className={`us-card${on ? ' us-card--on' : ''}${isOpen ? '' : ' us-card--fold'}`}>
               {editId === s.id ? formView : (
                 <>
                   <button type="button" className="qa-q" aria-expanded={isOpen} onClick={() => setOpen({ ...open, [s.id]: !open[s.id] })}>
@@ -203,7 +193,7 @@ export default function UrgentScriptsPage() {
                     <div className="duty__btns us-card__btns">
                       {tts.supported && (on
                         ? <button type="button" className="btn us-listen" onClick={tts.stop}>⏹ หยุด</button>
-                        : <button type="button" className="btn btn--gold us-listen" onClick={() => play([s])} aria-label={`ฟัง ${s.title}`}>▶ ฟัง</button>)}
+                        : <button type="button" className="btn btn--gold us-listen" onClick={() => playAllFrom(shown.findIndex((x) => x.id === s.id))} aria-label={`ฟังต่อเนื่องตั้งแต่ ${s.title}`}>▶ ฟังต่อเนื่องจากเรื่องนี้</button>)}
                       <button type="button" className="mini" onClick={() => openEdit(s)}>✏️ แก้ไข</button>
                       <button type="button" className="mini" onClick={() => copy(s)}>📋 คัดลอก</button>
                       <button type="button" className="mini" onClick={() => { setDelId(s.id); setEditId(null) }}>🗑️ ลบ</button>

@@ -1,4 +1,5 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { IconSearch } from '../components/Icons'
 import SharedSyncLine from '../components/SharedSyncLine'
 import { usePrivateStore } from '../lib/privateStore'
@@ -27,6 +28,8 @@ export default function QaPage() {
   const [open, setOpen] = useState<Record<string, boolean>>({})
   const [cur, setCur] = useState<string | null>(null)
   const [note, setNote] = useState('')
+  const [slot, setSlot] = useState<HTMLElement | null>(null)
+  useEffect(() => setSlot(document.getElementById('topbar-slot')), [])
 
   const list = [...store.items].sort((a, b) => (b.updated ?? 0) - (a.updated ?? 0))
   const tags = [...new Set(list.map((s) => (s.tag || '').trim()).filter(Boolean))]
@@ -61,11 +64,19 @@ export default function QaPage() {
     catch { setNote('คัดลอกไม่ได้ กดค้างที่ข้อความเพื่อคัดลอกเอง') }
     window.setTimeout(() => setNote(''), 2200)
   }
-  const listen = (s: QaItem) => {
-    if (!tts.supported) return
-    setCur(s.id)
-    tts.speakSections([{ id: `${s.id}|q`, text: `${s.q}.` }, { id: `${s.id}|a`, text: s.a }])
+  const secs = (s: QaItem) => [{ id: `${s.id}|q`, text: `${s.q}.` }, { id: `${s.id}|a`, text: s.a || '' }].filter((x) => x.text.trim() && x.text.trim() !== '.')
+  const playFrom = (i: number) => {
+    const scripts = shown.slice(Math.max(0, i))
+    if (!tts.supported || !scripts.length) return
+    setCur(scripts[0].id)
+    tts.speakSections(scripts.flatMap(secs), (sid) => setCur(String(sid).split('|')[0]))
   }
+  const curIdx = shown.findIndex((s) => s.id === cur)
+  const stepTo = (d: number) => { const i = curIdx < 0 ? 0 : curIdx + d; if (i >= 0 && i < shown.length) playFrom(i) }
+  useEffect(() => {
+    if (!active || !cur) return
+    document.getElementById(`qa-${cur}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }, [cur, active])
 
   const formView = (
     <form className="card us-form" onSubmit={save}>
@@ -111,6 +122,21 @@ export default function QaPage() {
           ))}
         </div>
       )}
+      {list.length > 0 && tts.supported && slot && createPortal(
+        <div className="nb-fab" role="group" aria-label="ฟังถามตอบต่อเนื่อง">
+          {active ? (
+            <>
+              {tts.speaking
+                ? <button type="button" className="nb-fab__btn nb-fab__btn--stop" onClick={tts.pause} aria-label="หยุดชั่วคราว">⏸ หยุด</button>
+                : <button type="button" className="nb-fab__btn" onClick={tts.resume} aria-label="ฟังต่อ">▶ ต่อ</button>}
+              <button type="button" className="nb-fab__btn" disabled={curIdx <= 0} onClick={() => stepTo(-1)} aria-label="ข้อก่อนหน้า">⏮</button>
+              <button type="button" className="nb-fab__btn" disabled={curIdx < 0 || curIdx >= shown.length - 1} onClick={() => stepTo(1)} aria-label="ข้อถัดไป">⏭</button>
+              <button type="button" className="nb-fab__btn" onClick={tts.stop} aria-label="หยุดเลย">⏹</button>
+            </>
+          ) : (
+            <button type="button" className="nb-fab__btn" disabled={!shown.length} onClick={() => playFrom(0)} aria-label="ฟังทั้งหมดต่อเนื่อง">▶ ฟังทั้งหมด</button>
+          )}
+        </div>, slot)}
       {note && <p className="nb-sync nb-sync--ok" role="status">{note}</p>}
       {editId === 'new' && formView}
       {list.length === 0 && editId !== 'new' && (
@@ -124,10 +150,10 @@ export default function QaPage() {
       )}
       <ul className="us-list">
         {shown.map((s) => {
-          const isOpen = searching || !!open[s.id]
           const on = active && cur === s.id
+          const isOpen = searching || !!open[s.id] || on || editId === s.id
           return (
-            <li key={s.id} className={`us-card${on ? ' us-card--on' : ''}`}>
+            <li key={s.id} id={`qa-${s.id}`} className={`us-card${on ? ' us-card--on' : ''}${isOpen ? '' : ' us-card--fold'}`}>
               {editId === s.id ? formView : (
                 <>
                   <button type="button" className="qa-q" aria-expanded={isOpen} onClick={() => setOpen({ ...open, [s.id]: !open[s.id] })}>
@@ -148,7 +174,7 @@ export default function QaPage() {
                         <div className="duty__btns us-card__btns">
                           {tts.supported && (on
                             ? <button type="button" className="btn us-listen" onClick={tts.stop}>⏹ หยุด</button>
-                            : <button type="button" className="btn btn--gold us-listen" onClick={() => listen(s)}>▶ ฟัง</button>)}
+                            : <button type="button" className="btn btn--gold us-listen" onClick={() => playFrom(shown.findIndex((x) => x.id === s.id))} aria-label="ฟังต่อเนื่องตั้งแต่ข้อนี้">▶ ฟังต่อเนื่องจากข้อนี้</button>)}
                           <button type="button" className="mini" onClick={() => openEdit(s)}>✏️ แก้ไข</button>
                           <button type="button" className="mini" onClick={() => copy(s)}>📋 คัดลอก</button>
                           <button type="button" className="mini" onClick={() => { setDelId(s.id); setEditId(null) }}>🗑️ ลบ</button>

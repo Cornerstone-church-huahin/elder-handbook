@@ -8,7 +8,7 @@ function when(t: number) {
   return d.toDateString() === new Date().toDateString() ? `${hm} น.` : `${d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })} ${hm} น.`
 }
 
-/** บรรทัดบอกสถานะออนไลน์ของข้อมูลที่ใช้ร่วมกัน (สคริปต์เร่งด่วน / ถามตอบ) — ให้เห็นชัดว่าอีกเครื่องเห็นข้อมูลนี้หรือยัง */
+/** บรรทัดบอกสถานะออนไลน์ของข้อมูลที่ใช้ร่วมกัน (สคริปต์ด่วน / ถามตอบ) — ให้เห็นชัดว่าอีกเครื่องเห็นข้อมูลนี้หรือยัง */
 export default function SharedSyncLine({ sync, items, onRetry, mine }: { sync: SyncStatus; items: (SharedItem & { title?: string; q?: string })[]; onRetry: () => void; mine?: boolean }) {
   const last = items.filter((x) => x.by && x.updated > 0).sort((a, b) => b.updated - a.updated)[0]
   if (sync.state === 'off')
