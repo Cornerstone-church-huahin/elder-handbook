@@ -103,6 +103,7 @@ export function useSharedStore<T extends SharedItem>(opts: { localKey: string; f
     items: all.filter((x) => !x.deleted),
     all,
     sync,
+    syncNow,
     put,
     remove: (id: string) => {
       const x = latest.current.find((y) => y.id === id)

@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { IconSearch } from '../components/Icons'
+import SharedSyncLine from '../components/SharedSyncLine'
 import { useSharedStore } from '../lib/sharedStore'
 import { RATES, useSpeech } from '../lib/speech'
 import type { SharedItem } from '../lib/sync'
@@ -120,6 +121,8 @@ export default function UrgentScriptsPage() {
         <p>{list.length} สคริปต์ · เก็บคำพูดสำคัญไว้ กดฟังได้ทันที เพิ่ม แก้ไข ลบ หรือเรียงลำดับได้</p>
       </div>
 
+      <SharedSyncLine sync={store.sync} items={list} onRetry={store.syncNow} />
+
       {list.length > 0 && (
         <section className="card us-bar" aria-label="ฟังต่อเนื่อง">
           {tts.supported ? (
@@ -218,8 +221,7 @@ export default function UrgentScriptsPage() {
         })}
       </ol>
 
-      {store.sync.state === 'error' && <p className="ai-keys__err">ซิงก์ไม่สำเร็จ (ข้อมูลยังบันทึกไว้ในเครื่องนี้)</p>}
-      <p className="source-note">สคริปต์ที่เพิ่มบันทึกไว้ในเครื่องนี้ และซิงก์ให้เหมือนโน้ตเมื่อเข้าสู่ระบบ · ใช้เสียงอ่านเดียวกับส่วนอื่นของแอป</p>
+      <p className="source-note">เมื่อเชื่อมออนไลน์ (ตั้งค่า › รหัสเข้าใช้ร่วม) ทุกเครื่องที่ใส่รหัสเดียวกัน ทั้งของท่านและคู่ผู้ปกครอง จะเห็น ฟัง และแก้ไขสคริปต์ชุดเดียวกัน · ใช้เสียงอ่านเดียวกับส่วนอื่นของแอป</p>
     </>
   )
 }

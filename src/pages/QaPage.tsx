@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { IconSearch } from '../components/Icons'
+import SharedSyncLine from '../components/SharedSyncLine'
 import { useSharedStore } from '../lib/sharedStore'
 import { useSpeech } from '../lib/speech'
 import type { SharedItem } from '../lib/sync'
@@ -94,6 +95,7 @@ export default function QaPage() {
         <h1>ถามตอบ</h1>
         <p>{list.length} ข้อ · เก็บคำถามที่มีคนถามมาและคำตอบไว้ ค้นหาเจอได้ทันที</p>
       </div>
+      <SharedSyncLine sync={store.sync} items={list} onRetry={store.syncNow} />
       <div className="nb-bar us-tools">
         <label className="nb-search">
           <span className="sr-only">ค้นหาคำถามหรือคำตอบ</span>
@@ -161,8 +163,7 @@ export default function QaPage() {
           )
         })}
       </ul>
-      {store.sync.state === 'error' && <p className="ai-keys__err">ซิงก์ไม่สำเร็จ (ข้อมูลยังบันทึกไว้ในเครื่องนี้)</p>}
-      <p className="source-note">คำถาม-คำตอบบันทึกไว้ในเครื่องนี้ และซิงก์ให้เหมือนโน้ตเมื่อเข้าสู่ระบบ</p>
+      <p className="source-note">เมื่อเชื่อมออนไลน์ (ตั้งค่า › รหัสเข้าใช้ร่วม) ทุกเครื่องที่ใส่รหัสเดียวกัน ทั้งของท่านและคู่ผู้ปกครอง จะเห็น ฟัง และแก้ไขคำถาม-คำตอบชุดเดียวกัน</p>
     </>
   )
 }

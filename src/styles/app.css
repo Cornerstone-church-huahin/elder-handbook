@@ -1318,3 +1318,6 @@ html[data-scale='150'] body.reading .nb-card--open .nb-card__body { height: calc
 .qa-q__t{flex:1;min-width:0;font-weight:700;font-family:var(--font-display);overflow-wrap:anywhere;line-height:1.5}
 .qa-q__chev{flex:none;color:var(--ink-soft)}
 @media (max-width:420px){.greeting__btns{justify-content:flex-start;width:100%}.urgent-btn{flex:1 1 9rem;justify-content:center}}
+.nb-sync--off { color: #8a4b00; background: #fff4d6; border: 1.5px solid #a77b00; border-radius: .7rem; padding: .5rem .7rem; margin-top: 0; }
+:root[data-theme=dark] .nb-sync--off { color: #ffd98a; background: #3a2d0a; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme=light]) .nb-sync--off { color: #ffd98a; background: #3a2d0a; } }
