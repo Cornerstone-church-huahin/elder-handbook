@@ -103,3 +103,12 @@ export async function extractText(file: File, onProgress?: Progress): Promise<Ex
 
 export const safeName = (n: string) => n.replace(/[^\p{L}\p{N}._-]+/gu, '_').slice(-80) || 'file'
 export const sizeLabel = (b: number) => (b > 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`)
+
+/** ชื่อที่แสดง: ตัดนามสกุล และส่วนท้ายที่เครื่อง/แอปสแกนต่อให้ เช่น "(_261005_204444" หรือ "(1)" */
+export function cleanName(n: string): string {
+  let t = n.replace(/\.(pdf|docx?|PDF|DOCX?)$/, '')
+  t = t.replace(/[\s_(\[-]*\d{6,8}[_-]\d{4,6}[\s)\]]*$/, '') // ตราเวลาท้ายชื่อ เช่น _261005_204444
+  t = t.replace(/[\s_-]*\(\d{1,2}\)\s*$/, '') // เลขสำเนา เช่น (1)
+  t = t.replace(/[\s_(\[-]+$/, '').replace(/_/g, ' ').replace(/\s+/g, ' ').trim()
+  return t || n
+}

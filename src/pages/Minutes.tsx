@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { IconSearch } from '../components/Icons'
 import SharedSyncLine from '../components/SharedSyncLine'
 import { useRole } from '../lib/members'
-import { extractText, MAX_FILE_MB, safeName, sizeLabel } from '../lib/meetingFiles'
+import { cleanName, extractText, MAX_FILE_MB, safeName, sizeLabel } from '../lib/meetingFiles'
 import { useSharedStore } from '../lib/sharedStore'
 import { useSpeech } from '../lib/speech'
 import { getBinary, getSync, putBinary, type SharedItem } from '../lib/sync'
@@ -14,11 +14,12 @@ import { getBinary, getSync, putBinary, type SharedItem } from '../lib/sync'
  * ทุกคนในกลุ่มเห็นและดาวน์โหลดได้ · เพิ่ม/แก้ไข/ลบ: แอดมินและผู้ที่มีสิทธิ์ “แก้ไขได้”
  */
 interface Resolution { id: string; topic: string; decision: string }
-interface MFile { id: string; name: string; size: number; path: string; text: string; edited?: boolean }
+interface MFile { id: string; name: string; label?: string; size: number; path: string; text: string; edited?: boolean }
 interface Meeting extends SharedItem { date: string; no?: string; docNo?: string; keywords?: string; title: string; attendees: string; resolutions: Resolution[]; notes: string; files: MFile[]; created: number }
 interface Draft { id: string; date: string; no: string; docNo: string; keywords: string; title: string; attendees: string; resolutions: Resolution[]; notes: string; files: MFile[] }
-interface Pending { key: string; file: File; text: string; note: string }
+interface Pending { key: string; label: string; file: File; text: string; note: string }
 
+const disp = (f: MFile) => f.label?.trim() || cleanName(f.name)
 const uid = (p: string) => `${p}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
 const thaiDate = (s: string) => { const d = new Date(`${s}T00:00:00`); return isNaN(+d) ? s : d.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' }) }
@@ -85,7 +86,7 @@ export default function MinutesPage() {
   const words = q.trim().toLowerCase().replace(/(ครั้งที่|เลขที่)\s+/g, '$1\u0001').split(/\s+/).filter(Boolean).map((w) => w.replace(/\u0001/g, ' '))
   const searching = words.length > 0
   const hay = (m: Meeting) =>
-    [m.title, dateForms(m.date), m.no ? `ครั้งที่ ${m.no} ที่ ${m.no} ${m.no}` : '', m.docNo ? `เลขที่ ${m.docNo} ${m.docNo}` : '', m.keywords, m.attendees, m.notes, ...m.resolutions.flatMap((r) => [r.topic, r.decision]), ...m.files.flatMap((f) => [f.name, f.text])].join('\n').toLowerCase()
+    [m.title, dateForms(m.date), m.no ? `ครั้งที่ ${m.no} ที่ ${m.no} ${m.no}` : '', m.docNo ? `เลขที่ ${m.docNo} ${m.docNo}` : '', m.keywords, m.attendees, m.notes, ...m.resolutions.flatMap((r) => [r.topic, r.decision]), ...m.files.flatMap((f) => [f.name, disp(f), f.text])].join('\n').toLowerCase()
   const shown = searching ? list.filter((m) => { const h = norm(hay(m)); return words.every((w) => h.includes(norm(w))) }) : list
 
   const active = tts.speaking || tts.paused
@@ -96,7 +97,7 @@ export default function MinutesPage() {
     add('h', `การประชุม ${m.no ? `ครั้งที่ ${m.no} ` : ''}${m.title} วันที่ ${thaiDate(m.date)}.${m.docNo ? ` เลขที่เอกสาร ${m.docNo}.` : ''}${m.attendees ? ` ผู้เข้าร่วม ${m.attendees}.` : ''}`)
     m.resolutions.forEach((r, i) => add(`r${i}`, `มติข้อที่ ${i + 1}${r.topic ? ` ${r.topic}` : ''}.\n${r.decision}`))
     if (m.notes) add('n', `บันทึกเพิ่มเติม.\n${m.notes}`)
-    m.files.forEach((f, i) => f.text && add(`f${i}`, `ข้อความจากไฟล์ ${f.name}.\n${f.text}`))
+    m.files.forEach((f, i) => f.text && add(`f${i}`, `ข้อความจากไฟล์ ${disp(f)}.\n${f.text}`))
     return out
   }
   const playFrom = (i: number) => {
@@ -126,7 +127,7 @@ export default function MinutesPage() {
     for (const f of [...files]) {
       if (f.size > MAX_FILE_MB * 1048576) { setErr(`“${f.name}” ใหญ่เกิน ${MAX_FILE_MB} MB`); continue }
       const x = await extractText(f, (t) => setProg(`${f.name}: ${t}`))
-      add.push({ key: uid('f_'), file: f, text: x.text, note: x.note })
+      add.push({ key: uid('f_'), label: cleanName(f.name), file: f, text: x.text, note: x.note })
     }
     setPending((p) => [...p, ...add])
     setProg('')
@@ -150,7 +151,7 @@ export default function MinutesPage() {
         for (const p of pending) {
           const path = `meetings/files/${draft.id}-${Date.now().toString(36)}-${safeName(p.file.name)}`
           await putBinary(cfg, path, await p.file.arrayBuffer(), p.file.name)
-          newFiles.push({ id: p.key, name: p.file.name, size: p.file.size, path, text: p.text.slice(0, 120000), edited: undefined })
+          newFiles.push({ id: p.key, name: p.file.name, label: p.label.trim() || cleanName(p.file.name), size: p.file.size, path, text: p.text.slice(0, 120000), edited: undefined })
         }
       }
       const item: Meeting = { id: draft.id, date: draft.date, no: draft.no.trim(), docNo: draft.docNo.trim(), keywords: draft.keywords.trim(), title, attendees: draft.attendees.trim(), resolutions, notes: draft.notes.trim(), files: [...draft.files, ...newFiles], created: Date.now(), updated: 0 }
@@ -173,7 +174,7 @@ export default function MinutesPage() {
       const blob = await getBinary(cfg, f.path)
       const x = await extractText(new File([blob], f.name, { type: f.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : blob.type }), (t) => setProg(t))
       store.put([{ ...m, files: m.files.map((y) => (y.id === f.id ? { ...y, text: x.text } : y)) }])
-      flash(`${f.name}: ${x.note}`)
+      flash(`${disp(f)}: ${x.note}`)
     } catch (e2) {
       flash(e2 instanceof Error ? e2.message : 'อ่านไฟล์ไม่สำเร็จ')
     }
@@ -250,12 +251,16 @@ export default function MinutesPage() {
         <p className="members__h">📎 ไฟล์ประกอบ (PDF / Word)</p>
         <p className="source-note">เมื่อเลือกไฟล์ ระบบดึงข้อความในไฟล์มาเก็บเป็นตัวอักษรไว้ให้ค้นหาได้ทันที · ไฟล์ละไม่เกิน {MAX_FILE_MB} MB · ไฟล์สแกนเป็นรูปจะอ่านจากภาพให้อัตโนมัติ (ช้ากว่าปกติ)</p>
         {draft.files.map((f) => (
-          <p key={f.id} className="mt-file">📄 <span>{f.name} <small>({sizeLabel(f.size)})</small></span>
-            <button type="button" className="mini" onClick={() => setDraft({ ...draft, files: draft.files.filter((x) => x.id !== f.id) })} aria-label={`เอา ${f.name} ออก`}>✕</button></p>
+          <div key={f.id} className="mt-file mt-file--new">
+            <input className="us-input" type="text" value={disp(f)} maxLength={160} aria-label={`ชื่อไฟล์ที่แสดง ${f.name}`} onChange={(e) => setDraft({ ...draft, files: draft.files.map((x) => (x.id === f.id ? { ...x, label: e.target.value } : x)) })} />
+            <p><small>{sizeLabel(f.size)} · ไฟล์เดิม: {f.name}</small>
+              <button type="button" className="mini" onClick={() => setDraft({ ...draft, files: draft.files.filter((x) => x.id !== f.id) })} aria-label={`เอา ${disp(f)} ออก`}>✕ เอาไฟล์ออก</button></p>
+          </div>
         ))}
         {pending.map((p) => (
           <div key={p.key} className="mt-file mt-file--new">
-            <p>🆕 <span>{p.file.name} <small>({sizeLabel(p.file.size)})</small></span>
+            <input className="us-input" type="text" value={p.label} maxLength={160} aria-label={`ชื่อที่แสดงของ ${p.file.name}`} onChange={(e) => setPending(pending.map((x) => (x.key === p.key ? { ...x, label: e.target.value } : x)))} />
+            <p>🆕 <span><small>{sizeLabel(p.file.size)} · ไฟล์เดิม: {p.file.name}</small></span>
               <button type="button" className="mini" onClick={() => setPending(pending.filter((x) => x.key !== p.key))} aria-label={`เอา ${p.file.name} ออก`}>✕</button></p>
             <small className={p.text ? 'mt-ok' : 'mt-warn'}>{p.note}</small>
             <details className="fold__sub"><summary>ดู/แก้ไขข้อความที่อ่านได้ (ใช้สำหรับค้นหา)</summary>
@@ -368,8 +373,9 @@ export default function MinutesPage() {
                       {m.files.map((f) => {
                         const sn = searching ? snippet(f.text, words) : ''
                         return (
-                          <Sub key={`${f.id}${searching}`} title={`📄 ${f.name} (${sizeLabel(f.size)})`} open={!!sn}>
+                          <Sub key={`${f.id}${searching}`} title={`📄 ${disp(f)}`} open={!!sn}>
                             <div className="mt-file mt-file--card">
+                              <small className="mt-meta">{sizeLabel(f.size)} · ไฟล์เดิม: {hi(f.name, words)}</small>
                                 {!f.text && <p className="mt-warn">⚠️ ยังไม่มีข้อความของไฟล์นี้ ค้นหาจากเนื้อไฟล์ไม่เจอ{canEdit ? ' — กด “อ่านข้อความจากไฟล์”' : ''}</p>}
                                 {busyFile === f.id && prog && <p className="source-note" role="status">{prog}</p>}
                                 {sn && <p className="mt-snip">{hi(sn, words)}</p>}
@@ -387,7 +393,7 @@ export default function MinutesPage() {
                                 ) : (
                                   <div className="mt-edit">
                                     <p className="source-note">ข้อความนี้ใช้สำหรับค้นหาเท่านั้น (ไฟล์ต้นฉบับไม่เปลี่ยน) · แก้ตัวอักษรที่ผิด ลบส่วนที่ไม่ต้องการ หรือเพิ่มคำสำคัญได้ตรงนี้</p>
-                                    <textarea className="us-input mt-edit__ta" rows={12} value={tx[f.id]} onChange={(e) => setTx({ ...tx, [f.id]: e.target.value })} aria-label={`ข้อความของไฟล์ ${f.name}`} />
+                                    <textarea className="us-input mt-edit__ta" rows={12} value={tx[f.id]} onChange={(e) => setTx({ ...tx, [f.id]: e.target.value })} aria-label={`ข้อความของไฟล์ ${disp(f)}`} />
                                     <div className="duty__btns">
                                       <button type="button" className="btn btn--gold" disabled={tx[f.id] === f.text} onClick={() => { store.put([{ ...m, files: m.files.map((y) => (y.id === f.id ? { ...y, text: tx[f.id].slice(0, 120000), edited: true } : y)) }]); const n = { ...tx }; delete n[f.id]; setTx(n); flash('บันทึกข้อความของไฟล์แล้ว') }}>💾 บันทึกข้อความ</button>
                                       <button type="button" className="btn btn--ghost" onClick={() => { const n = { ...tx }; delete n[f.id]; setTx(n) }}>ยกเลิก</button>
