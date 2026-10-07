@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { IconSearch } from '../components/Icons'
 import SharedSyncLine from '../components/SharedSyncLine'
-import { usePrivateStore } from '../lib/privateStore'
+import { useTeamStore } from '../lib/privateStore'
 import { RATES, useSpeech } from '../lib/speech'
 import type { SharedItem } from '../lib/sync'
 
@@ -21,7 +21,7 @@ const SAMPLE = {
 const newId = () => `us_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
 
 export default function UrgentScriptsPage() {
-  const store = usePrivateStore<ScriptItem>({ key: 'khatha.urgentScripts.v1', name: 'urgent-scripts', label: 'สคริปต์ด่วน', legacyFile: 'urgent-scripts.json', legacyMine: (x, name) => !!name && x.by === name })
+  const store = useTeamStore<ScriptItem>({ key: 'khatha.urgentScripts.v1', name: 'urgent-scripts', label: 'สคริปต์ด่วน' })
   const tts = useSpeech('th-TH')
   const [q, setQ] = useState('')
   const [editId, setEditId] = useState<string | null>(null)
@@ -114,6 +114,12 @@ export default function UrgentScriptsPage() {
         <button type="button" className="btn btn--ghost" onClick={cancel}>ยกเลิก</button>
       </div>
     </form>
+  )
+
+  if (!store.canSee) return (
+    <div className="empty us-empty">
+      <p>🔒 หน้านี้สำหรับแอดมินและผู้ที่มีสิทธิ์ “แก้ไขได้” · บัญชีของท่านเป็น “ดูและฟังอย่างเดียว” จึงไม่แสดงข้อมูลชุดนี้</p>
+    </div>
   )
 
   return (
@@ -227,9 +233,9 @@ export default function UrgentScriptsPage() {
         </section>
       )}
 
-      <SharedSyncLine sync={store.sync} items={list} onRetry={store.syncNow} mine />
+      <SharedSyncLine sync={store.sync} items={list} onRetry={store.syncNow} />
 
-      <p className="source-note">สคริปต์เป็นส่วนตัวของท่าน คนอื่นไม่เห็น · เมื่อเชื่อมออนไลน์ ทุกเครื่องของท่านเองเห็นและฟังชุดเดียวกัน (เข้าด้วยชื่อเดิม) · ใช้เสียงอ่านเดียวกับส่วนอื่นของแอป</p>
+      <p className="source-note">สคริปต์ใช้ร่วมกันระหว่างแอดมินและผู้ที่มีสิทธิ์ “แก้ไขได้” (แก้ได้ทุกคน) · ผู้ที่ “ดูและฟังอย่างเดียว” ไม่เห็น · ใช้เสียงอ่านเดียวกับส่วนอื่นของแอป</p>
     </>
   )
 }

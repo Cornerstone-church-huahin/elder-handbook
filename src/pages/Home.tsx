@@ -4,10 +4,12 @@ import { Link, useNavigate } from 'react-router-dom'
 import { listHomeActions } from '../data/contentRepo'
 import type { HomeAction } from '../data/types'
 import { IconSearch } from '../components/Icons'
+import { useRole } from '../lib/members'
 import SafetyNote from '../components/SafetyNote'
 
 
 export default function Home() {
+  const role = useRole()
   const [actions, setActions] = useState<HomeAction[]>([])
   const [q, setQ] = useState('')
   const navigate = useNavigate()
@@ -34,10 +36,10 @@ export default function Home() {
           <p className="greeting__date">{today}</p>
           <h1>วันนี้คุณต้องการทำอะไร?</h1>
         </div>
-        <div className="greeting__btns">
+        {(role === 'admin' || role === 'editor') && <div className="greeting__btns">
           <Link to="/scripts" className="urgent-btn"><span aria-hidden="true">🚨</span><span>สคริปต์ด่วน</span></Link>
           <Link to="/qa" className="urgent-btn qa-btn"><span aria-hidden="true">💬</span><span>ถามตอบ</span></Link>
-        </div>
+        </div>}
       </div>
 
       <section className="section">

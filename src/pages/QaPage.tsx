@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { IconSearch } from '../components/Icons'
 import SharedSyncLine from '../components/SharedSyncLine'
-import { usePrivateStore } from '../lib/privateStore'
+import { useTeamStore } from '../lib/privateStore'
 import { useSpeech } from '../lib/speech'
 import type { SharedItem } from '../lib/sync'
 
@@ -17,7 +17,7 @@ const SAMPLE = {
 const newId = () => `qa_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
 
 export default function QaPage() {
-  const store = usePrivateStore<QaItem>({ key: 'khatha.qa.v1', name: 'qa', label: 'ถามตอบ', legacyFile: 'qa.json', legacyMine: (x, name) => !!name && x.by === name })
+  const store = useTeamStore<QaItem>({ key: 'khatha.qa.v1', name: 'qa', label: 'ถามตอบ' })
   const tts = useSpeech('th-TH')
   const [q, setQ] = useState('')
   const [tagF, setTagF] = useState('')
@@ -97,6 +97,12 @@ export default function QaPage() {
         <button type="button" className="btn btn--ghost" onClick={cancel}>ยกเลิก</button>
       </div>
     </form>
+  )
+
+  if (!store.canSee) return (
+    <div className="empty us-empty">
+      <p>🔒 หน้านี้สำหรับแอดมินและผู้ที่มีสิทธิ์ “แก้ไขได้” · บัญชีของท่านเป็น “ดูและฟังอย่างเดียว” จึงไม่แสดงข้อมูลชุดนี้</p>
+    </div>
   )
 
   return (
@@ -191,8 +197,8 @@ export default function QaPage() {
           )
         })}
       </ul>
-      <SharedSyncLine sync={store.sync} items={list} onRetry={store.syncNow} mine />
-      <p className="source-note">คำถาม-คำตอบเป็นส่วนตัวของท่าน คนอื่นไม่เห็น · เมื่อเชื่อมออนไลน์ ทุกเครื่องของท่านเองเห็นและฟังชุดเดียวกัน (เข้าด้วยชื่อเดิม)</p>
+      <SharedSyncLine sync={store.sync} items={list} onRetry={store.syncNow} />
+      <p className="source-note">คำถาม-คำตอบใช้ร่วมกันระหว่างแอดมินและผู้ที่มีสิทธิ์ “แก้ไขได้” (แก้ได้ทุกคน) · ผู้ที่ “ดูและฟังอย่างเดียว” ไม่เห็น</p>
     </>
   )
 }

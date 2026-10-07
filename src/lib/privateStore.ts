@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { getMe } from './access'
+import { getMe, myRole } from './access'
 import { useSharedStore } from './sharedStore'
 import { getSync, type SharedItem } from './sync'
 
@@ -34,4 +34,25 @@ export function usePrivateStore<T extends OwnedItem>(o: { key: string; name: str
   })
   const put = (items: T[]) => store.put(items.map((x) => ({ ...x, ...(myId ? { ownerId: myId } : {}) })))
   return useMemo(() => ({ ...store, put }), [store.items, store.sync, store.syncNow]) // eslint-disable-line react-hooks/exhaustive-deps
+}
+
+/**
+ * ข้อมูลของทีม (สคริปต์ด่วน ถามตอบ): แอดมินและผู้ที่มีสิทธิ์ "แก้ไขได้" เห็นและแก้ไขชุดเดียวกัน (team/<ชื่อ>.json)
+ * ผู้ที่เป็น "ดูและฟังอย่างเดียว" ไม่เห็นข้อมูลชุดนี้
+ * ข้อมูลที่เคยเก็บเป็นส่วนตัวของเครื่องนี้ (private/<รหัส>/…) จะถูกคัดลอกเข้าชุดทีม (ไม่ลบไฟล์เดิม)
+ */
+export function useTeamStore<T extends OwnedItem>(o: { key: string; name: string; label: string }) {
+  const myId = getMe()?.id ?? ''
+  const role = myRole()
+  const canSee = role === 'admin' || role === 'editor'
+  const store = useSharedStore<T>({
+    localKey: o.key,
+    file: `team/${o.name}.json`,
+    label: o.label,
+    scope: 'shared',
+    adapt: (xs) => (canSee ? xs : []),
+    legacyFile: myId && canSee ? `private/${myId}/${o.name}.json` : undefined,
+    adaptLegacy: (xs) => xs,
+  })
+  return { ...store, canSee }
 }
