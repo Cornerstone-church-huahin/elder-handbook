@@ -12,7 +12,7 @@ import { getBinary, getSync, putBinary, type SharedItem } from '../lib/sync'
  * ทุกคนในกลุ่มเห็นและดาวน์โหลดได้ · เพิ่ม/แก้ไข/ลบ: แอดมินและผู้ที่มีสิทธิ์ “แก้ไขได้”
  */
 interface Resolution { id: string; topic: string; decision: string }
-interface MFile { id: string; name: string; size: number; path: string; text: string }
+interface MFile { id: string; name: string; size: number; path: string; text: string; edited?: boolean }
 interface Meeting extends SharedItem { date: string; no?: string; docNo?: string; keywords?: string; title: string; attendees: string; resolutions: Resolution[]; notes: string; files: MFile[]; created: number }
 interface Draft { id: string; date: string; no: string; docNo: string; keywords: string; title: string; attendees: string; resolutions: Resolution[]; notes: string; files: MFile[] }
 interface Pending { key: string; file: File; text: string; note: string }
@@ -62,6 +62,7 @@ export default function MeetingsPage() {
   const [delId, setDelId] = useState<string | null>(null)
   const [msg, setMsg] = useState('')
   const [busyFile, setBusyFile] = useState('')
+  const [tx, setTx] = useState<Record<string, string>>({}) // ข้อความไฟล์ที่กำลังแก้ (ยังไม่บันทึก)
   const cfg = getSync()
 
   const list = [...store.items].sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.created ?? 0) - (a.created ?? 0))
@@ -110,7 +111,7 @@ export default function MeetingsPage() {
         for (const p of pending) {
           const path = `meetings/files/${draft.id}-${Date.now().toString(36)}-${safeName(p.file.name)}`
           await putBinary(cfg, path, await p.file.arrayBuffer(), p.file.name)
-          newFiles.push({ id: p.key, name: p.file.name, size: p.file.size, path, text: p.text })
+          newFiles.push({ id: p.key, name: p.file.name, size: p.file.size, path, text: p.text.slice(0, 120000), edited: undefined })
         }
       }
       const item: Meeting = { id: draft.id, date: draft.date, no: draft.no.trim(), docNo: draft.docNo.trim(), keywords: draft.keywords.trim(), title, attendees: draft.attendees.trim(), resolutions, notes: draft.notes.trim(), files: [...draft.files, ...newFiles], created: Date.now(), updated: 0 }
@@ -218,6 +219,9 @@ export default function MeetingsPage() {
             <p>🆕 <span>{p.file.name} <small>({sizeLabel(p.file.size)})</small></span>
               <button type="button" className="mini" onClick={() => setPending(pending.filter((x) => x.key !== p.key))} aria-label={`เอา ${p.file.name} ออก`}>✕</button></p>
             <small className={p.text ? 'mt-ok' : 'mt-warn'}>{p.note}</small>
+            <details className="fold__sub"><summary>ดู/แก้ไขข้อความที่อ่านได้ (ใช้สำหรับค้นหา)</summary>
+              <textarea className="us-input mt-edit__ta" rows={8} value={p.text} placeholder="ยังไม่มีข้อความ — พิมพ์เองได้" onChange={(e) => setPending(pending.map((x) => (x.key === p.key ? { ...x, text: e.target.value } : x)))} aria-label={`ข้อความของไฟล์ ${p.file.name}`} />
+            </details>
             {p.text && <button type="button" className="mini" onClick={() => setDraft({ ...draft, notes: `${draft.notes.trim() ? `${draft.notes.trim()}\n\n` : ''}${p.text.slice(0, 4000)}` })}>➕ ใส่ข้อความนี้ลงในบันทึก</button>}
           </div>
         ))}
@@ -309,10 +313,24 @@ export default function MeetingsPage() {
                                 <div className="duty__btns">
                                   {f.name.toLowerCase().endsWith('.pdf') && <button type="button" className="mini" disabled={busyFile === f.id} onClick={() => void openFile(f, false)}>👁 เปิดดู</button>}
                                   <button type="button" className="mini" disabled={busyFile === f.id} onClick={() => void openFile(f, true)}>{busyFile === f.id ? '⏳ กำลังโหลด…' : '⬇ ดาวน์โหลด'}</button>
-                                  {canEdit && <button type="button" className="mini edit-only" disabled={busyFile === f.id} onClick={() => void rescan(m, f)}>{busyFile === f.id && prog ? '⏳' : '🔄'} {f.text ? 'อ่านข้อความใหม่' : 'อ่านข้อความจากไฟล์'}</button>}
-                                  {f.text && <button type="button" className="mini" onClick={() => setOpen({ ...open, [`t${f.id}`]: !open[`t${f.id}`] })}>{open[`t${f.id}`] ? '▴ ซ่อนข้อความในไฟล์' : '▾ ข้อความในไฟล์'}</button>}
+                                  {canEdit && <button type="button" className="mini edit-only" disabled={busyFile === f.id} onClick={() => void rescan(m, f)}>{busyFile === f.id && prog ? '⏳' : '🔄'} {f.edited ? 'อ่านจากไฟล์ใหม่ (ทับที่แก้ไว้)' : f.text ? 'อ่านข้อความใหม่' : 'อ่านข้อความจากไฟล์'}</button>}
+                                  {(f.text || canEdit) && <button type="button" className="mini" onClick={() => setOpen({ ...open, [`t${f.id}`]: !open[`t${f.id}`] })}>{open[`t${f.id}`] ? '▴ ซ่อนข้อความในไฟล์' : '▾ ข้อความในไฟล์'}</button>}
                                 </div>
-                                {f.text && open[`t${f.id}`] && <p className="us-card__body mt-text">{hi(f.text, words)}</p>}
+                                {open[`t${f.id}`] && (tx[f.id] === undefined ? (
+                                  <>
+                                    {f.text ? <p className="us-card__body mt-text">{hi(f.text, words)}</p> : <p className="source-note">ยังไม่มีข้อความ</p>}
+                                    {canEdit && <button type="button" className="mini edit-only" onClick={() => setTx({ ...tx, [f.id]: f.text })}>✏️ แก้ไขข้อความ</button>}
+                                  </>
+                                ) : (
+                                  <div className="mt-edit">
+                                    <p className="source-note">ข้อความนี้ใช้สำหรับค้นหาเท่านั้น (ไฟล์ต้นฉบับไม่เปลี่ยน) · แก้ตัวอักษรที่ผิด ลบส่วนที่ไม่ต้องการ หรือเพิ่มคำสำคัญได้ตรงนี้</p>
+                                    <textarea className="us-input mt-edit__ta" rows={12} value={tx[f.id]} onChange={(e) => setTx({ ...tx, [f.id]: e.target.value })} aria-label={`ข้อความของไฟล์ ${f.name}`} />
+                                    <div className="duty__btns">
+                                      <button type="button" className="btn btn--gold" disabled={tx[f.id] === f.text} onClick={() => { store.put([{ ...m, files: m.files.map((y) => (y.id === f.id ? { ...y, text: tx[f.id].slice(0, 120000), edited: true } : y)) }]); const n = { ...tx }; delete n[f.id]; setTx(n); flash('บันทึกข้อความของไฟล์แล้ว') }}>💾 บันทึกข้อความ</button>
+                                      <button type="button" className="btn btn--ghost" onClick={() => { const n = { ...tx }; delete n[f.id]; setTx(n) }}>ยกเลิก</button>
+                                    </div>
+                                  </div>
+                                ))}
                               </div>
                             )
                           })}
