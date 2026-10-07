@@ -1,9 +1,11 @@
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { IconSearch } from '../components/Icons'
 import SharedSyncLine from '../components/SharedSyncLine'
 import { useRole } from '../lib/members'
 import { extractText, MAX_FILE_MB, safeName, sizeLabel } from '../lib/meetingFiles'
 import { useSharedStore } from '../lib/sharedStore'
+import { useSpeech } from '../lib/speech'
 import { getBinary, getSync, putBinary, type SharedItem } from '../lib/sync'
 
 /**
@@ -46,6 +48,16 @@ function snippet(text: string, words: string[]): string {
   return `${a > 0 ? '… ' : ''}${text.slice(a, hit + 160).replace(/\s+/g, ' ')} …`
 }
 
+/** แท็บย่อยที่พับ/ขยายได้ — ไม่แสดงเนื้อหายาวจนกว่าจะกดอ่าน */
+function Sub({ title, open, item, children }: { title: string; open?: boolean; item?: boolean; children: ReactNode }) {
+  return (
+    <details className={`mt-sub${item ? ' mt-sub--item' : ''}`} open={open || undefined}>
+      <summary>{title}</summary>
+      <div className="mt-sub__body">{children}</div>
+    </details>
+  )
+}
+
 export default function MeetingsPage() {
   const role = useRole()
   const canEdit = role === 'admin' || role === 'editor'
@@ -64,6 +76,10 @@ export default function MeetingsPage() {
   const [busyFile, setBusyFile] = useState('')
   const [tx, setTx] = useState<Record<string, string>>({}) // ข้อความไฟล์ที่กำลังแก้ (ยังไม่บันทึก)
   const cfg = getSync()
+  const tts = useSpeech('th-TH')
+  const [cur, setCur] = useState<string | null>(null)
+  const [slot, setSlot] = useState<HTMLElement | null>(null)
+  useEffect(() => setSlot(document.getElementById('topbar-slot')), [])
 
   const list = [...store.items].sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.created ?? 0) - (a.created ?? 0))
   const words = q.trim().toLowerCase().replace(/(ครั้งที่|เลขที่)\s+/g, '$1\u0001').split(/\s+/).filter(Boolean).map((w) => w.replace(/\u0001/g, ' '))
@@ -72,6 +88,29 @@ export default function MeetingsPage() {
     [m.title, dateForms(m.date), m.no ? `ครั้งที่ ${m.no} ที่ ${m.no} ${m.no}` : '', m.docNo ? `เลขที่ ${m.docNo} ${m.docNo}` : '', m.keywords, m.attendees, m.notes, ...m.resolutions.flatMap((r) => [r.topic, r.decision]), ...m.files.flatMap((f) => [f.name, f.text])].join('\n').toLowerCase()
   const shown = searching ? list.filter((m) => { const h = norm(hay(m)); return words.every((w) => h.includes(norm(w))) }) : list
 
+  const active = tts.speaking || tts.paused
+  /** อ่านทั้งการประชุม: ชื่อ/ครั้งที่/วันที่ → มติทีละข้อ → บันทึก → ข้อความจากไฟล์ */
+  const secs = (m: Meeting) => {
+    const out: { id: string; text: string }[] = []
+    const add = (k: string, text: string) => text.trim() && out.push({ id: `${m.id}|${k}`, text })
+    add('h', `การประชุม ${m.no ? `ครั้งที่ ${m.no} ` : ''}${m.title} วันที่ ${thaiDate(m.date)}.${m.docNo ? ` เลขที่เอกสาร ${m.docNo}.` : ''}${m.attendees ? ` ผู้เข้าร่วม ${m.attendees}.` : ''}`)
+    m.resolutions.forEach((r, i) => add(`r${i}`, `มติข้อที่ ${i + 1}${r.topic ? ` ${r.topic}` : ''}.\n${r.decision}`))
+    if (m.notes) add('n', `บันทึกเพิ่มเติม.\n${m.notes}`)
+    m.files.forEach((f, i) => f.text && add(`f${i}`, `ข้อความจากไฟล์ ${f.name}.\n${f.text}`))
+    return out
+  }
+  const playFrom = (i: number) => {
+    const ms = shown.slice(Math.max(0, i))
+    if (!tts.supported || !ms.length) return
+    setCur(ms[0].id)
+    tts.speakSections(ms.flatMap(secs), (sid) => setCur(String(sid).split('|')[0]))
+  }
+  const curIdx = shown.findIndex((m) => m.id === cur)
+  const stepTo = (d: number) => { const i = curIdx < 0 ? 0 : curIdx + d; if (i >= 0 && i < shown.length) playFrom(i) }
+  useEffect(() => {
+    if (!active || !cur) return
+    document.getElementById(`mt-${cur}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  }, [cur, active])
   const flash = (t: string) => { setMsg(t); window.setTimeout(() => setMsg(''), 3500) }
   const openNew = () => { setDraft(emptyDraft()); setIsNew(true); setPending([]); setErr(''); setDelId(null) }
   const openEdit = (m: Meeting) => { setDraft({ id: m.id, date: m.date, no: m.no || '', docNo: m.docNo || '', keywords: m.keywords || '', title: m.title, attendees: m.attendees || '', resolutions: m.resolutions.length ? m.resolutions.map((r) => ({ ...r })) : [{ id: uid('r_'), topic: '', decision: '' }], notes: m.notes || '', files: [...m.files] }); setIsNew(false); setPending([]); setErr(''); setDelId(null) }
@@ -257,6 +296,22 @@ export default function MeetingsPage() {
         {canEdit && <button type="button" className="btn btn--gold nb-add edit-only" onClick={openNew}>＋ บันทึกประชุม</button>}
       </div>
 
+      {shown.length > 0 && tts.supported && slot && createPortal(
+        <div className="nb-fab" role="group" aria-label="ฟังมติที่ประชุมต่อเนื่อง">
+          {active ? (
+            <>
+              {tts.speaking
+                ? <button type="button" className="nb-fab__btn nb-fab__btn--stop" onClick={tts.pause} aria-label="หยุดชั่วคราว">⏸ หยุด</button>
+                : <button type="button" className="nb-fab__btn" onClick={tts.resume} aria-label="ฟังต่อ">▶ ต่อ</button>}
+              <button type="button" className="nb-fab__btn" disabled={curIdx <= 0} onClick={() => stepTo(-1)} aria-label="การประชุมก่อนหน้า">⏮</button>
+              <button type="button" className="nb-fab__btn" disabled={curIdx < 0 || curIdx >= shown.length - 1} onClick={() => stepTo(1)} aria-label="การประชุมถัดไป">⏭</button>
+              <button type="button" className="nb-fab__btn" onClick={tts.stop} aria-label="หยุดเลย">⏹</button>
+            </>
+          ) : (
+            <button type="button" className="nb-fab__btn" onClick={() => playFrom(0)} aria-label="ฟังทั้งหมดต่อเนื่อง">▶ ฟังทั้งหมด</button>
+          )}
+        </div>, slot)}
+
       {list.length > 1 && !searching && (
         <p className="us-fold">
           <button type="button" className="mini" onClick={() => setOpen(Object.fromEntries(list.map((x) => [x.id, true])))}>▾ ขยายทั้งหมด</button>
@@ -276,37 +331,45 @@ export default function MeetingsPage() {
           const isOpen = searching || !!open[m.id] || draft?.id === m.id
           const matchRes = (r: Resolution) => searching && words.some((w) => norm(`${r.topic}\n${r.decision}`).includes(norm(w)))
           return (
-            <li key={m.id} id={`mt-${m.id}`} className={`us-card${isOpen ? '' : ' us-card--fold'}`}>
+            <li key={m.id} id={`mt-${m.id}`} className={`us-card${active && cur === m.id ? ' us-card--on' : ''}${isOpen ? '' : ' us-card--fold'}`}>
               {draft?.id === m.id && !isNew ? form : (
                 <>
+<div className="us-head">
                   <button type="button" className="qa-q" aria-expanded={isOpen} onClick={() => setOpen({ ...open, [m.id]: !open[m.id] })}>
                     <span className="qa-q__t">{m.title}</span>
                     <span className="badge">{thaiDate(m.date)}</span>
                     {m.files.length > 0 && <span aria-label={`${m.files.length} ไฟล์`}>📎{m.files.length}</span>}
                     <span className="qa-q__chev" aria-hidden="true">{isOpen ? '▴' : '▾'}</span>
                   </button>
+                    {tts.supported && (active && cur === m.id
+                      ? <button type="button" className="us-play us-play--on" onClick={tts.stop} aria-label="หยุดอ่าน">⏹ หยุด</button>
+                      : <button type="button" className="us-play" onClick={() => playFrom(shown.findIndex((x) => x.id === m.id))} aria-label={`ฟังต่อเนื่องตั้งแต่ ${m.title}`}>▶ ฟัง</button>)}
+                  </div>
                   {isOpen && (
                     <>
                       {(m.no || m.docNo || m.keywords) && <p className="mt-meta">{m.no && <>ครั้งที่ {hi(m.no, words)} </>}{m.docNo && <>· เลขที่ {hi(m.docNo, words)} </>}{m.keywords && <>· 🏷 {hi(m.keywords, words)}</>}</p>}
                       {m.attendees && <p className="mt-meta">👥 {m.attendees}</p>}
                       {m.resolutions.length > 0 && (
-                        <ol className="mt-list">
-                          {m.resolutions.map((r) => (
-                            <li key={r.id} className={matchRes(r) ? 'mt-hit' : ''}>
-                              {r.topic && <b>{hi(r.topic, words)}</b>}
-                              {r.decision && <p>{hi(r.decision, words)}</p>}
-                            </li>
+                        <Sub key={`r${searching}`} title={`📋 มติที่ประชุม (${m.resolutions.length} ข้อ)`} open={m.resolutions.some(matchRes)}>
+                          {m.resolutions.map((r, i) => (
+                            <Sub key={`${r.id}${searching}`} item title={`${i + 1}. ${r.topic || r.decision.slice(0, 40)}`} open={matchRes(r)}>
+                              {r.topic && r.decision && <p className="mt-dec">{hi(r.decision, words)}</p>}
+                              {!r.topic && <p className="mt-dec">{hi(r.decision, words)}</p>}
+                              {r.topic && !r.decision && <p className="source-note">ไม่มีรายละเอียด</p>}
+                            </Sub>
                           ))}
-                        </ol>
+                        </Sub>
                       )}
-                      {m.notes && <p className="us-card__body">{hi(m.notes, words)}</p>}
-                      {m.files.length > 0 && (
-                        <div className="mt-files">
-                          {m.files.map((f) => {
-                            const sn = searching ? snippet(f.text, words) : ''
-                            return (
-                              <div key={f.id} className="mt-file mt-file--card">
-                                <p>📄 <span>{hi(f.name, words)} <small>({sizeLabel(f.size)})</small></span></p>
+                      {m.notes && (
+                        <Sub key={`n${searching}`} title="🗒 บันทึกเพิ่มเติม" open={searching && norm(m.notes).includes(norm(words.join('')))}>
+                          <p className="us-card__body mt-text">{hi(m.notes, words)}</p>
+                        </Sub>
+                      )}
+                      {m.files.map((f) => {
+                        const sn = searching ? snippet(f.text, words) : ''
+                        return (
+                          <Sub key={`${f.id}${searching}`} title={`📄 ${f.name} (${sizeLabel(f.size)})`} open={!!sn}>
+                            <div className="mt-file mt-file--card">
                                 {!f.text && <p className="mt-warn">⚠️ ยังไม่มีข้อความของไฟล์นี้ ค้นหาจากเนื้อไฟล์ไม่เจอ{canEdit ? ' — กด “อ่านข้อความจากไฟล์”' : ''}</p>}
                                 {busyFile === f.id && prog && <p className="source-note" role="status">{prog}</p>}
                                 {sn && <p className="mt-snip">{hi(sn, words)}</p>}
@@ -331,11 +394,10 @@ export default function MeetingsPage() {
                                     </div>
                                   </div>
                                 ))}
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )}
+                            </div>
+                          </Sub>
+                        )
+                      })}
                       {delId === m.id ? (
                         <div className="duty__btns duty__btns--warn">
                           <span>ลบบันทึกการประชุมนี้?</span>
