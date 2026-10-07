@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { FONT_SCALES, useFontScale } from '../lib/prefs'
 import { useElderDuties } from '../lib/elderDuties'
 import { useState } from 'react'
+import Fold from '../components/Fold'
 import MembersPanel from '../components/MembersPanel'
 import { useRole } from '../lib/members'
 import { DEFAULT_REPO, getSync, saveSync, testSync } from '../lib/sync'
@@ -23,8 +24,7 @@ export default function Settings() {
         <h1>ตั้งค่า</h1>
       </div>
 
-      <section className="card" aria-labelledby="font-title">
-        <h2 id="font-title" style={{ fontSize: '1.2rem' }}>ขนาดตัวอักษร</h2>
+      <Fold title="🔠 ขนาดตัวอักษร">
         <p style={{ color: 'var(--ink-soft)' }}>เลือกขนาดที่อ่านสบายตาที่สุด ทั้งแอปจะขยายตาม</p>
         <div className="scale-options" role="group" aria-label="ขนาดตัวอักษร">
           {FONT_SCALES.map((s) => (
@@ -41,7 +41,7 @@ export default function Settings() {
             </button>
           ))}
         </div>
-      </section>
+      </Fold>
 
       <InstallSettings />
       <SpeechSettings />
@@ -60,10 +60,9 @@ export default function Settings() {
       {isStandaloneSite() && <SyncSettings />}
       {isStandaloneSite() && role === 'admin' && <AiKeySettings />}
       {isStandaloneSite() && role !== 'admin' && (
-        <section className="card">
-          <h2 style={{ fontSize: '1.1rem' }}>🔑 แอป AI</h2>
+        <Fold title="🔑 แอป AI">
           <p className="source-note">ปุ่ม Gemini · ChatGPT · Claude ในหน้าแรกเปิดบัญชี AI ของท่านเองตามสิทธิ์ที่ท่านมี ไม่ต้องใส่คีย์ ไม่ผูกกับแอป และไม่เกี่ยวกับคนอื่น (การผูกคีย์เข้ากับแอปเป็นของแอดมินเท่านั้น)</p>
-        </section>
+        </Fold>
       )}
 
       {isStandaloneSite() ? <MembersPanel /> : null}
@@ -102,8 +101,7 @@ function AiKeySettings() {
   }
 
   return (
-    <form className="card ai-keys" onSubmit={(e) => { e.preventDefault(); save() }}>
-      <h2 style={{ fontSize: '1.1rem' }}>🔑 ผู้ช่วย AI (ไม่บังคับ)</h2>
+    <Fold title="🔑 ผู้ช่วย AI (ไม่บังคับ)"><form className="ai-keys" onSubmit={(e) => { e.preventDefault(); save() }}>
       <p className="source-note">ใส่คีย์แล้วใช้ผู้ช่วย AI ได้ในหน้าคู่มืออภิบาล ธรรมนูญ การบริหาร และบุคคลในพระคัมภีร์ คีย์เก็บในเครื่องนี้เท่านั้น ไม่ขึ้นไปที่ GitHub</p>
 
       <div className="ai-vendors" role="radiogroup" aria-label="เลือกผู้ให้บริการ AI">
@@ -148,7 +146,7 @@ function AiKeySettings() {
         <button type="submit" className="btn btn--ghost">บันทึก</button>
       </div>
       {msg && <p className={msg.ok ? 'ai-keys__ok' : 'ai-keys__err'} role="status">{msg.text}</p>}
-    </form>
+    </form></Fold>
   )
 }
 
@@ -175,8 +173,7 @@ function SyncSettings() {
     setMsg({ ok: true, text: 'เชื่อมต่อแล้ว ✓ สมุดคำอธิษฐานจะบันทึกออนไลน์และเห็นร่วมกันทุกเครื่องที่ใส่รหัสนี้' })
   }
   return (
-    <form className="card ai-keys" onSubmit={(e) => { e.preventDefault(); connect() }}>
-      <h2 style={{ fontSize: '1.1rem' }}>☁️ ใช้ร่วมกันออนไลน์</h2>
+    <Fold title="☁️ ใช้ร่วมกันออนไลน์"><form className="ai-keys" onSubmit={(e) => { e.preventDefault(); connect() }}>
       <p className="source-note">ใส่รหัสเข้าใช้ร่วมครั้งเดียวต่อเครื่อง แล้วสมุดคำอธิษฐานจะบันทึกขึ้น GitHub ของคริสตจักร (repo ส่วนตัว) ทุกคนที่ใส่รหัสเดียวกันจะเห็นและแก้ไขได้</p>
       <label htmlFor="sync-name" className="ai-keys__label">ชื่อของท่าน (แสดงว่าใครแก้ไข)</label>
       <input id="sync-name" className="code-input" type="text" placeholder="เช่น เจ็ท" value={name} onChange={(e) => { setName(e.target.value); setMsg(null) }} />
@@ -190,7 +187,7 @@ function SyncSettings() {
         <button type="submit" className="btn btn--gold" disabled={busy}>{busy ? 'กำลังตรวจ…' : 'เชื่อมต่อและบันทึก'}</button>
       </div>
       {msg && <p className={msg.ok ? 'ai-keys__ok' : 'ai-keys__err'} role="status">{msg.text}</p>}
-    </form>
+    </form></Fold>
   )
 }
 
@@ -200,8 +197,7 @@ function SpeechSettings() {
   if (!tts.supported) return null
   const i = Math.max(0, RATES.findIndex((r) => r.rate === tts.rate))
   return (
-    <section className="card">
-      <h2 style={{ fontSize: '1.1rem' }}>🔊 ความเร็วเสียงอ่าน</h2>
+    <Fold title="🔊 ความเร็วเสียงอ่าน">
       <label className="nb-speed">
         <span className="nb-speed__label">ความเร็ว: <b>{RATES[i].label}</b></span>
         <input
@@ -223,7 +219,7 @@ function SpeechSettings() {
       )}
       <p className="source-note">ใช้กับการฟังทุกที่ในแอป · เครื่องนี้เท่านั้น</p>
       {tts.noVoice && <p className="ai-keys__err">มือถือเครื่องนี้ยังไม่มีเสียงภาษาไทย · Android: ตั้งค่า › การจัดการทั่วไป › การอ่านออกเสียง › Google › ติดตั้งข้อมูลเสียง › ไทย · iPhone: ตั้งค่า › การช่วยการเข้าถึง › เนื้อหาที่ถูกพูด › เสียง › ไทย</p>}
-    </section>
+    </Fold>
   )
 }
 
@@ -237,15 +233,13 @@ function InstallSettings() {
   const [msg, setMsg] = useState('')
   if (isInstalled())
     return (
-      <section className="card">
-        <h2 style={{ fontSize: '1.1rem' }}>📲 ใช้แบบแอปเต็มจอ</h2>
+      <Fold title="📲 ใช้แบบแอปเต็มจอ">
         <p className="ai-keys__ok">✓ เปิดแบบแอปอยู่แล้ว (ไม่มีแถบเว็บ)</p>
         <GestureTip />
-      </section>
+      </Fold>
     )
   return (
-    <section className="card">
-      <h2 style={{ fontSize: '1.1rem' }}>📲 ใช้แบบแอปเต็มจอ</h2>
+    <Fold title="📲 ใช้แบบแอปเต็มจอ">
       <p className="source-note">ติดตั้งไว้บนหน้าจอหลัก เปิดแล้วเต็มจอเหมือนแอป ไม่มีแถบที่อยู่เว็บ ได้พื้นที่อ่านมากขึ้น</p>
       {canInstall() ? (
         <button type="button" className="btn btn--gold" onClick={async () => setMsg((await install()) ? 'ติดตั้งแล้ว ✓ เปิดจากไอคอนบนหน้าจอหลักได้เลย' : '')}>📲 ติดตั้งแอปบนหน้าจอหลัก</button>
@@ -264,7 +258,7 @@ function InstallSettings() {
       )}
       {msg && <p className="ai-keys__ok">{msg}</p>}
       <GestureTip />
-    </section>
+    </Fold>
   )
 }
 
@@ -305,8 +299,7 @@ function VoiceSettings() {
   }
   const label = (v: SpeechSynthesisVoice) => `${v.name}${v.localService ? '' : ' (ออนไลน์)'}`
   return (
-    <section className="card voice-settings">
-      <h2 style={{ fontSize: '1.1rem' }}>🗣️ เสียงผู้อ่าน</h2>
+    <Fold title="🗣️ เสียงผู้อ่าน" className="voice-settings">
       <label className="voice-row">
         <span>เสียงภาษาไทย</span>
         <select id="voice-th" value={prefs.th ?? ''} onChange={(e) => update({ th: e.target.value || undefined })}>
@@ -336,7 +329,7 @@ function VoiceSettings() {
         เพิ่มเสียง: Android › ตั้งค่า › การจัดการทั่วไป › การอ่านออกเสียง (Text-to-speech) › เลือก Google › ติดตั้งข้อมูลเสียง › ไทย (เลือกเสียงคุณภาพสูง) ·
         iPhone › ตั้งค่า › การช่วยการเข้าถึง › เนื้อหาที่ถูกพูด › เสียง › ไทย (ดาวน์โหลดเสียง Enhanced)
       </p>
-    </section>
+    </Fold>
   )
 }
 
@@ -357,8 +350,7 @@ function PronounceSettings() {
     setSay('')
   }
   return (
-    <section className="card pron-settings">
-      <h2 style={{ fontSize: '1.1rem' }}>🔤 แก้คำที่เสียงอ่านผิด</h2>
+    <Fold title="🔤 แก้คำที่เสียงอ่านผิด" className="pron-settings">
       <p className="source-note">เช่น เครื่องอ่าน “เอโนค” เป็น “เอ-โน-คอ” ให้ใส่คำอ่านว่า “เอโนก” · ข้อความบนจอไม่เปลี่ยน · ใช้ร่วมกันทุกเครื่อง</p>
       <div className="pron-add">
         <input id="pron-word" value={word} onChange={(e) => setWord(e.target.value)} placeholder="คำที่อ่านผิด" aria-label="คำที่อ่านผิด" />
@@ -367,6 +359,7 @@ function PronounceSettings() {
         <button type="button" className="btn btn--gold" disabled={!word.trim() || !say.trim()} onClick={add}>＋ เพิ่ม</button>
       </div>
       {store.items.length > 0 && (
+        <details className="fold__sub"><summary>คำที่เพิ่มเอง ({store.items.length} คำ) — กดเพื่อดู/ลบ</summary>
         <ul className="pron-list">
           {store.items.map((x) => (
             <li key={x.id}>
@@ -376,9 +369,10 @@ function PronounceSettings() {
             </li>
           ))}
         </ul>
+        </details>
       )}
       <button type="button" className="linkish" onClick={() => setShowBuiltin(!showBuiltin)}>{showBuiltin ? '▴' : '▾'} คำที่แก้ไว้ให้แล้ว ({BUILTIN_PRON.length} คำ)</button>
       {showBuiltin && <p className="source-note">{BUILTIN_PRON.map(([w, s2]) => `${w} → ${s2}`).join(' · ')}</p>}
-    </section>
+    </Fold>
   )
 }

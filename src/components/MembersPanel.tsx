@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { ROLE_LABEL, type Role } from '../lib/access'
+import Fold from './Fold'
 import { useMembers } from '../lib/members'
 import { DEFAULT_REPO, getSync } from '../lib/sync'
 
@@ -25,8 +26,7 @@ export default function MembersPanel() {
     } catch { /* ผู้ใช้ปิดหน้าต่างแชร์ */ }
   }
   return (
-    <section className="card members" aria-label="บัญชีผู้ใช้">
-      <h2 style={{ fontSize: '1.2rem' }}>👤 บัญชีผู้ใช้</h2>
+    <Fold title="👤 บัญชีผู้ใช้" className="members" defaultOpen={m.isAdmin && m.pending.length > 0} badge={m.isAdmin && m.pending.length > 0 ? <span className="badge">รออนุมัติ {m.pending.length}</span> : undefined}>
 
       {m.isAdmin && (
         <div className="invite">
@@ -110,7 +110,7 @@ export default function MembersPanel() {
       </ul>
       {msg && <p className="ai-keys__ok" role="status">{msg}</p>}
       {!m.isAdmin && <p className="source-note">เฉพาะแอดมินส่งลิงก์เชิญ อนุมัติคำขอ เปลี่ยนสิทธิ์ หรือลบคน · อยากให้ภรรยาเป็นแอดมินร่วม: ให้เธอขอร่วมใช้ แล้วเลือกสิทธิ์ “แอดมิน” ตอนอนุมัติ</p>}
-      <p className="source-note">โน้ต สคริปต์ด่วน และถามตอบ เป็นส่วนตัวรายคน คนอื่น (รวมแอดมิน) ไม่เห็นในแอป · แอป AI และคีย์ AI เป็นของแต่ละเครื่อง · สิทธิ์และความเป็นส่วนตัวเป็นการกันในแอป ไม่ใช่การล็อกระดับ GitHub — ลบคนแล้วควรเปลี่ยนรหัสเข้าใช้ร่วมใหม่ถ้าต้องการตัดขาดจริง</p>
-    </section>
+      <p className="source-note">โน้ตเป็นส่วนตัวรายคน คนอื่น (รวมแอดมิน) ไม่เห็น · สคริปต์ด่วนและถามตอบใช้ร่วมกันระหว่างแอดมินกับผู้ที่แก้ไขได้ (ผู้ดูอย่างเดียวไม่เห็น) · แอป AI และคีย์ AI เป็นของแต่ละเครื่อง · สิทธิ์และความเป็นส่วนตัวเป็นการกันในแอป ไม่ใช่การล็อกระดับ GitHub — ลบคนแล้วควรเปลี่ยนรหัสเข้าใช้ร่วมใหม่ถ้าต้องการตัดขาดจริง</p>
+    </Fold>
   )
 }

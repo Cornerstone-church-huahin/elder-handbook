@@ -1361,3 +1361,12 @@ html[data-role=viewer] .edit-only { display: none !important; }
 .us-head .qa-q{flex:1;min-width:0;width:auto}
 .us-play{flex:none;height:32px;padding:0 .7rem;border-radius:999px;border:0;background:var(--gold);color:var(--navy);font:inherit;font-size:.8rem;font-weight:700;white-space:nowrap;cursor:pointer}
 .us-play--on{background:#fff;border:1.5px solid var(--gold)}
+.fold{padding:0}
+.fold__sum{display:flex;align-items:center;gap:.6rem;list-style:none;cursor:pointer;padding:.75rem 1rem;min-height:48px}
+.fold__sum::-webkit-details-marker{display:none}
+.fold__t{margin:0;flex:1;min-width:0;font-size:1.05rem}
+.fold__chev{flex:none;width:.6rem;height:.6rem;border-right:2.5px solid var(--ink-soft);border-bottom:2.5px solid var(--ink-soft);transform:rotate(45deg);margin:-.2rem .3rem 0 0;transition:transform .15s}
+.fold[open]>.fold__sum .fold__chev{transform:rotate(-135deg);margin-top:.2rem}
+.fold__body{padding:0 1rem 1rem;display:flex;flex-direction:column;gap:.7rem}
+.fold[open]>.fold__sum{border-bottom:1px solid var(--line);margin-bottom:.7rem}
+.fold__sub>summary{cursor:pointer;font-weight:700;padding:.4rem 0}
