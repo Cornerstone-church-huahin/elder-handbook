@@ -58,7 +58,7 @@ function Sub({ title, open, item, children }: { title: string; open?: boolean; i
   )
 }
 
-export default function MeetingsPage() {
+export default function MinutesPage() {
   const role = useRole()
   const canEdit = role === 'admin' || role === 'editor'
   const store = useSharedStore<Meeting>({ localKey: 'khatha.meetings.v1', file: 'meetings.json', label: 'มติที่ประชุม' })

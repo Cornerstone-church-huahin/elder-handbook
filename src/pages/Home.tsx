@@ -39,7 +39,7 @@ export default function Home() {
         <div className="greeting__btns">
           {(role === 'admin' || role === 'editor') && <Link to="/scripts" className="urgent-btn"><span aria-hidden="true">🚨</span><span>สคริปต์ด่วน</span></Link>}
           {(role === 'admin' || role === 'editor') && <Link to="/qa" className="urgent-btn qa-btn"><span aria-hidden="true">💬</span><span>ถามตอบ</span></Link>}
-          <Link to="/meetings" className="urgent-btn mt-btn"><span aria-hidden="true">📝</span><span>มติที่ประชุม</span></Link>
+          <Link to="/meetings" className="urgent-btn mt-btn"><span aria-hidden="true">🗓️</span><span>การประชุม</span></Link>
         </div>
       </div>
 

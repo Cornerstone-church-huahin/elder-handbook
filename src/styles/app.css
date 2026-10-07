@@ -1403,3 +1403,21 @@ mark{background:#ffe38a;color:inherit;border-radius:3px;padding:0 .1rem}
 .mt-sub--item>summary{font-weight:600;min-height:34px;padding:.3rem .6rem}
 .mt-dec{margin:0;white-space:pre-line}
 .us-tools .nb-search{min-width:0;flex:1 1 0}.us-tools .nb-add{flex:none;padding:0 .8rem;font-size:.9rem;white-space:nowrap}
+.meet-grid{display:grid;grid-template-columns:1fr;gap:.8rem}
+.meet-card{display:grid;grid-template-columns:auto 1fr;grid-template-areas:"i t" "i n";column-gap:.9rem;align-items:center;padding:1rem 1.1rem;border-radius:var(--radius);background:var(--surface);border:1.5px solid var(--line);text-decoration:none;color:var(--ink);box-shadow:var(--shadow)}
+.meet-card--gold{border-color:var(--gold)}
+.meet-card__i{grid-area:i;font-size:2.2rem}
+.meet-card__t{grid-area:t;font-weight:700;font-size:1.15rem;font-family:var(--font-display)}
+.meet-card__n{grid-area:n;color:var(--ink-soft);font-size:.9rem}
+.mt-when{flex:none;font-size:.8rem;color:var(--ink-soft)}
+.mt-done{background:#d8f0df;color:#1d6b3a}
+.mt-bar{height:8px;border-radius:99px;background:var(--line);overflow:hidden}
+.mt-bar span{display:block;height:100%;background:var(--gold)}
+.mt-tasks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.35rem}
+.mt-tasks li{display:flex;align-items:center;gap:.5rem;justify-content:space-between}
+.mt-tasks label{display:flex;gap:.6rem;align-items:flex-start;flex:1;min-width:0;min-height:36px}
+.mt-tasks input[type=checkbox]{width:22px;height:22px;flex:none;margin-top:.1rem}
+.mt-tasks__done span{text-decoration:line-through;color:var(--ink-soft)}
+.mt-addtask{display:grid;grid-template-columns:1fr auto;gap:.4rem}
+.mt-addtask .us-input:first-child{grid-column:1/2}
+.mt-addtask .btn{grid-row:1/3;grid-column:2}
