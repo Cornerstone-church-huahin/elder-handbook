@@ -169,3 +169,32 @@ export async function testSync(cfg: SyncConfig): Promise<string> {
     return 'ไม่มีอินเทอร์เน็ต'
   }
 }
+
+// ---------- ไฟล์แนบ (PDF/Word) ใน repo ข้อมูล ----------
+const toB64 = (buf: ArrayBuffer) => {
+  const bytes = new Uint8Array(buf)
+  let bin = ''
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
+  return btoa(bin)
+}
+
+/** อัปโหลดไฟล์ขึ้น repo ข้อมูล (path ใหม่เสมอ) */
+export async function putBinary(cfg: SyncConfig, path: string, data: ArrayBuffer, label: string): Promise<void> {
+  const r = await api(cfg, `contents/${path.split('/').map(encodeURIComponent).join('/')}`, {
+    method: 'PUT',
+    body: JSON.stringify({ message: `แนบไฟล์${label}${cfg.name ? ` โดย ${cfg.name}` : ''}`, content: toB64(data) }),
+  }).catch(() => null)
+  if (!r) throw new Error('ไม่มีอินเทอร์เน็ต — อัปโหลดไฟล์ไม่ได้')
+  if (!r.ok) throw new Error(r.status === 422 ? 'มีไฟล์ชื่อนี้อยู่แล้ว ลองอัปโหลดใหม่อีกครั้ง' : explain(r.status))
+}
+
+/** ดึงไฟล์จาก repo ข้อมูลเมื่อกดเปิด/ดาวน์โหลด */
+export async function getBinary(cfg: SyncConfig, path: string): Promise<Blob> {
+  const r = await fetch(`https://api.github.com/repos/${cfg.repo}/contents/${path.split('/').map(encodeURIComponent).join('/')}`, {
+    cache: 'no-store',
+    headers: { accept: 'application/vnd.github.raw', authorization: `Bearer ${cfg.token}`, 'x-github-api-version': '2022-11-28' },
+  }).catch(() => null)
+  if (!r) throw new Error('ไม่มีอินเทอร์เน็ต — เปิดไฟล์ไม่ได้')
+  if (!r.ok) throw new Error(r.status === 404 ? 'ไม่พบไฟล์นี้ใน repo' : explain(r.status))
+  return r.blob()
+}

@@ -36,10 +36,11 @@ export default function Home() {
           <p className="greeting__date">{today}</p>
           <h1>วันนี้คุณต้องการทำอะไร?</h1>
         </div>
-        {(role === 'admin' || role === 'editor') && <div className="greeting__btns">
-          <Link to="/scripts" className="urgent-btn"><span aria-hidden="true">🚨</span><span>สคริปต์ด่วน</span></Link>
-          <Link to="/qa" className="urgent-btn qa-btn"><span aria-hidden="true">💬</span><span>ถามตอบ</span></Link>
-        </div>}
+        <div className="greeting__btns">
+          {(role === 'admin' || role === 'editor') && <Link to="/scripts" className="urgent-btn"><span aria-hidden="true">🚨</span><span>สคริปต์ด่วน</span></Link>}
+          {(role === 'admin' || role === 'editor') && <Link to="/qa" className="urgent-btn qa-btn"><span aria-hidden="true">💬</span><span>ถามตอบ</span></Link>}
+          <Link to="/meetings" className="urgent-btn mt-btn"><span aria-hidden="true">📝</span><span>มติที่ประชุม</span></Link>
+        </div>
       </div>
 
       <section className="section">
