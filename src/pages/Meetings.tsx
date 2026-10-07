@@ -31,15 +31,16 @@ function dateForms(s: string): string {
   const be = y + 543, dd = String(d).padStart(2, '0'), mm = String(mo).padStart(2, '0')
   return [s, `${d}/${mo}/${be}`, `${dd}/${mm}/${be}`, `${d}/${mo}/${y}`, `${dd}/${mm}/${y}`, `${d}-${mo}-${be}`, `${d} ${MONTHS[mo - 1]} ${be}`, `${d} ${SHORT[mo - 1]} ${be}`, `${d} ${SHORT[mo - 1]} ${String(be).slice(2)}`, `${MONTHS[mo - 1]} ${be}`, `${MONTHS[mo - 1]} ${y}`, `${d} ${MONTHS[mo - 1]} ${y}`, `${be}`, `${y}`].join('\n')
 }
-const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+/** เทียบแบบไม่สนช่องว่าง/ตัวพิมพ์ — PDF และ OCR มักแทรกช่องว่างกลางคำไทย */
+const norm = (s: string) => s.toLowerCase().normalize('NFC').replace(/[\s\u200b-\u200d\ufeff]+/g, '')
+const termRe = (w: string) => [...norm(w)].map((c) => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[\\s\\u200b-\\u200d]*')
 function hi(text: string, words: string[]): ReactNode {
   if (!words.length) return text
-  const re = new RegExp(`(${words.map(esc).join('|')})`, 'gi')
+  const re = new RegExp(`(${words.map(termRe).join('|')})`, 'gi')
   return text.split(re).map((part, i) => (i % 2 ? <mark key={i}>{part}</mark> : part))
 }
 function snippet(text: string, words: string[]): string {
-  const low = text.toLowerCase()
-  const hit = words.map((w) => low.indexOf(w)).filter((i) => i >= 0).sort((a, b) => a - b)[0]
+  const hit = words.map((w) => text.search(new RegExp(termRe(w), 'i'))).filter((i) => i >= 0).sort((a, b) => a - b)[0]
   if (hit === undefined) return ''
   const a = Math.max(0, hit - 60)
   return `${a > 0 ? '… ' : ''}${text.slice(a, hit + 160).replace(/\s+/g, ' ')} …`
@@ -55,6 +56,7 @@ export default function MeetingsPage() {
   const [isNew, setIsNew] = useState(true)
   const [pending, setPending] = useState<Pending[]>([])
   const [reading, setReading] = useState(false)
+  const [prog, setProg] = useState('')
   const [err, setErr] = useState('')
   const [saving, setSaving] = useState(false)
   const [delId, setDelId] = useState<string | null>(null)
@@ -67,7 +69,7 @@ export default function MeetingsPage() {
   const searching = words.length > 0
   const hay = (m: Meeting) =>
     [m.title, dateForms(m.date), m.no ? `ครั้งที่ ${m.no} ที่ ${m.no} ${m.no}` : '', m.docNo ? `เลขที่ ${m.docNo} ${m.docNo}` : '', m.keywords, m.attendees, m.notes, ...m.resolutions.flatMap((r) => [r.topic, r.decision]), ...m.files.flatMap((f) => [f.name, f.text])].join('\n').toLowerCase()
-  const shown = searching ? list.filter((m) => words.every((w) => hay(m).includes(w))) : list
+  const shown = searching ? list.filter((m) => { const h = norm(hay(m)); return words.every((w) => h.includes(norm(w))) }) : list
 
   const flash = (t: string) => { setMsg(t); window.setTimeout(() => setMsg(''), 3500) }
   const openNew = () => { setDraft(emptyDraft()); setIsNew(true); setPending([]); setErr(''); setDelId(null) }
@@ -83,10 +85,11 @@ export default function MeetingsPage() {
     const add: Pending[] = []
     for (const f of [...files]) {
       if (f.size > MAX_FILE_MB * 1048576) { setErr(`“${f.name}” ใหญ่เกิน ${MAX_FILE_MB} MB`); continue }
-      const x = await extractText(f)
+      const x = await extractText(f, (t) => setProg(`${f.name}: ${t}`))
       add.push({ key: uid('f_'), file: f, text: x.text, note: x.note })
     }
     setPending((p) => [...p, ...add])
+    setProg('')
     setReading(false)
   }
 
@@ -123,6 +126,20 @@ export default function MeetingsPage() {
 
   const del = (id: string) => { store.remove(id); setDelId(null) }
 
+  const rescan = async (m: Meeting, f: MFile) => {
+    if (!cfg) return flash('ต้องเชื่อมออนไลน์ก่อน')
+    setBusyFile(f.id)
+    try {
+      const blob = await getBinary(cfg, f.path)
+      const x = await extractText(new File([blob], f.name, { type: f.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : blob.type }), (t) => setProg(t))
+      store.put([{ ...m, files: m.files.map((y) => (y.id === f.id ? { ...y, text: x.text } : y)) }])
+      flash(`${f.name}: ${x.note}`)
+    } catch (e2) {
+      flash(e2 instanceof Error ? e2.message : 'อ่านไฟล์ไม่สำเร็จ')
+    }
+    setProg('')
+    setBusyFile('')
+  }
   const openFile = async (f: MFile, download: boolean) => {
     if (!cfg) return flash('ต้องเชื่อมออนไลน์ก่อนจึงเปิดไฟล์ได้')
     setBusyFile(f.id)
@@ -191,7 +208,7 @@ export default function MeetingsPage() {
 
       <div className="mt-files">
         <p className="members__h">📎 ไฟล์ประกอบ (PDF / Word)</p>
-        <p className="source-note">เมื่อเลือกไฟล์ ระบบดึงข้อความในไฟล์มาเก็บเป็นตัวอักษรไว้ให้ค้นหาได้ทันที · ไฟล์ละไม่เกิน {MAX_FILE_MB} MB · ไฟล์สแกนเป็นรูปดึงข้อความไม่ได้</p>
+        <p className="source-note">เมื่อเลือกไฟล์ ระบบดึงข้อความในไฟล์มาเก็บเป็นตัวอักษรไว้ให้ค้นหาได้ทันที · ไฟล์ละไม่เกิน {MAX_FILE_MB} MB · ไฟล์สแกนเป็นรูปจะอ่านจากภาพให้อัตโนมัติ (ช้ากว่าปกติ)</p>
         {draft.files.map((f) => (
           <p key={f.id} className="mt-file">📄 <span>{f.name} <small>({sizeLabel(f.size)})</small></span>
             <button type="button" className="mini" onClick={() => setDraft({ ...draft, files: draft.files.filter((x) => x.id !== f.id) })} aria-label={`เอา ${f.name} ออก`}>✕</button></p>
@@ -204,6 +221,7 @@ export default function MeetingsPage() {
             {p.text && <button type="button" className="mini" onClick={() => setDraft({ ...draft, notes: `${draft.notes.trim() ? `${draft.notes.trim()}\n\n` : ''}${p.text.slice(0, 4000)}` })}>➕ ใส่ข้อความนี้ลงในบันทึก</button>}
           </div>
         ))}
+        {reading && prog && <p className="source-note" role="status">{prog}</p>}
         <label className="btn btn--ghost mt-pick">
           {reading ? '⏳ กำลังอ่านไฟล์…' : '＋ เลือกไฟล์'}
           <input type="file" accept=".pdf,.doc,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword" multiple hidden disabled={reading} onChange={(e) => { void pick(e.target.files); e.target.value = '' }} />
@@ -252,7 +270,7 @@ export default function MeetingsPage() {
       <ul className="us-list">
         {shown.map((m) => {
           const isOpen = searching || !!open[m.id] || draft?.id === m.id
-          const matchRes = (r: Resolution) => searching && words.some((w) => `${r.topic}\n${r.decision}`.toLowerCase().includes(w))
+          const matchRes = (r: Resolution) => searching && words.some((w) => norm(`${r.topic}\n${r.decision}`).includes(norm(w)))
           return (
             <li key={m.id} id={`mt-${m.id}`} className={`us-card${isOpen ? '' : ' us-card--fold'}`}>
               {draft?.id === m.id && !isNew ? form : (
@@ -285,10 +303,13 @@ export default function MeetingsPage() {
                             return (
                               <div key={f.id} className="mt-file mt-file--card">
                                 <p>📄 <span>{hi(f.name, words)} <small>({sizeLabel(f.size)})</small></span></p>
+                                {!f.text && <p className="mt-warn">⚠️ ยังไม่มีข้อความของไฟล์นี้ ค้นหาจากเนื้อไฟล์ไม่เจอ{canEdit ? ' — กด “อ่านข้อความจากไฟล์”' : ''}</p>}
+                                {busyFile === f.id && prog && <p className="source-note" role="status">{prog}</p>}
                                 {sn && <p className="mt-snip">{hi(sn, words)}</p>}
                                 <div className="duty__btns">
                                   {f.name.toLowerCase().endsWith('.pdf') && <button type="button" className="mini" disabled={busyFile === f.id} onClick={() => void openFile(f, false)}>👁 เปิดดู</button>}
                                   <button type="button" className="mini" disabled={busyFile === f.id} onClick={() => void openFile(f, true)}>{busyFile === f.id ? '⏳ กำลังโหลด…' : '⬇ ดาวน์โหลด'}</button>
+                                  {canEdit && <button type="button" className="mini edit-only" disabled={busyFile === f.id} onClick={() => void rescan(m, f)}>{busyFile === f.id && prog ? '⏳' : '🔄'} {f.text ? 'อ่านข้อความใหม่' : 'อ่านข้อความจากไฟล์'}</button>}
                                   {f.text && <button type="button" className="mini" onClick={() => setOpen({ ...open, [`t${f.id}`]: !open[`t${f.id}`] })}>{open[`t${f.id}`] ? '▴ ซ่อนข้อความในไฟล์' : '▾ ข้อความในไฟล์'}</button>}
                                 </div>
                                 {f.text && open[`t${f.id}`] && <p className="us-card__body mt-text">{hi(f.text, words)}</p>}
