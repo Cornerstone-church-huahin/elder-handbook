@@ -1391,3 +1391,4 @@ html[data-role=viewer] .edit-only { display: none !important; }
 .mt-text{max-height:18rem;overflow:auto;font-size:.9rem}
 mark{background:#ffe38a;color:inherit;border-radius:3px;padding:0 .1rem}
 .mt-file--card>p,.mt-file--new>p{justify-content:flex-start}.mt-file--new>p{justify-content:space-between}
+.mt-row--2{grid-template-columns:1fr 1fr}

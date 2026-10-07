@@ -13,15 +13,24 @@ import { getBinary, getSync, putBinary, type SharedItem } from '../lib/sync'
  */
 interface Resolution { id: string; topic: string; decision: string }
 interface MFile { id: string; name: string; size: number; path: string; text: string }
-interface Meeting extends SharedItem { date: string; title: string; attendees: string; resolutions: Resolution[]; notes: string; files: MFile[]; created: number }
-interface Draft { id: string; date: string; title: string; attendees: string; resolutions: Resolution[]; notes: string; files: MFile[] }
+interface Meeting extends SharedItem { date: string; no?: string; docNo?: string; keywords?: string; title: string; attendees: string; resolutions: Resolution[]; notes: string; files: MFile[]; created: number }
+interface Draft { id: string; date: string; no: string; docNo: string; keywords: string; title: string; attendees: string; resolutions: Resolution[]; notes: string; files: MFile[] }
 interface Pending { key: string; file: File; text: string; note: string }
 
 const uid = (p: string) => `${p}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
 const thaiDate = (s: string) => { const d = new Date(`${s}T00:00:00`); return isNaN(+d) ? s : d.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' }) }
-const emptyDraft = (): Draft => ({ id: uid('mt_'), date: today(), title: '', attendees: '', resolutions: [{ id: uid('r_'), topic: '', decision: '' }], notes: '', files: [] })
+const emptyDraft = (): Draft => ({ id: uid('mt_'), date: today(), no: '', docNo: '', keywords: '', title: '', attendees: '', resolutions: [{ id: uid('r_'), topic: '', decision: '' }], notes: '', files: [] })
 
+const MONTHS = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม']
+const SHORT = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.']
+/** ทุกรูปแบบที่พิมพ์ค้นหาวันที่ได้: 7 ตุลาคม 2569 · 7 ต.ค. 69 · 7/10/2569 · 07/10/2026 · 2026-10-07 · ตุลาคม · 2569 */
+function dateForms(s: string): string {
+  const [y, mo, d] = s.split('-').map(Number)
+  if (!y || !mo || !d) return s
+  const be = y + 543, dd = String(d).padStart(2, '0'), mm = String(mo).padStart(2, '0')
+  return [s, `${d}/${mo}/${be}`, `${dd}/${mm}/${be}`, `${d}/${mo}/${y}`, `${dd}/${mm}/${y}`, `${d}-${mo}-${be}`, `${d} ${MONTHS[mo - 1]} ${be}`, `${d} ${SHORT[mo - 1]} ${be}`, `${d} ${SHORT[mo - 1]} ${String(be).slice(2)}`, `${MONTHS[mo - 1]} ${be}`, `${MONTHS[mo - 1]} ${y}`, `${d} ${MONTHS[mo - 1]} ${y}`, `${be}`, `${y}`].join('\n')
+}
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 function hi(text: string, words: string[]): ReactNode {
   if (!words.length) return text
@@ -54,15 +63,15 @@ export default function MeetingsPage() {
   const cfg = getSync()
 
   const list = [...store.items].sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.created ?? 0) - (a.created ?? 0))
-  const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean)
+  const words = q.trim().toLowerCase().replace(/(ครั้งที่|เลขที่)\s+/g, '$1\u0001').split(/\s+/).filter(Boolean).map((w) => w.replace(/\u0001/g, ' '))
   const searching = words.length > 0
   const hay = (m: Meeting) =>
-    [m.title, m.date, thaiDate(m.date), m.attendees, m.notes, ...m.resolutions.flatMap((r) => [r.topic, r.decision]), ...m.files.flatMap((f) => [f.name, f.text])].join('\n').toLowerCase()
+    [m.title, dateForms(m.date), m.no ? `ครั้งที่ ${m.no} ที่ ${m.no} ${m.no}` : '', m.docNo ? `เลขที่ ${m.docNo} ${m.docNo}` : '', m.keywords, m.attendees, m.notes, ...m.resolutions.flatMap((r) => [r.topic, r.decision]), ...m.files.flatMap((f) => [f.name, f.text])].join('\n').toLowerCase()
   const shown = searching ? list.filter((m) => words.every((w) => hay(m).includes(w))) : list
 
   const flash = (t: string) => { setMsg(t); window.setTimeout(() => setMsg(''), 3500) }
   const openNew = () => { setDraft(emptyDraft()); setIsNew(true); setPending([]); setErr(''); setDelId(null) }
-  const openEdit = (m: Meeting) => { setDraft({ id: m.id, date: m.date, title: m.title, attendees: m.attendees || '', resolutions: m.resolutions.length ? m.resolutions.map((r) => ({ ...r })) : [{ id: uid('r_'), topic: '', decision: '' }], notes: m.notes || '', files: [...m.files] }); setIsNew(false); setPending([]); setErr(''); setDelId(null) }
+  const openEdit = (m: Meeting) => { setDraft({ id: m.id, date: m.date, no: m.no || '', docNo: m.docNo || '', keywords: m.keywords || '', title: m.title, attendees: m.attendees || '', resolutions: m.resolutions.length ? m.resolutions.map((r) => ({ ...r })) : [{ id: uid('r_'), topic: '', decision: '' }], notes: m.notes || '', files: [...m.files] }); setIsNew(false); setPending([]); setErr(''); setDelId(null) }
   const cancel = () => { setDraft(null); setPending([]); setErr('') }
 
   const setRes = (id: string, patch: Partial<Resolution>) => draft && setDraft({ ...draft, resolutions: draft.resolutions.map((r) => (r.id === id ? { ...r, ...patch } : r)) })
@@ -101,7 +110,7 @@ export default function MeetingsPage() {
           newFiles.push({ id: p.key, name: p.file.name, size: p.file.size, path, text: p.text })
         }
       }
-      const item: Meeting = { id: draft.id, date: draft.date, title, attendees: draft.attendees.trim(), resolutions, notes: draft.notes.trim(), files: [...draft.files, ...newFiles], created: Date.now(), updated: 0 }
+      const item: Meeting = { id: draft.id, date: draft.date, no: draft.no.trim(), docNo: draft.docNo.trim(), keywords: draft.keywords.trim(), title, attendees: draft.attendees.trim(), resolutions, notes: draft.notes.trim(), files: [...draft.files, ...newFiles], created: Date.now(), updated: 0 }
       if (!isNew) item.created = store.items.find((x) => x.id === draft.id)?.created ?? item.created
       store.put([item])
       setOpen((o) => ({ ...o, [item.id]: true }))
@@ -146,6 +155,17 @@ export default function MeetingsPage() {
           <input className="us-input" type="text" value={draft.title} maxLength={140} placeholder="เช่น ประชุมผู้ปกครอง ครั้งที่ 5" autoFocus onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
         </label>
       </div>
+      <div className="mt-row mt-row--2">
+        <label className="prayer-form__name">ครั้งที่ (ไม่ใส่ก็ได้)
+          <input className="us-input" type="text" value={draft.no} maxLength={20} placeholder="เช่น 5 หรือ 3/2569" onChange={(e) => setDraft({ ...draft, no: e.target.value })} />
+        </label>
+        <label className="prayer-form__name">เลขที่เอกสาร (ไม่ใส่ก็ได้)
+          <input className="us-input" type="text" value={draft.docNo} maxLength={40} placeholder="เช่น คศ.012/2569" onChange={(e) => setDraft({ ...draft, docNo: e.target.value })} />
+        </label>
+      </div>
+      <label className="prayer-form__name">คำสำคัญสำหรับค้นหา (ไม่ใส่ก็ได้)
+        <input className="us-input" type="text" value={draft.keywords} maxLength={200} placeholder="เช่น งบประมาณ, ซ่อมอาคาร, เลือกตั้ง" onChange={(e) => setDraft({ ...draft, keywords: e.target.value })} />
+      </label>
       <label className="prayer-form__name">ผู้เข้าร่วม (ไม่ใส่ก็ได้)
         <input className="us-input" type="text" value={draft.attendees} maxLength={300} placeholder="เช่น ผู้ปกครองทุกท่าน 8 คน" onChange={(e) => setDraft({ ...draft, attendees: e.target.value })} />
       </label>
@@ -203,14 +223,14 @@ export default function MeetingsPage() {
       <div className="page-head">
         <span className="page-icon" aria-hidden="true">📝</span>
         <h1>มติที่ประชุม</h1>
-        <p>{list.length} ครั้ง · เก็บมติและไฟล์ประกอบทุกการประชุม ค้นหาจากหัวข้อ มติ หรือเนื้อหาในไฟล์ได้</p>
+        <p>{list.length} ครั้ง · เก็บมติและไฟล์ประกอบทุกการประชุม ค้นหาได้จากครั้งที่ วันที่ เลขที่ หัวข้อ มติ คำสำคัญ หรือเนื้อหาในไฟล์</p>
       </div>
 
       <div className="nb-bar us-tools">
         <label className="nb-search">
           <span className="sr-only">ค้นหามติที่ประชุม</span>
           <IconSearch />
-          <input type="search" value={q} placeholder="ค้นหามติ หัวข้อ หรือคำในไฟล์" onChange={(e) => setQ(e.target.value)} />
+          <input type="search" value={q} placeholder="ค้นหา: ครั้งที่ · วันที่ · เลขที่ · มติ · คำในไฟล์" onChange={(e) => setQ(e.target.value)} />
         </label>
         {canEdit && <button type="button" className="btn btn--gold nb-add edit-only" onClick={openNew}>＋ บันทึกประชุม</button>}
       </div>
@@ -245,6 +265,7 @@ export default function MeetingsPage() {
                   </button>
                   {isOpen && (
                     <>
+                      {(m.no || m.docNo || m.keywords) && <p className="mt-meta">{m.no && <>ครั้งที่ {hi(m.no, words)} </>}{m.docNo && <>· เลขที่ {hi(m.docNo, words)} </>}{m.keywords && <>· 🏷 {hi(m.keywords, words)}</>}</p>}
                       {m.attendees && <p className="mt-meta">👥 {m.attendees}</p>}
                       {m.resolutions.length > 0 && (
                         <ol className="mt-list">
