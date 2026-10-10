@@ -33,6 +33,27 @@ export function speakableRef(ref: string): string {
   return ref.replace(/(\d+)\s*:\s*(\d+)(?:\s*[–—-]\s*(\d+))?/g, (_, c, a, b) => `บทที่ ${c} ข้อ ${a}${b ? ` ถึง ${b}` : ''}`)
 }
 
+/**
+ * ข้อความที่ส่งให้เครื่องอ่านอาจไม่ตรงกับที่แสดงบนจอ (ข้ออ้างอิง "28:19" → "บทที่ 28 ข้อ 19", คำอ่านที่แก้ไว้)
+ * จับคู่ตัวอักษรของสองข้อความ (LCS) เพื่อแปลงตำแหน่งคำที่เครื่องกำลังอ่าน กลับเป็นตำแหน่งบนจอ ให้ไฮไลต์วิ่งตรงคำ
+ */
+export function alignMap(shown: string, said: string): number[] {
+  const n = shown.length, m = said.length
+  if (shown === said) return Array.from({ length: m + 1 }, (_, i) => i)
+  const dp: Uint16Array[] = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1))
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--)
+    dp[i][j] = shown[i] === said[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1])
+  const map = new Array<number>(m + 1).fill(-1)
+  let i = 0, j = 0
+  while (i < n && j < m) {
+    if (shown[i] === said[j]) { map[j] = i; i++; j++ }
+    else if (dp[i + 1][j] >= dp[i][j + 1]) i++
+    else { map[j] = i; j++ } // ตัวอักษรที่เพิ่มเข้ามาตอนอ่าน → ชี้ไปที่ตำแหน่งบนจอที่กำลังจะถึง
+  }
+  for (; j <= m; j++) map[j] = Math.min(i, n)
+  return map.map((x) => Math.max(0, Math.min(x, Math.max(0, n - 1))))
+}
+
 /** แบ่งเป็นวลีสั้น ๆ (~60 ตัวอักษร ตัดที่ช่องว่าง) — หยุดแล้วฟังต่อจะย้อนไม่เกินหนึ่งวลี และบางเครื่องหยุดอ่านเองเมื่อข้อความยาวเกิน */
 function chunks(text: string): string[] {
   const out: string[] = []
@@ -175,8 +196,10 @@ export function useSpeech(lang = 'th-TH') {
       const endAt = it.base + it.text.length
       c.onWord?.(it.section, it.base + Math.max(0, start), endAt) // ไฮไลต์วลีที่กำลังอ่าน
       const rest = it.text.slice(Math.max(0, start))
-      const said = it.say ? it.say(rest) : rest
-      const u = new SpeechSynthesisUtterance(lang.startsWith('th') ? applyPron(said) : said) // แก้คำที่เครื่องอ่านผิด
+      const said0 = it.say ? it.say(rest) : rest
+      const said = lang.startsWith('th') ? applyPron(said0) : said0 // แก้คำที่เครื่องอ่านผิด
+      const toShown = alignMap(rest, said) // ตำแหน่งในเสียง → ตำแหน่งบนจอ
+      const u = new SpeechSynthesisUtterance(said)
       const me = { done: false, startedAt: Date.now() }
       active = me
       const finish = () => {
@@ -187,7 +210,8 @@ export function useSpeech(lang = 'th-TH') {
       // จำตำแหน่งคำที่กำลังอ่าน (เครื่องที่รองรับ) เพื่อฟังต่อได้ตรงคำ
       u.onboundary = (e) => {
         if (id !== run.current || me.done) return
-        c.offset = Math.min(it.text.length - 1, Math.max(0, start) + (e.charIndex ?? 0))
+        const ci = Math.max(0, Math.min(e.charIndex ?? 0, said.length))
+        c.offset = Math.min(it.text.length - 1, Math.max(0, start) + (toShown[ci] ?? 0))
         c.onWord?.(it.section, it.base + c.offset, endAt) // ไฮไลต์คำที่กำลังอ่าน (เครื่องที่รองรับ)
       }
       u.lang = lang

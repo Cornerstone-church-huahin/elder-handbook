@@ -176,7 +176,7 @@ function OccasionView() {
   return (
     <div className="occ" ref={topRef}>
       <p className="bible__crumb"><Link to={o.kind === 'rite' ? '/service' : '/occasions'}>{o.kind === 'rite' ? 'เตรียมพิธี' : 'วันสำคัญ'}</Link></p>
-      <h1 className="occ-title"><span aria-hidden="true">{o.icon}</span> {o.title}</h1>
+      <h1 className="occ-title"><span aria-hidden="true">{o.icon}</span> {S(o.title, 'title')}</h1>
       <p className="occ-sub">{o.sub}</p>
       {next && (
         <label className="story__auto">
