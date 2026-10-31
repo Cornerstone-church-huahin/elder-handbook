@@ -16,6 +16,8 @@ import JoinPage from './pages/Join'
 import ElderDutiesPage from './pages/ElderDuties'
 import UrgentScriptsPage from './pages/UrgentScripts'
 import QaPage from './pages/QaPage'
+import ListenArticlesPage from './pages/ListenArticles'
+import MemoryVersesPage from './pages/MemoryVerses'
 import MinutesPage from './pages/Minutes'
 import MeetingsHub from './pages/MeetingsHub'
 import MeetingSchedulePage from './pages/MeetingSchedule'
@@ -34,6 +36,9 @@ export default function App() {
           <Route index element={<Home />} />
           <Route path="scripts" element={<UrgentScriptsPage />} />
           <Route path="qa" element={<QaPage />} />
+          <Route path="listen" element={<ListenArticlesPage />} />
+          <Route path="memorize" element={<MemoryVersesPage />} />
+          <Route path="tab3" element={<ComingSoon icon="📌" title="แท็บ 3" note="ว่างไว้ก่อน — รอกำหนดหน้าที่" />} />
           <Route path="meetings" element={<MeetingsHub />} />
           <Route path="meetings/minutes" element={<MinutesPage />} />
           <Route path="meetings/schedule" element={<MeetingSchedulePage />} />
