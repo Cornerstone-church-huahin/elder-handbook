@@ -77,8 +77,34 @@ function chunks(text: string): string[] {
  * จึงเปิดเสียงเงียบวนไว้ + แจ้งระบบว่า "กำลังเล่นสื่อ" (Media Session) เพื่อไม่ให้ระบบพักแอป
  */
 let keep: HTMLAudioElement | null = null
+let lock: { release: () => Promise<void> } | null = null
+let lockWanted = false
+/** กันจอดับระหว่างฟัง (เครื่องที่รองรับ) · ถ้าผู้ใช้กดล็อกเครื่องเอง ระบบปล่อยล็อกให้ แล้วเสียงเงียบ+Media Session ทำหน้าที่ต่อ */
+function wakeLock(on: boolean) {
+  lockWanted = on
+  const nav = navigator as Navigator & { wakeLock?: { request: (t: 'screen') => Promise<{ release: () => Promise<void> }> } }
+  if (!on) {
+    lock?.release().catch(() => {})
+    lock = null
+    return
+  }
+  if (lock || !nav.wakeLock) return
+  nav.wakeLock.request('screen').then((l) => (lock = l)).catch(() => {})
+}
+// กลับมาที่แอป: ขอ Wake Lock ใหม่ (ระบบปล่อยทุกครั้งที่จอดับ) · ออกไปเบื้องหลัง: ตรวจว่าเสียงเงียบยังเล่นอยู่
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (!lockWanted) return
+    if (document.visibilityState === 'visible') {
+      lock = null
+      wakeLock(true)
+    }
+    if (keep?.paused) void keep.play().catch(() => {})
+  })
+}
 function keepAlive(on: boolean, ctl?: { pause: () => void; resume: () => void; stop: () => void }) {
   try {
+    wakeLock(on)
     if (!on) {
       keep?.pause()
       if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'none'
@@ -90,9 +116,11 @@ function keepAlive(on: boolean, ctl?: { pause: () => void; resume: () => void; s
       w(0, 'RIFF'); buf.setUint32(4, 36 + n * 2, true); w(8, 'WAVEfmt '); buf.setUint32(16, 16, true); buf.setUint16(20, 1, true)
       buf.setUint16(22, 1, true); buf.setUint32(24, 8000, true); buf.setUint32(28, 16000, true); buf.setUint16(32, 2, true); buf.setUint16(34, 16, true)
       w(36, 'data'); buf.setUint32(40, n * 2, true)
-      for (let i = 0; i < n; i++) buf.setInt16(44 + i * 2, i % 2 ? 1 : -1, true) // เสียงเบามาก (ไม่ได้ยิน)
+      // เสียงต่ำ 25 Hz เบามาก (ใต้ระดับที่หูได้ยิน แต่ระบบนับว่า "มีเสียงเล่นอยู่" ต่างจากค่าศูนย์/±1 ที่ Chrome ถือว่าเงียบแล้วพักแอปตอนจอดับ)
+      for (let i = 0; i < n; i++) buf.setInt16(44 + i * 2, Math.round(Math.sin((2 * Math.PI * 25 * i) / 8000) * 400), true)
       keep = new Audio(URL.createObjectURL(new Blob([buf], { type: 'audio/wav' })))
       keep.loop = true
+      keep.volume = 0.05 // ลดระดับลงอีก (หูไม่ได้ยิน)
     }
     void keep.play().catch(() => {})
     if ('mediaSession' in navigator) {
