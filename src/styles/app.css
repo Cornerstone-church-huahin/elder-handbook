@@ -1421,3 +1421,25 @@ mark{background:#ffe38a;color:inherit;border-radius:3px;padding:0 .1rem}
 .mt-addtask{display:grid;grid-template-columns:1fr auto;gap:.4rem}
 .mt-addtask .us-input:first-child{grid-column:1/2}
 .mt-addtask .btn{grid-row:1/3;grid-column:2}
+
+/* แถบทางลัดหน้าแรก 6 ปุ่ม (3×2) — ปุ่มเล็กลงเพื่อไม่เสียพื้นที่เดิมมาก */
+.greeting__btns{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.35rem;width:100%;justify-content:stretch}
+.greeting__btns .urgent-btn{flex:none;min-height:34px;padding:0 .35rem;font-size:.78rem;gap:.25rem;justify-content:center;min-width:0;overflow:hidden}
+.greeting__btns .urgent-btn{white-space:normal;line-height:1.1;text-align:center;font-size:.76rem}
+.greeting__btns .urgent-btn span:last-child{overflow-wrap:anywhere}
+.listen-btn{background:#1f6f5c;border-color:#1f6f5c;color:#fff}
+.memo-btn{background:#5b3f8c;border-color:#5b3f8c;color:#fff}
+.tab3-btn{background:var(--surface-2);border-color:var(--line);color:var(--ink);box-shadow:none}
+/* ฟังบทความ / ท่องจำพระคัมภีร์ */
+.lc{display:flex;flex-direction:column;gap:.5rem;margin-bottom:.7rem}
+.lc__row{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem}
+.lc__row--tools{justify-content:space-between}
+.lc__play{flex:1 1 auto;min-height:48px;font-size:1.05rem}
+.lc__hint{margin:0;font-size:.82rem;color:var(--ink-soft)}
+.lc__add{width:100%;margin-bottom:.6rem}
+.lc-head{display:flex;align-items:center;gap:.4rem}
+.lc-head .qa-q{flex:1;min-width:0}
+.lc-check{flex:none;display:grid;place-items:center;width:44px;height:44px;cursor:pointer}
+.lc-check input{width:1.4rem;height:1.4rem;accent-color:var(--navy)}
+.lc-preview{margin:0 0 .3rem 2.9rem;font-size:.82rem;color:var(--ink-soft);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.lc-card.us-card--fold{padding:.1rem .6rem .2rem 0}

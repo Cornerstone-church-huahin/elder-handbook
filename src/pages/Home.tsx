@@ -40,6 +40,9 @@ export default function Home() {
           {(role === 'admin' || role === 'editor') && <Link to="/scripts" className="urgent-btn"><span aria-hidden="true">🚨</span><span>สคริปต์ด่วน</span></Link>}
           {(role === 'admin' || role === 'editor') && <Link to="/qa" className="urgent-btn qa-btn"><span aria-hidden="true">💬</span><span>ถามตอบ</span></Link>}
           <Link to="/meetings" className="urgent-btn mt-btn"><span aria-hidden="true">🗓️</span><span>การประชุม</span></Link>
+          <Link to="/listen" className="urgent-btn listen-btn"><span aria-hidden="true">🎧</span><span>ฟังบทความ</span></Link>
+          <Link to="/memorize" className="urgent-btn memo-btn"><span aria-hidden="true">📖</span><span>ท่องจำพระคัมภีร์</span></Link>
+          <Link to="/tab3" className="urgent-btn tab3-btn"><span aria-hidden="true">📌</span><span>แท็บ 3</span></Link>
         </div>
       </div>
 
