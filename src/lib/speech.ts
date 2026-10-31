@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { applyPron, getVoicePrefs } from './voicePrefs'
+import { cloudAvailable, markCloudFailed, synthesize } from './cloudVoice'
 
 /**
  * อ่านออกเสียงภาษาไทยด้วยระบบของมือถือเอง (Web Speech API) — ฟรี ไม่ใช้บริการอื่น
@@ -136,6 +137,31 @@ function keepAlive(on: boolean, ctl?: { pause: () => void; resume: () => void; s
   } catch { /* ignore */ }
 }
 
+
+/** ตัวเล่นไฟล์เสียง (ใช้ element เดียวตลอด เพื่อให้ระบบนับเป็น "กำลังเล่นสื่อ" ต่อเนื่องแม้จอดับ) */
+let cloudEl: HTMLAudioElement | null = null
+let cloudUrl = ''
+const cloudAudio = () => (cloudEl ??= new Audio())
+function playClip(blob: Blob, rate: number, onTime: (frac: number) => void, onCancel: (cancel: () => void) => void): Promise<'end' | 'stop' | 'error'> {
+  const a = cloudAudio()
+  if (cloudUrl) URL.revokeObjectURL(cloudUrl)
+  cloudUrl = URL.createObjectURL(blob)
+  a.src = cloudUrl
+  a.playbackRate = Math.max(0.5, rate) // ต่ำกว่า 0.5 บางเครื่องไม่มีเสียง
+  a.preservesPitch = true
+  return new Promise((res) => {
+    const done = (r: 'end' | 'stop' | 'error') => {
+      a.onended = a.onerror = a.ontimeupdate = null
+      res(r)
+    }
+    a.onended = () => done('end')
+    a.onerror = () => done('error')
+    a.ontimeupdate = () => a.duration > 0 && onTime(a.currentTime / a.duration)
+    onCancel(() => done('stop'))
+    a.play().catch(() => done('error'))
+  })
+}
+
 type Item = { text: string; section: string; first: boolean; base: number; say?: (s: string) => string }
 export type SpeechSection = { id: string; text: string; say?: (s: string) => string }
 
@@ -162,10 +188,19 @@ export function useSpeech(lang = 'th-TH') {
   const watch = useRef<number | undefined>(undefined)
   const [me0] = useState(() => Symbol('speech'))
   const loop = useRef(false)
+  const cloud = useRef<{ paused: boolean; cancel?: () => void } | null>(null) // เล่นแบบไฟล์เสียงอยู่
   const [looping, setLoopState] = useState(false)
   const setLoop = (v: boolean) => {
     loop.current = v
     setLoopState(v)
+  }
+
+  const stopCloud = () => {
+    if (!cloud.current) return
+    cloudEl?.pause()
+    cloud.current.cancel?.()
+    cloud.current = null
+    if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'none'
   }
 
   /** หยุดทั้งหมด (ล้างตำแหน่ง) */
@@ -175,6 +210,7 @@ export function useSpeech(lang = 'th-TH') {
     window.clearInterval(watch.current)
     if (canSpeak()) window.speechSynthesis.cancel()
     keepAlive(false)
+    stopCloud()
     setSpeaking(false)
     setPaused(false)
   }, [])
@@ -187,7 +223,104 @@ export function useSpeech(lang = 'th-TH') {
    */
   const play = useCallback(() => {
     const cur = q.current
-    if (!cur || !canSpeak()) return
+    if (!cur) return
+    // ฟังต่อหลังหยุดชั่วคราว (แบบไฟล์เสียง): เล่นต่อจากวินาทีเดิม
+    if (cloud.current?.paused) {
+      cloud.current.paused = false
+      void cloudEl?.play().catch(() => {})
+      setSpeaking(true)
+      setPaused(false)
+      return
+    }
+    if (cloudAvailable() && !cloud.current) {
+      window.dispatchEvent(new CustomEvent('khatha-speech', { detail: me0 }))
+      const id = ++run.current
+      stopCloud()
+      cloud.current = { paused: false }
+      setNoVoice(false)
+      setSpeaking(true)
+      setPaused(false)
+      if ('mediaSession' in navigator) {
+        const ms = navigator.mediaSession
+        ms.metadata = new MediaMetadata({ title: 'กำลังอ่านออกเสียง', artist: 'คู่มือผู้ปกครอง' })
+        ms.playbackState = 'playing'
+        ms.setActionHandler('pause', () => pauseRef.current())
+        ms.setActionHandler('play', () => playRef.current())
+        ms.setActionHandler('stop', () => stopRef.current())
+      }
+      void (async () => {
+        const GROUP = 220 // รวมวลีสั้น ๆ เป็นก้อนละไม่เกิน ~220 ตัวอักษร (เรียก Gemini น้อยครั้ง ไหลลื่นกว่า)
+        const group = (c: NonNullable<typeof q.current>, pos: number) => {
+          const its: Item[] = []
+          let len = 0
+          for (let k = pos; k < c.items.length; k++) {
+            const it = c.items[k]
+            if (its.length && (it.section !== its[0].section || len + it.text.length > GROUP)) break
+            its.push(it)
+            len += it.text.length
+          }
+          const parts = its.map((it, k) => {
+            const rest = k === 0 && c.offset > 0 ? it.text.slice(Math.min(c.offset, it.text.length - 1)) : it.text
+            const said0 = it.say ? it.say(rest) : rest
+            return lang.startsWith('th') ? applyPron(said0) : said0
+          })
+          return { its, text: parts.join(' '), lens: its.map((it) => it.text.length), len }
+        }
+        try {
+          let c = q.current
+          let pending: { pos: number; text: string; p: Promise<Blob> } | null = null
+          while (id === run.current && c) {
+            if (c.pos >= c.items.length && loop.current) {
+              c.pos = 0
+              c.offset = 0
+            }
+            if (c.pos >= c.items.length) break
+            const g = group(c, c.pos)
+            const mine = pending && pending.pos === c.pos && pending.text === g.text ? pending.p : synthesize(g.text)
+            const after = c.pos + g.its.length
+            const ng = after < c.items.length ? group({ ...c, offset: 0 }, after) : null
+            pending = ng ? { pos: after, text: ng.text, p: synthesize(ng.text) } : null // โหลดก้อนถัดไปล่วงหน้า ระหว่างฟังก้อนนี้
+            pending?.p.catch(() => {})
+            if (g.its[0].first && c.offset === 0) c.onSection?.(g.its[0].section)
+            const blob = await mine
+            if (id !== run.current) return
+            const total = g.lens.reduce((a, b) => a + b, 0) || 1
+            const r = await playClip(blob, rate, (frac) => {
+              // ไฮไลต์ตามเวลาโดยประมาณ: เสียงก้อนนี้อ่านไปกี่ส่วน → ตรงกับวลีไหน/ตำแหน่งไหน
+              let at = frac * total
+              for (let k = 0; k < g.its.length; k++) {
+                if (at <= g.lens[k] || k === g.its.length - 1) {
+                  const it = g.its[k]
+                  c!.onWord?.(it.section, it.base + Math.min(it.text.length - 1, Math.floor(Math.max(0, at))), it.base + it.text.length)
+                  break
+                }
+                at -= g.lens[k]
+              }
+            }, (cancel) => {
+              if (cloud.current) cloud.current.cancel = cancel
+            })
+            if (id !== run.current || r === 'stop') return
+            if (r === 'error') throw new Error('เล่นไฟล์เสียงไม่ได้')
+            c.pos = after
+            c.offset = 0
+            c = q.current
+          }
+          if (id === run.current) {
+            q.current = null
+            stopCloud()
+            setSpeaking(false)
+          }
+        } catch (e) {
+          if (id !== run.current) return
+          // เรียก Gemini ไม่ได้ (คีย์ผิด โควต้าหมด ไม่มีเน็ต) → ใช้เสียงอ่านของมือถือต่อจากจุดเดิม
+          markCloudFailed(e instanceof Error ? e.message : String(e))
+          stopCloud()
+          playRef.current()
+        }
+      })()
+      return
+    }
+    if (!canSpeak()) return
     const synth = window.speechSynthesis
     window.dispatchEvent(new CustomEvent('khatha-speech', { detail: me0 })) // ให้ปุ่มฟังอื่นในหน้าหยุดก่อน (อ่านทีละแหล่ง)
     const id = ++run.current
@@ -269,6 +402,14 @@ export function useSpeech(lang = 'th-TH') {
   /** หยุดชั่วคราว: จำคำที่กำลังอ่านไว้ กดฟังต่อจะอ่านต่อจากตรงนั้น */
   const pause = useCallback(() => {
     if (!q.current) return
+    if (cloud.current) {
+      cloud.current.paused = true
+      cloudEl?.pause()
+      if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'
+      setSpeaking(false)
+      setPaused(true)
+      return
+    }
     run.current++
     window.clearInterval(watch.current)
     if (canSpeak()) window.speechSynthesis.cancel()
@@ -330,6 +471,7 @@ export function useSpeech(lang = 'th-TH') {
       run.current++
       q.current = null
       window.clearInterval(watch.current)
+      stopCloud()
       setSpeaking(false)
       setPaused(false)
     }
@@ -340,6 +482,7 @@ export function useSpeech(lang = 'th-TH') {
       run.current++
       if (q.current && canSpeak()) window.speechSynthesis.cancel()
       if (q.current) keepAlive(false)
+      stopCloud()
     }
   }, [me0])
 
