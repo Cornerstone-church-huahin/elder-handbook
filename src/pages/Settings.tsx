@@ -1,3 +1,4 @@
+import { CLOUD_VOICES, getCloudPrefs, hasGeminiKey, lastCloudError, setCloudPrefs } from '../lib/cloudVoice'
 import { Link } from 'react-router-dom'
 import { FONT_SCALES, useFontScale } from '../lib/prefs'
 import { useElderDuties } from '../lib/elderDuties'
@@ -281,6 +282,12 @@ function VoiceSettings() {
   const en = useSpeech('en-US')
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
   const [prefs, setPrefs] = useState(getVoicePrefs())
+  const [cloud, setCloud] = useState(getCloudPrefs())
+  const updateCloud = (p: Partial<typeof cloud>) => {
+    setCloudPrefs(p)
+    setCloud(getCloudPrefs())
+    th.stop()
+  }
   useEffect(() => {
     if (!('speechSynthesis' in window)) return
     const load = () => setVoices(window.speechSynthesis.getVoices())
@@ -300,6 +307,27 @@ function VoiceSettings() {
   const label = (v: SpeechSynthesisVoice) => `${v.name}${v.localService ? '' : ' (ออนไลน์)'}`
   return (
     <Fold title="🗣️ เสียงผู้อ่าน" className="voice-settings">
+      <div className="voice-cloud">
+        <label className="voice-row">
+          <span>🔊 ฟังต่อเนื่องแม้จอดับ (สร้างเสียงด้วย Gemini)</span>
+          <input type="checkbox" id="cloud-on" checked={cloud.on} onChange={(e) => updateCloud({ on: e.target.checked })} />
+        </label>
+        {!hasGeminiKey() && <p className="source-note">ต้องใส่คีย์ Gemini ที่ ตั้งค่า › ผู้ช่วย AI ก่อน จึงจะใช้ได้ — ตอนนี้ยังใช้เสียงของมือถือซึ่งจะหยุดเมื่อจอดับ</p>}
+        {hasGeminiKey() && cloud.on && (
+          <>
+            <label className="voice-row">
+              <span>เสียง</span>
+              <select id="cloud-voice" value={cloud.voice} onChange={(e) => updateCloud({ voice: e.target.value })}>
+                {CLOUD_VOICES.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
+              </select>
+            </label>
+            <p className="source-note">
+              โหมดนี้เล่นเป็นไฟล์เสียง ปุ่มทุ้ม/แหลมด้านล่างจึงไม่มีผล · ต้องมีอินเทอร์เน็ตตอนกดฟังครั้งแรก (ข้อความที่เคยฟังแล้วเก็บไว้ในเครื่อง) · ใช้โควต้า Gemini ของคุณ
+              {lastCloudError() ? ` · ครั้งล่าสุดเรียก Gemini ไม่ได้ (${lastCloudError()}) จึงใช้เสียงมือถือแทน` : ''}
+            </p>
+          </>
+        )}
+      </div>
       <label className="voice-row">
         <span>เสียงภาษาไทย</span>
         <select id="voice-th" value={prefs.th ?? ''} onChange={(e) => update({ th: e.target.value || undefined })}>
