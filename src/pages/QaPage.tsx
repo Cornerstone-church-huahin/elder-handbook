@@ -4,6 +4,7 @@ import { IconSearch } from '../components/Icons'
 import SharedSyncLine from '../components/SharedSyncLine'
 import { useTeamStore } from '../lib/privateStore'
 import { useSpeech } from '../lib/speech'
+import ListenSettings, { PickBox, useListenPicks } from '../components/ListenSettings'
 import type { SharedItem } from '../lib/sync'
 
 /** ถามตอบ — เก็บคำถามที่มีคนถามมากับคำตอบของท่าน ค้นหาได้ทั้งคำถามและคำตอบ */
@@ -19,6 +20,7 @@ const newId = () => `qa_${Date.now().toString(36)}${Math.random().toString(36).s
 export default function QaPage() {
   const store = useTeamStore<QaItem>({ key: 'khatha.qa.v1', name: 'qa', label: 'ถามตอบ' })
   const tts = useSpeech('th-TH')
+  const picks = useListenPicks('qa')
   const [q, setQ] = useState('')
   const [tagF, setTagF] = useState('')
   const [editId, setEditId] = useState<string | null>(null)
@@ -65,14 +67,16 @@ export default function QaPage() {
     window.setTimeout(() => setNote(''), 2200)
   }
   const secs = (s: QaItem, n: number) => [{ id: `${s.id}|q`, text: `ข้อที่ ${n} คำถาม ${s.q}.` }, { id: `${s.id}|a`, text: s.a ? `คำตอบ ${s.a}` : '' }].filter((x) => x.text.trim() && x.text.trim() !== '.')
-  const playFrom = (i: number) => {
-    const scripts = shown.slice(Math.max(0, i))
+  // ติ๊กการ์ดไว้ → เล่นเฉพาะที่ติ๊ก (ไม่ติ๊ก = ทั้งหมด)
+  const pool = picks.count ? shown.filter((x) => picks.has(x.id)) : shown
+  const queueFrom = (id: string) => { const q = picks.count ? shown.filter((x) => picks.has(x.id) || x.id === id) : shown; return q.slice(Math.max(0, q.findIndex((x) => x.id === id))) }
+  const play = (scripts: QaItem[]) => {
     if (!tts.supported || !scripts.length) return
     setCur(scripts[0].id)
     tts.speakSections(scripts.flatMap((x) => secs(x, list.findIndex((y) => y.id === x.id) + 1)), (sid) => setCur(String(sid).split('|')[0]))
   }
-  const curIdx = shown.findIndex((s) => s.id === cur)
-  const stepTo = (d: number) => { const i = curIdx < 0 ? 0 : curIdx + d; if (i >= 0 && i < shown.length) playFrom(i) }
+  const curIdx = pool.findIndex((s) => s.id === cur)
+  const stepTo = (d: number) => { const i = curIdx < 0 ? 0 : curIdx + d; if (i >= 0 && i < pool.length) play(pool.slice(i)) }
   useEffect(() => {
     if (!active || !cur) return
     document.getElementById(`qa-${cur}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
@@ -136,11 +140,11 @@ export default function QaPage() {
                 ? <button type="button" className="nb-fab__btn nb-fab__btn--stop" onClick={tts.pause} aria-label="หยุดชั่วคราว">⏸ หยุด</button>
                 : <button type="button" className="nb-fab__btn" onClick={tts.resume} aria-label="ฟังต่อ">▶ ต่อ</button>}
               <button type="button" className="nb-fab__btn" disabled={curIdx <= 0} onClick={() => stepTo(-1)} aria-label="ข้อก่อนหน้า">⏮</button>
-              <button type="button" className="nb-fab__btn" disabled={curIdx < 0 || curIdx >= shown.length - 1} onClick={() => stepTo(1)} aria-label="ข้อถัดไป">⏭</button>
+              <button type="button" className="nb-fab__btn" disabled={curIdx < 0 || curIdx >= pool.length - 1} onClick={() => stepTo(1)} aria-label="ข้อถัดไป">⏭</button>
               <button type="button" className="nb-fab__btn" onClick={tts.stop} aria-label="หยุดเลย">⏹</button>
             </>
           ) : (
-            <button type="button" className="nb-fab__btn" disabled={!shown.length} onClick={() => playFrom(0)} aria-label="ฟังทั้งหมดต่อเนื่อง">▶ ฟังทั้งหมด</button>
+            <button type="button" className="nb-fab__btn" disabled={!pool.length} onClick={() => play(pool)} aria-label="ฟังทั้งหมดต่อเนื่อง">{picks.count ? `▶ ฟังที่เลือก (${pool.length})` : '▶ ฟังทั้งหมด'}</button>
           )}
         </div>, slot)}
       {note && <p className="nb-sync nb-sync--ok" role="status">{note}</p>}
@@ -163,6 +167,7 @@ export default function QaPage() {
               {editId === s.id ? formView : (
                 <>
                   <div className="us-head">
+                    {tts.supported && <PickBox picks={picks} id={s.id} label={s.q} />}
                     <button type="button" className="qa-q" aria-expanded={isOpen} onClick={() => setOpen({ ...open, [s.id]: !open[s.id] })}>
                     <span className="qa-q__t">{s.q}</span>
                     {s.tag && <span className="badge">{s.tag}</span>}
@@ -170,7 +175,7 @@ export default function QaPage() {
                   </button>
                     {isOpen && tts.supported && (on
                       ? <button type="button" className="us-play us-play--on" onClick={tts.stop} aria-label="หยุดอ่าน">⏹ หยุด</button>
-                      : <button type="button" className="us-play" onClick={() => playFrom(shown.findIndex((x) => x.id === s.id))} aria-label="ฟังต่อเนื่องตั้งแต่นี้">▶ ฟังต่อเนื่อง</button>)}
+                      : <button type="button" className="us-play" onClick={() => play(queueFrom(s.id))} aria-label="ฟังต่อเนื่องตั้งแต่นี้">▶ ฟังต่อเนื่อง</button>)}
                   </div>
                   {isOpen && (
                     <>
@@ -197,6 +202,9 @@ export default function QaPage() {
           )
         })}
       </ul>
+
+      {list.length > 0 && tts.supported && <ListenSettings tts={tts} picks={picks} ids={shown.map((x) => x.id)} />}
+
       <SharedSyncLine sync={store.sync} items={list} onRetry={store.syncNow} />
       <p className="source-note">คำถาม-คำตอบใช้ร่วมกันระหว่างแอดมินและผู้ที่มีสิทธิ์ “แก้ไขได้” (แก้ได้ทุกคน) · ผู้ที่ “ดูและฟังอย่างเดียว” ไม่เห็น</p>
     </>

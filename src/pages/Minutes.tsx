@@ -6,6 +6,7 @@ import { useRole } from '../lib/members'
 import { cleanName, extractText, MAX_FILE_MB, safeName, sizeLabel } from '../lib/meetingFiles'
 import { useSharedStore } from '../lib/sharedStore'
 import { useSpeech } from '../lib/speech'
+import ListenSettings, { PickBox, useListenPicks } from '../components/ListenSettings'
 import { getBinary, getSync, putBinary, type SharedItem } from '../lib/sync'
 
 /**
@@ -78,6 +79,7 @@ export default function MinutesPage() {
   const [tx, setTx] = useState<Record<string, string>>({}) // ข้อความไฟล์ที่กำลังแก้ (ยังไม่บันทึก)
   const cfg = getSync()
   const tts = useSpeech('th-TH')
+  const picks = useListenPicks('minutes')
   const [cur, setCur] = useState<string | null>(null)
   const [slot, setSlot] = useState<HTMLElement | null>(null)
   useEffect(() => setSlot(document.getElementById('topbar-slot')), [])
@@ -100,14 +102,16 @@ export default function MinutesPage() {
     m.files.forEach((f, i) => f.text && add(`f${i}`, `ข้อความจากไฟล์ ${disp(f)}.\n${f.text}`))
     return out
   }
-  const playFrom = (i: number) => {
-    const ms = shown.slice(Math.max(0, i))
+  // ติ๊กการ์ดไว้ → เล่นเฉพาะที่ติ๊ก (ไม่ติ๊ก = ทั้งหมด)
+  const pool = picks.count ? shown.filter((x) => picks.has(x.id)) : shown
+  const queueFrom = (id: string) => { const q = picks.count ? shown.filter((x) => picks.has(x.id) || x.id === id) : shown; return q.slice(Math.max(0, q.findIndex((x) => x.id === id))) }
+  const play = (ms: typeof shown) => {
     if (!tts.supported || !ms.length) return
     setCur(ms[0].id)
     tts.speakSections(ms.flatMap(secs), (sid) => setCur(String(sid).split('|')[0]))
   }
-  const curIdx = shown.findIndex((m) => m.id === cur)
-  const stepTo = (d: number) => { const i = curIdx < 0 ? 0 : curIdx + d; if (i >= 0 && i < shown.length) playFrom(i) }
+  const curIdx = pool.findIndex((m) => m.id === cur)
+  const stepTo = (d: number) => { const i = curIdx < 0 ? 0 : curIdx + d; if (i >= 0 && i < pool.length) play(pool.slice(i)) }
   useEffect(() => {
     if (!active || !cur) return
     document.getElementById(`mt-${cur}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' })
@@ -309,11 +313,11 @@ export default function MinutesPage() {
                 ? <button type="button" className="nb-fab__btn nb-fab__btn--stop" onClick={tts.pause} aria-label="หยุดชั่วคราว">⏸ หยุด</button>
                 : <button type="button" className="nb-fab__btn" onClick={tts.resume} aria-label="ฟังต่อ">▶ ต่อ</button>}
               <button type="button" className="nb-fab__btn" disabled={curIdx <= 0} onClick={() => stepTo(-1)} aria-label="การประชุมก่อนหน้า">⏮</button>
-              <button type="button" className="nb-fab__btn" disabled={curIdx < 0 || curIdx >= shown.length - 1} onClick={() => stepTo(1)} aria-label="การประชุมถัดไป">⏭</button>
+              <button type="button" className="nb-fab__btn" disabled={curIdx < 0 || curIdx >= pool.length - 1} onClick={() => stepTo(1)} aria-label="การประชุมถัดไป">⏭</button>
               <button type="button" className="nb-fab__btn" onClick={tts.stop} aria-label="หยุดเลย">⏹</button>
             </>
           ) : (
-            <button type="button" className="nb-fab__btn" onClick={() => playFrom(0)} aria-label="ฟังทั้งหมดต่อเนื่อง">▶ ฟังทั้งหมด</button>
+            <button type="button" className="nb-fab__btn" disabled={!pool.length} onClick={() => play(pool)} aria-label="ฟังทั้งหมดต่อเนื่อง">{picks.count ? `▶ ฟังที่เลือก (${pool.length})` : '▶ ฟังทั้งหมด'}</button>
           )}
         </div>, slot)}
 
@@ -340,6 +344,7 @@ export default function MinutesPage() {
               {draft?.id === m.id && !isNew ? form : (
                 <>
 <div className="us-head">
+                  {tts.supported && <PickBox picks={picks} id={m.id} label={m.title} />}
                   <button type="button" className="qa-q" aria-expanded={isOpen} onClick={() => setOpen({ ...open, [m.id]: !open[m.id] })}>
                     <span className="qa-q__t">{m.title}</span>
                     <span className="badge">{thaiDate(m.date)}</span>
@@ -348,7 +353,7 @@ export default function MinutesPage() {
                   </button>
                     {tts.supported && (active && cur === m.id
                       ? <button type="button" className="us-play us-play--on" onClick={tts.stop} aria-label="หยุดอ่าน">⏹ หยุด</button>
-                      : <button type="button" className="us-play" onClick={() => playFrom(shown.findIndex((x) => x.id === m.id))} aria-label={`ฟังต่อเนื่องตั้งแต่ ${m.title}`}>▶ ฟัง</button>)}
+                      : <button type="button" className="us-play" onClick={() => play(queueFrom(m.id))} aria-label={`ฟังต่อเนื่องตั้งแต่ ${m.title}`}>▶ ฟัง</button>)}
                   </div>
                   {isOpen && (
                     <>
@@ -424,6 +429,8 @@ export default function MinutesPage() {
           )
         })}
       </ul>
+
+      {list.length > 0 && tts.supported && <ListenSettings tts={tts} picks={picks} ids={shown.map((x) => x.id)} />}
 
       <SharedSyncLine sync={store.sync} items={list} onRetry={store.syncNow} />
       <p className="source-note">ทุกคนในกลุ่มเห็นและดาวน์โหลดได้ · เพิ่ม/แก้ไข/ลบ: แอดมินและผู้ที่มีสิทธิ์ “แก้ไขได้” · ไฟล์เก็บใน repo ข้อมูลส่วนตัวของกลุ่ม (ไม่ใช่ที่สาธารณะ) · ลบการประชุมแล้ว ไฟล์ใน repo ยังอยู่ (ลบเองได้ที่ GitHub ถ้าต้องการ)</p>

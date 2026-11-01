@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom'
 import { IconSearch } from '../components/Icons'
 import SharedSyncLine from '../components/SharedSyncLine'
 import { useTeamStore } from '../lib/privateStore'
-import { RATES, useSpeech } from '../lib/speech'
+import { useSpeech } from '../lib/speech'
+import ListenSettings, { PickBox, useListenPicks } from '../components/ListenSettings'
 import type { SharedItem } from '../lib/sync'
 
 /**
@@ -23,6 +24,7 @@ const newId = () => `us_${Date.now().toString(36)}${Math.random().toString(36).s
 export default function UrgentScriptsPage() {
   const store = useTeamStore<ScriptItem>({ key: 'khatha.urgentScripts.v1', name: 'urgent-scripts', label: 'สคริปต์ด่วน' })
   const tts = useSpeech('th-TH')
+  const picks = useListenPicks('scripts')
   const [q, setQ] = useState('')
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState({ title: '', tag: '', body: '' })
@@ -38,7 +40,9 @@ export default function UrgentScriptsPage() {
   const needle = q.trim().toLowerCase()
   const shown = needle ? list.filter((s) => [s.title, s.tag, s.body].join('\n').toLowerCase().includes(needle)) : list
   const active = tts.speaking || tts.paused
-  const rateIdx = Math.max(0, RATES.findIndex((x) => x.rate === tts.rate))
+  // ติ๊กการ์ดไว้ → เล่นเฉพาะที่ติ๊ก (ไม่ติ๊ก = ทั้งหมด)
+  const pool = picks.count ? shown.filter((x) => picks.has(x.id)) : shown
+  const queueFrom = (id: string) => { const q = picks.count ? shown.filter((x) => picks.has(x.id) || x.id === id) : shown; return q.slice(Math.max(0, q.findIndex((x) => x.id === id))) }
 
   useEffect(() => {
     if (!active || !cur) return
@@ -54,11 +58,10 @@ export default function UrgentScriptsPage() {
     setCur(scripts[0].id)
     tts.speakSections(all, (sid) => setCur(String(sid).split('|')[0]))
   }
-  const playAllFrom = (i: number) => play(shown.slice(Math.max(0, i)))
-  const curIdx = shown.findIndex((s) => s.id === cur)
+  const curIdx = pool.findIndex((s) => s.id === cur)
   const stepTo = (d: number) => {
     const i = curIdx < 0 ? 0 : curIdx + d
-    if (i >= 0 && i < shown.length) playAllFrom(i)
+    if (i >= 0 && i < pool.length) play(pool.slice(i))
   }
 
   const openNew = () => { setEditId('new'); setForm({ title: '', tag: '', body: '' }); setErr(''); setDelId(null) }
@@ -140,11 +143,11 @@ export default function UrgentScriptsPage() {
                 ? <button type="button" className="nb-fab__btn nb-fab__btn--stop" onClick={tts.pause} aria-label="หยุดชั่วคราว">⏸ หยุด</button>
                 : <button type="button" className="nb-fab__btn" onClick={tts.resume} aria-label="ฟังต่อ">▶ ต่อ</button>}
               <button type="button" className="nb-fab__btn" disabled={curIdx <= 0} onClick={() => stepTo(-1)} aria-label="สคริปต์ก่อนหน้า">⏮</button>
-              <button type="button" className="nb-fab__btn" disabled={curIdx < 0 || curIdx >= shown.length - 1} onClick={() => stepTo(1)} aria-label="สคริปต์ถัดไป">⏭</button>
+              <button type="button" className="nb-fab__btn" disabled={curIdx < 0 || curIdx >= pool.length - 1} onClick={() => stepTo(1)} aria-label="สคริปต์ถัดไป">⏭</button>
               <button type="button" className="nb-fab__btn" onClick={tts.stop} aria-label="หยุดเลย">⏹</button>
             </>
           ) : (
-            <button type="button" className="nb-fab__btn" onClick={() => playAllFrom(0)} aria-label="ฟังทั้งหมดต่อเนื่อง">▶ ฟังทั้งหมด</button>
+            <button type="button" className="nb-fab__btn" disabled={!pool.length} onClick={() => play(pool)} aria-label="ฟังทั้งหมดต่อเนื่อง">{picks.count ? `▶ ฟังที่เลือก (${pool.length})` : '▶ ฟังทั้งหมด'}</button>
           )}
         </div>, slot)}
 
@@ -184,6 +187,7 @@ export default function UrgentScriptsPage() {
               {editId === s.id ? formView : (
                 <>
                   <div className="us-head">
+                    {tts.supported && <PickBox picks={picks} id={s.id} label={s.title} />}
                     <button type="button" className="qa-q" aria-expanded={isOpen} onClick={() => setOpen({ ...open, [s.id]: !open[s.id] })}>
                     <span className="qa-q__t">{s.title}</span>
                     {s.tag && <span className="badge">{s.tag}</span>}
@@ -191,7 +195,7 @@ export default function UrgentScriptsPage() {
                   </button>
                     {isOpen && tts.supported && (on
                       ? <button type="button" className="us-play us-play--on" onClick={tts.stop} aria-label="หยุดอ่าน">⏹ หยุด</button>
-                      : <button type="button" className="us-play" onClick={() => playAllFrom(shown.findIndex((x) => x.id === s.id))} aria-label="ฟังต่อเนื่องตั้งแต่นี้">▶ ฟังต่อเนื่อง</button>)}
+                      : <button type="button" className="us-play" onClick={() => play(queueFrom(s.id))} aria-label="ฟังต่อเนื่องตั้งแต่นี้">▶ ฟังต่อเนื่อง</button>)}
                   </div>
                   {isOpen && <p className="us-card__body">{s.body}</p>}
                   {!isOpen ? null : delId === s.id ? (
@@ -217,21 +221,7 @@ export default function UrgentScriptsPage() {
         })}
       </ol>
 
-      {list.length > 0 && tts.supported && (
-        <section className="card us-settings" aria-label="ตั้งค่าเสียงอ่าน">
-          <h2 className="section__title">⚙️ ตั้งค่าเสียงอ่าน</h2>
-          <label className="us-loop">
-            <input type="checkbox" checked={!!tts.looping} onChange={(e) => tts.setLoop(e.target.checked)} /> 🔁 วนอ่านซ้ำเมื่อจบ
-          </label>
-          <label className="nb-speed">
-            <span className="nb-speed__label">ความเร็วเสียง: <b>{RATES[rateIdx].label}</b></span>
-            <input type="range" min={0} max={RATES.length - 1} step={1} value={rateIdx} aria-valuetext={RATES[rateIdx].label}
-              onChange={(e) => { tts.setRate(RATES[+e.target.value].rate); tts.stop() }} />
-            <span className="nb-speed__ends" aria-hidden="true"><span>🐢 ช้าที่สุด</span><span>ปกติ</span></span>
-          </label>
-          {tts.noVoice && <p className="ai-keys__err">เครื่องนี้ยังไม่มีเสียงภาษาไทย · Android: ตั้งค่า › การจัดการทั่วไป › การอ่านออกเสียง › Google › ติดตั้งข้อมูลเสียงภาษาไทย</p>}
-        </section>
-      )}
+      {list.length > 0 && tts.supported && <ListenSettings tts={tts} picks={picks} ids={shown.map((x) => x.id)} />}
 
       <SharedSyncLine sync={store.sync} items={list} onRetry={store.syncNow} />
 
