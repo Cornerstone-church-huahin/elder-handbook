@@ -1509,3 +1509,23 @@ mark{background:#ffe38a;color:inherit;border-radius:3px;padding:0 .1rem}
 .bs__tag--found{background:transparent;border:1.5px solid var(--gold);color:inherit}
 .bs__saveall{display:flex;flex-wrap:wrap;gap:.6rem;align-items:flex-end}
 .bs__saveall .bs__cat{flex:1 1 9rem}
+
+/* แชร์ข้อพระคัมภีร์ + แถบลอกในค้นหา */
+.sv-modal{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center}
+.sv-card{width:100%;max-width:34rem;max-height:92vh;overflow:auto;background:var(--surface,#fff);color:inherit;border-radius:1rem 1rem 0 0;padding:.9rem 1rem 1.2rem;display:flex;flex-direction:column;gap:.5rem}
+.sv-head{display:flex;justify-content:space-between;align-items:center;gap:.5rem}
+.sv-h{margin:.4rem 0 0;font-weight:700}
+.sv-text{white-space:pre-wrap;font:inherit;margin:0;padding:.5rem .7rem;border:1px dashed var(--gold);border-radius:.6rem;max-height:9rem;overflow:auto;line-height:1.5}
+.sv-row{display:flex;flex-wrap:wrap;gap:.4rem}
+.sv-themes{display:flex;gap:.35rem;flex-wrap:wrap}
+.sv-theme{min-height:40px;padding:0 .8rem;border-radius:999px;border:2px solid transparent;font:inherit;font-size:.85rem;font-weight:700;cursor:pointer}
+.sv-theme--on{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold)}
+.sv-img{width:100%;max-height:60vh;object-fit:contain;border-radius:.6rem;background:#0002}
+.sv-chk{display:flex;align-items:center;gap:.4rem;min-height:40px}
+.sv-foot{display:flex;flex-direction:column;gap:.2rem;font-weight:700;font-size:.85rem}
+.sv-foot input{min-height:44px;padding:0 .7rem;border:1.5px solid var(--navy);border-radius:.6rem;background:var(--surface,#fff);color:inherit;font:inherit;font-weight:400}
+.bs{padding-bottom:5.5rem}
+.bs__float{position:fixed;left:.6rem;right:.6rem;bottom:calc(68px + env(safe-area-inset-bottom,0px));z-index:20;display:flex;justify-content:space-between;align-items:center;gap:.5rem;pointer-events:none}
+.bs__float>*{pointer-events:auto;box-shadow:0 2px 10px rgba(0,0,0,.25)}
+.bs__count{display:inline-flex;align-items:center;min-height:44px;padding:0 .9rem;border-radius:999px;background:var(--navy);color:#fff;font-weight:700}
+.bs__card-btns{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center}
