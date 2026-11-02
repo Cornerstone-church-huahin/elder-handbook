@@ -54,7 +54,7 @@ export type PronEditDetail = { text: string; start: number; end: number }
 export const openPronEditor = (d: PronEditDetail) => window.dispatchEvent(new CustomEvent<PronEditDetail>(PRON_EVENT, { detail: d }))
 /** กดค้างที่ข้อความ → แถบเครื่องมือ (TextTools ใน AppShell): ฟังจากตรงนี้ · คัดลอก · แชร์ · แก้คำอ่าน */
 export const TOOLS_EVENT = 'khatha-text-tools'
-/** ข้อพระคัมภีร์ (ถ้าข้อความนี้คือพระคำ) → ภาษาอังกฤษใช้ฉบับ WEB */
+/** ข้อพระคัมภีร์ (ถ้าข้อความนี้คือพระคำ) — ใช้ฉบับ 1971 ฉบับเดียว ไม่แปลอังกฤษ */
 export type VerseInfo = { book: number; ch: number; verses: number[] }
 export type ToolsDetail = PronEditDetail & { read?: () => void; verse?: VerseInfo }
 
