@@ -308,9 +308,11 @@ export function getAiProvider(): Promise<AiProvider | null> {
       const use = window.claude?.use
       if (typeof use !== 'function') {
         const st = getAiSettings()
-        const v = VENDORS.find((x) => x.id === st.vendor)!
-        const key = st.keys[st.vendor]
-        return key ? directProvider(st.vendor, key, st.models[st.vendor] || v.model) : null
+        // ใช้เจ้าที่เลือกไว้ก่อน ถ้าเจ้านั้นไม่มีคีย์ → ใช้เจ้าอื่นที่มีคีย์ (เช่น ใส่คีย์ Gemini ไว้แต่ตัวเลือกยังเป็น Claude)
+        const id = [st.vendor, ...VENDORS.map((x) => x.id)].find((x) => st.keys[x]?.trim())
+        if (!id) return null
+        const v = VENDORS.find((x) => x.id === id)!
+        return directProvider(id, st.keys[id]!.trim(), st.models[id] || v.model)
       }
       try {
         const sample = (await use.call(window.claude, 'sample')) as SampleFn | null
@@ -320,5 +322,7 @@ export function getAiProvider(): Promise<AiProvider | null> {
       }
     })()
   }
+  // ไม่จำผลลัพธ์ "ไม่มี AI" ไว้ — ใส่คีย์แล้วใช้ได้ทันทีโดยไม่ต้องรีโหลด
+  providerPromise.then((p) => { if (!p) providerPromise = null }).catch(() => { providerPromise = null })
   return providerPromise
 }
