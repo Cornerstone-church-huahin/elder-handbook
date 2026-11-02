@@ -1,10 +1,10 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
 import { parseRef, refUrl } from '../data/bible'
 import { Spoken, useFollow } from '../components/Spoken'
 import { autoCheer } from '../lib/cheer'
-import { cleanStory, refsWithSuggest, scoreNote, usePrayerNotebook, type NotePrayer } from '../lib/prayerNotebook'
+import { cleanStory, refsWithSuggest, scoreNote, useNotebookSpace, usePrayerNotebook, type NotebookApi, type NotePrayer } from '../lib/prayerNotebook'
 import type { SyncStatus } from '../lib/sync'
 import { speakableRef, useSpeech, type SpeechSection } from '../lib/speech'
 import { PrayerMode, useVerseTexts } from './Prayer'
@@ -14,8 +14,23 @@ const EMPTY: Draft = { title: '', category: '', ref1: '', ref2: '', ref3: '', re
 
 /** เตรียมคำอธิษฐาน — สมุดคำอธิษฐาน: ค้นหา · เปิดอ่าน · เพิ่ม · แก้ไข · ลบ (บันทึกในเครื่องนี้) */
 export default function PrayerNotebookPage() {
+  return <NotebookView nb={usePrayerNotebook()} />
+}
+
+/** สมุด 1/2/3 (หน้าแรก): หน้าตาและการทำงานเหมือนเตรียมคำอธิษฐานทุกอย่าง แต่เป็นสมุดว่างของตัวเอง */
+export const NOTEBOOK_SPACES = [1, 2, 3] as const
+export function NotebookSpacePage() {
+  const n = Number(useParams().n)
+  if (!NOTEBOOK_SPACES.includes(n as 1 | 2 | 3)) return <Navigate to="/" replace />
+  return <NotebookSpaceView n={n} key={n} />
+}
+function NotebookSpaceView({ n }: { n: number }) {
+  return <NotebookView nb={useNotebookSpace(n)} space={n} />
+}
+
+function NotebookView({ nb, space }: { nb: NotebookApi; space?: number }) {
   const [params, setParams] = useSearchParams()
-  const { list, saved, sync, syncNow, add, update, remove, restoreDefaults } = usePrayerNotebook()
+  const { list, saved, sync, syncNow, add, update, remove, restoreDefaults } = nb
   const [q, setQ] = useState(params.get('q') ?? '')
   const [open, setOpen] = useState<string | null>(params.get('open'))
   const [editing, setEditing] = useState<string | 'new' | null>(null)
@@ -109,8 +124,8 @@ export default function PrayerNotebookPage() {
   return (
     <>
       <div className="page-head nb-page-head">
-        <span className="page-icon" aria-hidden="true">🙏</span>
-        <h1>เตรียมคำอธิษฐาน</h1>
+        <span className="page-icon" aria-hidden="true">{space ? '📒' : '🙏'}</span>
+        <h1>{space ? `สมุด ${space}` : 'เตรียมคำอธิษฐาน'}</h1>
       </div>
 
       <div className="nb-bar">
@@ -132,7 +147,7 @@ export default function PrayerNotebookPage() {
         <p className="empty">กำลังเปิดสมุดคำอธิษฐาน…</p>
       ) : shown.length === 0 ? (
         <div className="card nb-empty">
-          <p>{query ? `ยังไม่มีคำอธิษฐานเรื่อง “${query}”` : 'ยังไม่มีคำอธิษฐานในสมุด'}</p>
+          <p>{query ? `ยังไม่มีคำอธิษฐานเรื่อง “${query}”` : space ? 'สมุดนี้ยังว่างอยู่ กด “＋ เพิ่ม” เพื่อเริ่มบันทึก' : 'ยังไม่มีคำอธิษฐานในสมุด'}</p>
           {editing !== 'new' && <button type="button" className="btn btn--gold" onClick={startNew}>＋ เพิ่มคำอธิษฐาน{query ? 'เรื่องนี้' : ''}</button>}
         </div>
       ) : (
@@ -166,7 +181,7 @@ export default function PrayerNotebookPage() {
 
       <SyncLine sync={sync} onRetry={syncNow} list={list ?? []} />
 
-      {list && !query && (
+      {list && !query && !space && (
         <button type="button" className="btn btn--ghost nb-restore edit-only" onClick={() => restoreDefaults()}>↺ นำคำอธิษฐานตั้งต้นที่ลบไปกลับมา</button>
       )}
 

@@ -40,6 +40,7 @@ export default function Home() {
           {(role === 'admin' || role === 'editor') && <Link to="/scripts" className="urgent-btn"><span aria-hidden="true">🚨</span><span>สคริปต์ด่วน</span></Link>}
           {(role === 'admin' || role === 'editor') && <Link to="/qa" className="urgent-btn qa-btn"><span aria-hidden="true">💬</span><span>ถามตอบ</span></Link>}
           <Link to="/meetings" className="urgent-btn mt-btn"><span aria-hidden="true">🗓️</span><span>การประชุม</span></Link>
+          {[1, 2, 3].map((n) => <Link key={n} to={`/notebook/${n}`} className="urgent-btn nbk-btn"><span aria-hidden="true">📒</span><span>สมุด {n}</span></Link>)}
         </div>
       </div>
 

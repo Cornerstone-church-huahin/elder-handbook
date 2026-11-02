@@ -11,7 +11,7 @@ import { PeopleCompare, PeopleHome, PersonPage } from './pages/People'
 import PersonStory from './pages/PersonStory'
 import { ManagementAsk, ManagementHome, ManagementTopic } from './pages/Management'
 import PrayerAiPage from './pages/Prayer'
-import PrayerNotebookPage from './pages/PrayerNotebook'
+import PrayerNotebookPage, { NotebookSpacePage } from './pages/PrayerNotebook'
 import JoinPage from './pages/Join'
 import ElderDutiesPage from './pages/ElderDuties'
 import UrgentScriptsPage from './pages/UrgentScripts'
@@ -49,6 +49,7 @@ export default function App() {
           <Route path="members" element={<ComingSoon icon="👤" title="สมาชิก" note="รายชื่อสมาชิกและประวัติการอภิบาลจะเปิดใช้หลังระบบเข้าสู่ระบบพร้อม" />} />
           <Route path="followups" element={<ComingSoon icon="📅" title="สิ่งที่ต้องติดตาม" note="ยังไม่มีรายการติดตาม" />} />
           <Route path="prayer" element={<PrayerNotebookPage />} />
+          <Route path="notebook/:n" element={<NotebookSpacePage />} />
           <Route path="prayer/ai" element={<PrayerAiPage />} />
           <Route path="join" element={<JoinPage />} />
           <Route path="prayer/saved/:id" element={<SavedRedirect />} />
