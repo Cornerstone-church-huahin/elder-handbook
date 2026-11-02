@@ -9,6 +9,7 @@ export type Pattern = 'none' | 'rays' | 'dots' | 'grid' | 'crosses' | 'waves' | 
 export type Frame = 'none' | 'thin' | 'double' | 'rounded' | 'corners' | 'polaroid'
 export type Filter = 'none' | 'warm' | 'cool' | 'mono' | 'vivid' | 'vintage' | 'dream'
 export type OverlayMode = 'solid' | 'bottom' | 'vignette'
+export type Tone = 'none' | 'morning' | 'golden' | 'evening' | 'night' | 'cool'
 
 export interface ShareStyle {
   preset: string
@@ -18,6 +19,7 @@ export interface ShareStyle {
   frame: Frame; frameColor: string
   photoZoom: number; photoX: number; photoY: number // ตำแหน่งภาพ (ซูม 1–3 · เลื่อน -1..1)
   filter: Filter; brightness: number; contrast: number; saturation: number; blur: number // ปรับภาพ (-50..50 · -100..100 · 0..12)
+  tone: Tone; toneStrength: number // โทนสีตามช่วงเวลา (เช้า/เย็น ฯลฯ) ความแรง 0–1
   overlay: string; overlayOpacity: number; overlayMode: OverlayMode // ฟิล์มสีทับภาพให้อ่านง่าย
   align: 'center' | 'left'
   font: 'sans' | 'serif'
@@ -30,7 +32,7 @@ export interface ShareStyle {
 
 const BASE: ShareStyle = {
   preset: 'navy', bg1: '#14213d', bg2: '#1d3557', bg3: '#0b132b', text: '#fdf6e3', accent: '#e0b84c', pattern: 'rays', frame: 'double', frameColor: '#e0b84c',
-  photoZoom: 1, photoX: 0, photoY: 0, filter: 'none', brightness: 0, contrast: 0, saturation: 0, blur: 0,
+  photoZoom: 1, photoX: 0, photoY: 0, filter: 'none', brightness: 0, contrast: 0, saturation: 0, blur: 0, tone: 'none', toneStrength: 0.6,
   overlay: '#000000', overlayOpacity: 0.45, overlayMode: 'bottom', align: 'center', font: 'sans', fontScale: 1, box: 'none', quote: true, showLogo: true, footer: 'คริสตจักรศิลาเอก',
 }
 
@@ -54,6 +56,10 @@ export const FILTERS: { id: Filter; label: string; css: string }[] = [
   { id: 'vivid', label: 'สดใส', css: 'saturate(1.6) contrast(1.1)' },
   { id: 'vintage', label: 'วินเทจ', css: 'sepia(.55) contrast(.95) brightness(1.05)' },
   { id: 'dream', label: 'ฝันหวาน', css: 'brightness(1.08) saturate(1.2) blur(1.5px)' },
+]
+export const TONES: { id: Tone; label: string }[] = [
+  { id: 'none', label: 'ธรรมชาติ' }, { id: 'morning', label: '🌅 ยามเช้า' }, { id: 'golden', label: '✨ ชั่วโมงทอง' },
+  { id: 'evening', label: '🌇 ยามเย็น' }, { id: 'night', label: '🌙 กลางคืน' }, { id: 'cool', label: '❄️ เย็นสบาย' },
 ]
 export const PATTERNS: { id: Pattern; label: string }[] = [
   { id: 'none', label: 'ไม่มี' }, { id: 'rays', label: 'ลำแสง' }, { id: 'dots', label: 'จุด' }, { id: 'grid', label: 'ตาราง' },
@@ -267,6 +273,20 @@ export async function renderVerseImage(o: { ref: string; lines: ShareLine[]; sty
     if ('filter' in ctx) ctx.filter = adj
     ctx.drawImage(photo, dx, dy, w, h)
     if ('filter' in ctx) ctx.filter = 'none'
+    // โทนสีตามช่วงเวลา: ไล่แสงสีทับภาพแบบ soft-light/multiply/screen (ไม่ต้องใช้ AI)
+    if (st.tone !== 'none' && st.toneStrength > 0) {
+      const a = st.toneStrength
+      const blend = (op: GlobalCompositeOperation, from: string, to: string, alpha: number, dir: 'v' | 'd' = 'v') => {
+        ctx.save(); ctx.globalCompositeOperation = op; ctx.globalAlpha = alpha
+        const g = dir === 'v' ? ctx.createLinearGradient(0, 0, 0, H) : ctx.createLinearGradient(0, 0, W, H)
+        g.addColorStop(0, from); g.addColorStop(1, to); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); ctx.restore()
+      }
+      if (st.tone === 'morning') { blend('soft-light', '#ffe7b8', '#ffb98a', a); blend('screen', '#fff1d0', '#00000000', a * 0.35) }
+      else if (st.tone === 'golden') { blend('soft-light', '#ffc766', '#ff9a3c', a * 1.1); blend('screen', '#ffd28a', '#00000000', a * 0.25) }
+      else if (st.tone === 'evening') { blend('soft-light', '#ff7a3d', '#7a3b8f', a * 1.15); blend('multiply', '#ffc9a0', '#7d5a9e', a * 0.3) }
+      else if (st.tone === 'night') { blend('multiply', '#2c3e8f', '#0d1440', a * 0.55); blend('soft-light', '#4a6cff', '#1a1f5a', a * 0.7) }
+      else if (st.tone === 'cool') { blend('soft-light', '#7fc0ff', '#4a78d8', a) }
+    }
     // ฟิล์มสีทับ เพื่อให้ตัวอักษรอ่านชัด
     if (st.overlayOpacity > 0) {
       if (st.overlayMode === 'solid') { ctx.fillStyle = rgba(st.overlay, st.overlayOpacity); ctx.fillRect(0, 0, W, H) }
@@ -337,4 +357,33 @@ export async function renderVerseImage(o: { ref: string; lines: ShareLine[]; sty
   if (st.footer) { ctx.fillStyle = st.text; ctx.globalAlpha = 0.92; ctx.font = `600 34px ${family}`; ctx.fillText(st.footer, cx, withLogo ? 1268 : 1190); ctx.globalAlpha = 1 }
   drawFrame(ctx, W, H, st.frame, st.frameColor)
   return await new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error('สร้างภาพไม่ได้'))), 'image/jpeg', K < 1 ? 0.8 : 0.92))
+}
+
+/**
+ * ปรับอัตโนมัติ (ในเครื่อง ไม่ใช้ AI): วิเคราะห์ความสว่าง/ช่วงแสงของรูป แล้วตั้งค่าสว่าง คอนทราสต์ ความสดสีที่เหมาะ
+ * ไม่ตัดสิ่งของออกหรือแต่งเติมภาพ (ทำไม่ได้ด้วยการคำนวณธรรมดา — ใช้ "AI แต่งรูป" แทน)
+ */
+export async function autoAdjust(photo: string): Promise<Partial<ShareStyle>> {
+  const img = await loadImg(photo)
+  if (!img) return {}
+  const N = 96
+  const c = document.createElement('canvas'); c.width = N; c.height = N
+  const x = c.getContext('2d')!; x.drawImage(img, 0, 0, N, N)
+  const d = x.getImageData(0, 0, N, N).data
+  const ys: number[] = []; let sat = 0
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i] / 255, g = d[i + 1] / 255, b = d[i + 2] / 255
+    ys.push(0.299 * r + 0.587 * g + 0.114 * b)
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b); sat += mx ? (mx - mn) / mx : 0
+  }
+  ys.sort((p, q) => p - q)
+  const mean = ys.reduce((p, q) => p + q, 0) / ys.length
+  const lo = ys[Math.floor(ys.length * 0.05)], hi = ys[Math.floor(ys.length * 0.95)]
+  const avgSat = sat / ys.length
+  const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, Math.round(v)))
+  return {
+    brightness: clamp((0.5 - mean) * 70, -25, 30),
+    contrast: clamp((0.75 - (hi - lo)) * 60, -10, 30),
+    saturation: clamp((0.38 - avgSat) * 90, -10, 35),
+  }
 }
