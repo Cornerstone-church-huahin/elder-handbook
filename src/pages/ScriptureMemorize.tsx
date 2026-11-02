@@ -10,6 +10,7 @@ import { useNotebookCategories, type NotebookApi, type NotePrayer } from '../lib
 import { speakableRef, useSpeech } from '../lib/speech'
 import { openPronEditor, words } from '../components/Spoken'
 import { parseRef } from '../data/bible'
+import VerseInterpret from '../components/VerseInterpret'
 
 /** บรรทัดที่เก็บ → เลขข้อ + ข้อความ (รุ่นแรกเก็บเฉพาะข้อความ ใช้ notes เป็นเลขข้อแรก) */
 const parseLines = (p: NotePrayer) => p.text.split('\n').map((l, i) => {
@@ -122,6 +123,7 @@ function CategoryView({ nb, cat, catNames, tts, picks, slot, onBack }: { nb: Not
   const [cur, setCur] = useState<string | null>(null)
   const [pickerKey, setPickerKey] = useState(0)
   const [sharing, setSharing] = useState<NotePrayer | null>(null)
+  const [interp, setInterp] = useState<string | null>(null) // การ์ดที่เปิดแผงตีความอยู่
   // ---- แก้ไขการ์ด: เปลี่ยนข้อ/บท · แก้ข้อความแต่ละข้อ · ย้ายหมวด ----
   const [editId, setEditId] = useState<string | null>(null)
   const [editPassage, setEditPassage] = useState<PickedPassage | null>(null)
@@ -250,11 +252,13 @@ function CategoryView({ nb, cat, catNames, tts, picks, slot, onBack }: { nb: Not
                       : <button type="button" className="us-play" onClick={() => play(queueFrom(p.id))} aria-label={`ฟัง ${p.title}`}>▶</button>)}
                     <button type="button" className="mini edit-only sm-editbtn" aria-label={`แก้ไข ${p.title}`} onClick={() => startEdit(p)}>✏️</button>
                     <button type="button" className="mini edit-only" aria-label={`แก้คำอ่าน ${p.title}`} title="แก้คำอ่าน (เสียงอ่านผิด) — มีผลทั้งแอป" onClick={() => { const t = `${speakableRef(p.title)}. ${lines.map((l) => l.t).join(' ')}`; const w = words(t).find((x) => x.segment.trim()); openPronEditor({ text: t, start: w?.index ?? 0, end: (w?.index ?? 0) + (w?.segment.length ?? 0), full: true }) }}>🔤</button>
+                    <button type="button" className={`mini${interp === p.id ? ' mini--on' : ''}`} aria-label={`ตีความ ${p.title}`} aria-expanded={interp === p.id} title="ตีความข้อนี้" onClick={() => setInterp(interp === p.id ? null : p.id)}>💡</button>
                     <button type="button" className="mini" aria-label={`แชร์ ${p.title}`} onClick={() => setSharing(p)}>📤</button>
                     {delId === p.id
                       ? <span className="edit-only"><button type="button" className="btn btn--danger" onClick={() => { if (cur === p.id) tts.stop(); nb.remove(p.id); setDelId(null) }}>ลบ</button> <button type="button" className="btn btn--ghost" onClick={() => setDelId(null)}>ไม่ลบ</button></span>
                       : <button type="button" className="mini edit-only" aria-label={`ลบ ${p.title}`} onClick={() => setDelId(p.id)}>🗑️</button>}
                   </div>
+                  {interp === p.id && <VerseInterpret title={p.title} lines={lines} story={p.story} canEdit onSave={(v) => nb.update(p.id, { story: v })} onClose={() => setInterp(null)} />}
                 </>
               )}
             </li>
