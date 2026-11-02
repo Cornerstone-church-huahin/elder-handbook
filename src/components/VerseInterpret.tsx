@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { getAiProvider, AiError } from '../lib/ai'
+import { curatedFor } from '../data/curatedInterp'
+import { BIBLE_BOOKS, getVerses } from '../data/bible'
+import { xrefsFor, type XrefItem } from '../lib/xref'
 import { interpretVerse, packInterp, readInterp, verseContext, type Interpretation, type VerseContext } from '../lib/interpret'
 
 const ERR: Record<string, string> = {
@@ -25,12 +28,25 @@ export default function VerseInterpret({ title, lines, story, canEdit, onSave, o
   onClose: () => void
 }) {
   const saved = readInterp(story)
+  const cur = saved ? null : curatedFor(title)
+  const shown: Interpretation | null = saved ?? (cur ? { interp: 1, at: 0, ...cur, related: [] } : null)
   const [folded, setFolded] = useState(false)
   const [ctx, setCtx] = useState<VerseContext | null>(null)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [near, setNear] = useState(false)
+  const [refs, setRefs] = useState<XrefItem[]>([])
+  const [allRefs, setAllRefs] = useState(false)
+  const [openRef, setOpenRef] = useState<string | null>(null)
+  const [refText, setRefText] = useState('')
   const ctl = useRef<AbortController | null>(null)
+  useEffect(() => { let alive = true; void xrefsFor(title).then((x) => alive && setRefs(x)); return () => { alive = false } }, [title])
+  const showRef = async (x: XrefItem) => {
+    if (openRef === x.label) { setOpenRef(null); return }
+    setOpenRef(x.label); setRefText('')
+    const vs = await getVerses({ book: x.book, name: BIBLE_BOOKS[x.book - 1].name, chapter: x.ch, verses: [x.v], label: x.label })
+    setRefText(vs.map((v) => v.text).join(' '))
+  }
   useEffect(() => { let alive = true; void verseContext(title).then((c) => alive && setCtx(c)); return () => { alive = false; ctl.current?.abort() } }, [title])
 
   const run = async (again = 0) => {
@@ -81,7 +97,14 @@ export default function VerseInterpret({ title, lines, story, canEdit, onSave, o
             {(ctx.before.length > 0 || ctx.after.length > 0) && <button type="button" className="mini" aria-expanded={near} id="vi-near" onClick={() => setNear(!near)}>{near ? '▴ ซ่อนข้อก่อน–หลัง' : '▾ อ่านข้อก่อน–หลัง (ฉบับ 1971)'}</button>}
             {near && <div className="vi-near">{ctx.before.map((v) => <p key={v.n}><sup>{v.n}</sup>{v.t}</p>)}<p className="vi-here">— ข้อที่ตีความ —</p>{ctx.after.map((v) => <p key={v.n}><sup>{v.n}</sup>{v.t}</p>)}</div>}
           </div>}
-          {saved ? dis(saved) : (
+          {refs.length > 0 && <div className="vi-sec"><h4>🔗 ข้อที่พระคัมภีร์โยงถึง (อ่านประกอบ)</h4>
+            <p className="source-note">พระคัมภีร์ตีความพระคัมภีร์ — แตะข้อเพื่ออ่านจากฉบับ 1971 (ข้อมูลโยงจาก Treasury of Scripture Knowledge)</p>
+            <div className="vi-refs">{(allRefs ? refs : refs.slice(0, 8)).map((x) => <button key={x.label} type="button" className={`vi-ref${openRef === x.label ? ' vi-ref--on' : ''}`} aria-expanded={openRef === x.label} onClick={() => void showRef(x)}>{x.label}</button>)}</div>
+            {openRef && <p className="vi-reftext" role="status"><b>{openRef}</b> {refText || '…'}</p>}
+            {refs.length > 8 && <button type="button" className="mini" id="vi-allrefs" onClick={() => setAllRefs(!allRefs)}>{allRefs ? '▴ แสดงน้อยลง' : `▾ ดูอีก ${refs.length - 8} ข้อ`}</button>}
+          </div>}
+          {cur && <p className="vi-draft">📚 ตีความสำเร็จรูป (ไม่ใช้ AI) — เป็นร่างรอผู้ปกครองตรวจก่อนใช้สอนอย่างเป็นทางการ</p>}
+          {shown ? dis(shown) : (
             <p className="source-note">ยังไม่มีคำตีความ — กดปุ่มด้านล่างให้ AI ตีความตามหลักไวยากรณ์–ประวัติศาสตร์ (ผลจะเก็บไว้กับการ์ด)</p>
           )}
           {busy && <p className="source-note" role="status">⏳ AI กำลังตีความ…</p>}
@@ -89,7 +112,7 @@ export default function VerseInterpret({ title, lines, story, canEdit, onSave, o
           <div className="sv-row edit-only">
             {canEdit && (saved
               ? <button type="button" className="btn btn--ghost" id="vi-again" disabled={busy} onClick={() => void run(1 + Math.floor((Date.now() / 1000) % 5))}>🔄 สร้างคำตีความใหม่</button>
-              : <button type="button" className="btn btn--gold" id="vi-run" disabled={busy} onClick={() => void run(0)}>✨ ให้ AI ช่วยตีความ</button>)}
+              : <button type="button" className={`btn ${cur ? 'btn--ghost' : 'btn--gold'}`} id="vi-run" disabled={busy} onClick={() => void run(0)}>{cur ? '✨ ให้ AI ตีความเพิ่มเติม' : '✨ ให้ AI ช่วยตีความ'}</button>)}
             {canEdit && saved && <button type="button" className="btn btn--ghost" id="vi-del" onClick={() => onSave('')}>🗑️ ลบคำตีความ</button>}
           </div>
           <p className="source-note">คำตีความโดย AI เป็นตัวช่วยศึกษา ไม่ใช่คำสอนทางการ — ควรเทียบกับพระคัมภีร์ฉบับเต็มและปรึกษาผู้ปกครอง/ศิษยาภิบาลก่อนนำไปสอน · ภาพรวมเล่มเป็นข้อมูลตามธรรมเนียมที่ยอมรับทั่วไป</p>

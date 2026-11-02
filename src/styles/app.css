@@ -1624,3 +1624,9 @@ mark{background:#ffe38a;color:inherit;border-radius:3px;padding:0 .1rem}
 .vi-near sup{opacity:.7;margin-right:.15em}
 .vi-here{text-align:center;opacity:.7;font-size:.8rem}
 .vi-rel{font-size:.85rem;opacity:.85}
+
+.vi-refs{display:flex;flex-wrap:wrap;gap:.3rem;margin:.3rem 0}
+.vi-ref{border:1.5px solid var(--gold);border-radius:999px;background:var(--surface,#fff);padding:.2rem .6rem;font:inherit;font-size:.85rem;min-height:2rem}
+.vi-ref--on{background:var(--gold);color:#3a2a00}
+.vi-reftext{margin:.3rem 0;padding:.35rem .5rem;border-left:3px solid var(--gold);font-size:.9rem;line-height:1.55}
+.vi-draft{margin:.4rem 0;padding:.3rem .5rem;border-radius:.6rem;background:rgba(212,175,55,.18);font-size:.85rem}
