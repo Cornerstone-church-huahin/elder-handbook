@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import ColorField from './ColorField'
 import {
-  FILTERS, FRAMES, PATTERNS, STYLE_PRESETS, TONES, autoAdjust, DEFAULT_STYLE, drawVerse, fileToLogo, handleOf, fileToPhoto, getSharePrefs, renderVerseImage, setSharePrefs, shareText,
+  FILTERS, FRAMES, PATTERNS, STYLE_PRESETS, TONES, autoAdjust, DEFAULT_STYLE, STANDARD_LOGO, drawVerse, fileToLogo, handleOf, loadLogoImage, paintLogo, fileToPhoto, getSharePrefs, renderVerseImage, setSharePrefs, shareText,
   type Boxes, type ShareLine, type ShareStyle,
 } from '../lib/shareVerse'
 import { AI_GOALS, aiEditPhoto, aiGenerateBackground, hasGeminiKeyForPhoto } from '../lib/aiPhoto'
 import { ARTS, SCENES, makeArt, makeRandomArt } from '../lib/shareBackgrounds'
+import { FIT_KEYS, deleteLogo, fitOf, listLogos, saveLogo, type LogoPreset } from '../lib/shareLogos'
 import { addStock, blobToDataUrl, clearStock, listStock, removeStock, shrinkToBlob, type StockItem } from '../lib/shareStock'
 import { COMMONS_TOPICS, fetchCommonsPhoto, searchCommons, type CommonsHit } from '../lib/commonsPhotos'
 
@@ -36,7 +37,14 @@ const thumbCache: Record<string, string> = {}
 const PHOTO_KEYS: (keyof ShareStyle)[] = ['filter', 'brightness', 'contrast', 'saturation', 'blur', 'sharpness', 'tone', 'toneStrength', 'photoZoom', 'photoX', 'photoY', 'overlay', 'overlayOpacity', 'overlayMode']
 const STYLE_KEYS: (keyof ShareStyle)[] = ['preset', 'pattern', 'frame', 'align', 'font', 'fontScale', 'box', 'quote', 'bg1', 'bg2', 'bg3', 'text', 'accent', 'frameColor']
 const COLOR_KEYS: (keyof ShareStyle)[] = ['bg1', 'bg2', 'bg3', 'text', 'accent', 'frameColor']
-const LOGO_KEYS: (keyof ShareStyle)[] = ['logoBrightness', 'logoSaturation', 'logoSharpness', 'logoScale', 'logoX', 'logoY', 'showLogo']
+const LOGO_KEYS: (keyof ShareStyle)[] = ['logoBrightness', 'logoSaturation', 'logoSharpness', 'logoScale', 'logoX', 'logoY', 'showLogo', 'logoZoom', 'logoOX', 'logoOY', 'logoShape', 'logoBg']
+const CORNERS: { id: string; label: string; x: number; y: number }[] = [
+  { id: 'tl', label: 'ซ้ายบน', x: 0.14, y: 0.09 }, { id: 'tc', label: 'กลางบน', x: 0.5, y: 0.09 }, { id: 'tr', label: 'ขวาบน', x: 0.86, y: 0.09 },
+  { id: 'bl', label: 'ซ้ายล่าง', x: 0.14, y: 0.91 }, { id: 'bc', label: 'กลางล่าง', x: 0.5, y: 0.86 }, { id: 'br', label: 'ขวาล่าง', x: 0.86, y: 0.91 },
+]
+const LOGO_BGS: { id: string; label: string }[] = [{ id: '#ffffff', label: 'พื้นขาว' }, { id: 'transparent', label: 'โปร่งใส' }, { id: '#111111', label: 'พื้นดำ' }, { id: '#e0b84c', label: 'พื้นทอง' }]
+const LOGO_SHAPES: { id: 'circle' | 'rounded' | 'none'; label: string }[] = [{ id: 'circle', label: '⭕ วงกลม' }, { id: 'rounded', label: '▢ มุมมน' }, { id: 'none', label: 'ไม่มีกรอบ' }]
+const STD_ID = 'std'
 
 /**
  * แชร์ข้อพระคัมภีร์ 2 แบบ
@@ -47,6 +55,7 @@ export default function ShareVerseSheet({ refLabel, lines, onClose }: { refLabel
   const init = useRef(getSharePrefs()).current
   const [style, setStyle] = useState<ShareStyle>(init.style)
   const [logo, setLogo] = useState<string | undefined>(init.logo)
+  const [logoId, setLogoId] = useState<string | undefined>(init.logoId) // ต้นแบบโลโก้ที่ใช้อยู่
   const [orig, setOrig] = useState<string | undefined>(kept.orig) // รูปต้นฉบับจากเครื่อง (ใช้ระหว่างตกแต่ง ไม่เก็บถาวร)
   const [versions, setVersions] = useState<string[]>(kept.versions) // รูปที่ AI แต่งให้ (แต่ละครั้งที่สร้าง)
   const [vi, setVi] = useState(kept.vi) // รูปที่ใช้อยู่: -1 = ต้นฉบับ
@@ -118,6 +127,72 @@ export default function ShareVerseSheet({ refLabel, lines, onClose }: { refLabel
   const delStock = async (id: string) => { await removeStock(id); await refreshStock() }
   const wipeStock = async () => { await clearStock(); setStockClear(false); await refreshStock(); setStockMax(12) }
 
+  // ---------- โลโก้ต้นแบบ: ปรับพอดีวง + บันทึกหลายอัน (เก็บตำแหน่งที่วางไว้ด้วย) ----------
+  const [presets, setPresets] = useState<LogoPreset[]>([])
+  const [logoName, setLogoName] = useState('')
+  const [logoImgEl, setLogoImgEl] = useState<HTMLImageElement | null>(null)
+  const [stdThumb, setStdThumb] = useState('')
+  const [logoDel, setLogoDel] = useState<string | null>(null)
+  const edCv = useRef<HTMLCanvasElement>(null)
+  const refreshLogos = async () => setPresets(await listLogos())
+  useEffect(() => { if (main === 'image' && sub === 'logo') void refreshLogos() }, [main, sub])
+  useEffect(() => { let alive = true; void loadLogoImage(logo || STANDARD_LOGO).then((i) => alive && setLogoImgEl(i)); return () => { alive = false } }, [logo])
+  const logoThumb = (img: HTMLImageElement, st: ShareStyle) => {
+    const c = document.createElement('canvas'); c.width = 128; c.height = 128
+    const x = c.getContext('2d')!; x.translate(64, 64); x.scale(128 / 124, 128 / 124); paintLogo(x, img, st, 112)
+    return c.toDataURL('image/png')
+  }
+  useEffect(() => {
+    if (main !== 'image' || sub !== 'logo' || stdThumb) return
+    void loadLogoImage(STANDARD_LOGO).then((i) => { if (i) setStdThumb(logoThumb(i, DEFAULT_STYLE)) })
+  }, [main, sub]) // eslint-disable-line react-hooks/exhaustive-deps
+  // ช่องปรับโลโก้ (ลากเลื่อนรูปในวง · บีบนิ้วซูม)
+  const ED = 360, F = 2.8
+  useEffect(() => {
+    const c = edCv.current
+    if (!c || sub !== 'logo' || main !== 'image') return
+    const x = c.getContext('2d')!
+    x.clearRect(0, 0, ED, ED)
+    for (let i = 0; i < ED; i += 20) for (let j = 0; j < ED; j += 20) { x.fillStyle = ((i + j) / 20) % 2 ? '#d9d9d9' : '#f4f4f4'; x.fillRect(i, j, 20, 20) }
+    if (logoImgEl) { x.save(); x.translate(ED / 2, ED / 2); x.scale(F, F); paintLogo(x, logoImgEl, style, 112); x.restore() }
+  }, [main, sub, logoImgEl, style.logoZoom, style.logoOX, style.logoOY, style.logoShape, style.logoBg, style.logoBrightness, style.logoSaturation, style.logoSharpness]) // eslint-disable-line react-hooks/exhaustive-deps
+  const edPts = useRef(new Map<number, { x: number; y: number }>())
+  const edDrag = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null)
+  const edPinch = useRef<{ d0: number; z0: number } | null>(null)
+  const edDown = (e: React.PointerEvent) => {
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId) } catch { /* ignore */ }
+    e.preventDefault()
+    edPts.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    if (edPts.current.size === 2) { const [a, b] = [...edPts.current.values()]; edPinch.current = { d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, z0: style.logoZoom }; edDrag.current = null }
+    else edDrag.current = { x: e.clientX, y: e.clientY, ox: style.logoOX, oy: style.logoOY }
+  }
+  const edMove = (e: React.PointerEvent) => {
+    if (!edPts.current.has(e.pointerId)) return
+    edPts.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    if (edPinch.current && edPts.current.size >= 2) { const [a, b] = [...edPts.current.values()]; upd({ logoZoom: Math.max(0.5, Math.min(4, edPinch.current.z0 * ((Math.hypot(a.x - b.x, a.y - b.y) || 1) / edPinch.current.d0))) }); return }
+    const d = edDrag.current; const c = edCv.current
+    if (!d || !c) return
+    const unit = (c.getBoundingClientRect().width / ED) * F * 56 // พิกเซลหน้าจอต่อ 1 หน่วยเลื่อน
+    upd({ logoOX: Math.max(-1.5, Math.min(1.5, d.ox + (e.clientX - d.x) / unit)), logoOY: Math.max(-1.5, Math.min(1.5, d.oy + (e.clientY - d.y) / unit)) })
+  }
+  const edUp = (e: React.PointerEvent) => { edPts.current.delete(e.pointerId); if (edPts.current.size < 2) edPinch.current = null; if (!edPts.current.size) edDrag.current = null }
+  const fillCircle = () => { if (!logoImgEl) return; const r = Math.max(logoImgEl.width, logoImgEl.height) / Math.min(logoImgEl.width, logoImgEl.height); upd({ logoZoom: Math.min(4, Math.round(r * 100) / 100), logoOX: 0, logoOY: 0 }) }
+  const applyPreset = (pr: LogoPreset | 'std') => {
+    if (pr === 'std') { setLogo(undefined); setLogoId(STD_ID); setLogoName('มาตรฐาน'); upd({ showLogo: true, ...Object.fromEntries(FIT_KEYS.filter((k) => k !== 'footer').map((k) => [k, DEFAULT_STYLE[k]])) }); return }
+    setLogo(pr.img === STANDARD_LOGO ? undefined : pr.img); setLogoId(pr.id); setLogoName(pr.name); upd({ showLogo: true, ...pr.fit })
+  }
+  const savePreset = async (asNew: boolean) => {
+    const img = logoImgEl
+    if (!img) return
+    const id = !asNew && logoId && logoId !== STD_ID ? logoId : `l${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`
+    const name = logoName.trim() || `โลโก้ ${presets.length + 1}`
+    const old = presets.find((x) => x.id === id)
+    const pr: LogoPreset = { id, name, at: old?.at ?? Date.now(), img: logo ?? STANDARD_LOGO, thumb: logoThumb(img, style), fit: fitOf(style) }
+    await saveLogo(pr); setLogoId(id); setLogoName(name); await refreshLogos()
+    flash(asNew || !old ? `บันทึกโลโก้ “${name}” เป็นต้นแบบแล้ว` : `อัปเดตต้นแบบ “${name}” แล้ว`)
+  }
+  const removePreset = async (id: string) => { await deleteLogo(id); if (logoId === id) setLogoId(undefined); setLogoDel(null); await refreshLogos() }
+
   // ---------- ค้นรูปฟรีจากอินเทอร์เน็ต (Wikimedia Commons · สาธารณสมบัติ/CC0) ----------
   const [web, setWeb] = useState(false)
   const [webQ, setWebQ] = useState('sunrise')
@@ -146,7 +221,7 @@ export default function ShareVerseSheet({ refLabel, lines, onClose }: { refLabel
   const pickArt = (id: string) => { setOrig(makeArt(id, 1080)); setVersions([]); setVi(-1); setAiErr(''); upd({ photoZoom: 1, photoX: 0, photoY: 0 }) }
   const resetAll = () => { setStyle({ ...DEFAULT_STYLE }); setLogo(undefined); setConfirmReset(false); flash('รีเซ็ตทุกอย่างเป็นค่าเริ่มต้นแล้ว (รูปที่เลือกยังอยู่)') }
 
-  useEffect(() => { setSharePrefs({ style, logo }) }, [style, logo])
+  useEffect(() => { setSharePrefs({ style, logo, logoId }) }, [style, logo, logoId])
 
   // ---------- ภาพตัวอย่างสด (canvas) + ลาก/ย่อขยายข้อความและโลโก้ด้วยนิ้ว ----------
   const cv = useRef<HTMLCanvasElement>(null)
@@ -325,7 +400,7 @@ export default function ShareVerseSheet({ refLabel, lines, onClose }: { refLabel
   useEffect(() => () => abort.current?.abort(), [])
   const pickLogo = async (f?: File) => {
     if (!f) return
-    try { setLogo(await fileToLogo(f)); upd({ showLogo: true }) } catch { flash('เปิดรูปนี้ไม่ได้ ลองรูปอื่น') }
+    try { setLogo(await fileToLogo(f)); setLogoId(undefined); setLogoName(''); upd({ showLogo: true, logoZoom: 1, logoOX: 0, logoOY: 0 }) } catch { flash('เปิดรูปนี้ไม่ได้ ลองรูปอื่น') }
   }
 
   return (
@@ -552,21 +627,73 @@ export default function ShareVerseSheet({ refLabel, lines, onClose }: { refLabel
             {sub === 'logo' && (
               <div className="sv-tools">
                 <label className="sv-chk"><input type="checkbox" checked={style.showLogo} onChange={(e) => upd({ showLogo: e.target.checked })} /> แสดงโลโก้</label>
+                <p className="sv-h">📚 โลโก้ของฉัน — แตะเพื่อใช้ (ตำแหน่งที่บันทึกไว้กลับมาด้วย ยังลากเลื่อนได้)</p>
+                <div className="sv-logos" role="group" aria-label="โลโก้ของฉัน">
+                  <div className="sv-logoitem">
+                    <button type="button" className={`sv-logotile${logoId === STD_ID || (!logoId && !logo) ? ' sv-logotile--on' : ''}`} aria-label="ใช้โลโก้ มาตรฐาน" aria-pressed={logoId === STD_ID} onClick={() => applyPreset('std')}>
+                      {stdThumb ? <img src={stdThumb} alt="" /> : <span className="sv-art__ph" />}<span>มาตรฐาน</span>
+                    </button>
+                  </div>
+                  {presets.map((pr) => (
+                    <div key={pr.id} className="sv-logoitem">
+                      <button type="button" className={`sv-logotile${logoId === pr.id ? ' sv-logotile--on' : ''}`} aria-label={`ใช้โลโก้ ${pr.name}`} aria-pressed={logoId === pr.id} onClick={() => applyPreset(pr)}>
+                        <img src={pr.thumb} alt="" /><span>{pr.name}</span>
+                      </button>
+                      <button type="button" className="sv-stockx" aria-label={`ลบโลโก้ ${pr.name}`} onClick={() => setLogoDel(pr.id)}>✕</button>
+                    </div>
+                  ))}
+                </div>
+                {logoDel && (
+                  <div className="sv-confirm" role="alertdialog" aria-label="ยืนยันลบโลโก้"><span>ลบต้นแบบโลโก้ “{presets.find((x) => x.id === logoDel)?.name}”?</span>
+                    <button type="button" className="btn btn--danger" id="sv-logo-del-yes" onClick={() => void removePreset(logoDel)}>ลบ</button>
+                    <button type="button" className="btn btn--ghost" onClick={() => setLogoDel(null)}>ยกเลิก</button></div>
+                )}
                 <div className="sv-row">
-                  <button type="button" className="btn btn--ghost" onClick={() => logoIn.current?.click()}>🖼️ เปลี่ยนโลโก้</button>
-                  {logo && <button type="button" className="btn btn--ghost" onClick={() => setLogo(undefined)}>↺ ใช้โลโก้มาตรฐาน</button>}
+                  <button type="button" className="btn btn--gold" id="sv-logo-new" onClick={() => logoIn.current?.click()}>＋ เพิ่มโลโก้ใหม่</button>
+                  {logo && <button type="button" className="btn btn--ghost" onClick={() => { setLogo(undefined); setLogoId(STD_ID) }}>↺ ใช้โลโก้มาตรฐาน</button>}
                   <input ref={logoIn} type="file" accept="image/*" hidden aria-label="เลือกรูปโลโก้" onChange={(e) => { void pickLogo(e.target.files?.[0]); e.target.value = '' }} />
                 </div>
-                <p className="sv-h">ปรับโลโก้</p>
+
+                <p className="sv-h">✂️ ปรับโลโก้ให้พอดีวง — ลากรูปเพื่อเลื่อน บีบนิ้ว/แถบเลื่อนเพื่อซูม</p>
+                <div className="sv-edwrap">
+                  <canvas ref={edCv} className="sv-logoed" width={ED} height={ED} aria-label="ปรับโลโก้ในวง: ลากเพื่อเลื่อน บีบนิ้วเพื่อซูม"
+                    style={{ touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none' } as React.CSSProperties}
+                    onPointerDown={edDown} onPointerMove={edMove} onPointerUp={edUp} onPointerCancel={edUp} onLostPointerCapture={edUp} />
+                </div>
+                <div className="sv-row">
+                  <button type="button" className="btn btn--ghost" id="sv-logo-fill" onClick={fillCircle}>⭕ ขยายเต็มวง</button>
+                  <button type="button" className="btn btn--ghost" id="sv-logo-fit" onClick={() => upd({ logoZoom: 1, logoOX: 0, logoOY: 0 })}>▢ พอดีรูป (ตั้งต้น)</button>
+                </div>
+                <Slider label="ซูมรูปในวง" value={style.logoZoom} min={0.5} max={4} step={0.05} unit="×" onChange={(v) => upd({ logoZoom: v })} />
+                <Slider label="เลื่อนซ้าย–ขวา" value={style.logoOX} min={-1.5} max={1.5} step={0.02} onChange={(v) => upd({ logoOX: v })} />
+                <Slider label="เลื่อนขึ้น–ลง" value={style.logoOY} min={-1.5} max={1.5} step={0.02} onChange={(v) => upd({ logoOY: v })} />
+                <Chips label="รูปทรงกรอบโลโก้" items={LOGO_SHAPES} value={style.logoShape} onPick={(v) => upd({ logoShape: v })} />
+                <Chips label="สีพื้นหลังโลโก้" items={LOGO_BGS} value={LOGO_BGS.some((b2) => b2.id === style.logoBg) ? style.logoBg : '#ffffff'} onPick={(v) => upd({ logoBg: v })} />
+
+                <p className="sv-h">📍 ตำแหน่งบนการ์ด (ลากบนภาพเพื่อเลื่อนเองได้)</p>
+                <div className="sv-chips" role="group" aria-label="ตำแหน่งโลโก้">
+                  {CORNERS.map((c) => <button key={c.id} type="button" className="sv-chip" aria-label={`วางโลโก้ ${c.label}`} onClick={() => upd({ logoX: c.x, logoY: c.y })}>{c.label}</button>)}
+                </div>
+                <Slider label="ขนาดโลโก้บนการ์ด" value={style.logoScale} min={0.3} max={4} step={0.05} unit="×" onChange={(v) => upd({ logoScale: v })} />
+
+                <p className="sv-h">ปรับสี/ความคมชัดของโลโก้</p>
                 <Slider label="ความสว่าง" value={style.logoBrightness} min={-60} max={60} onChange={(v) => upd({ logoBrightness: v })} />
                 <Slider label="สี (เพิ่ม/ลด)" value={style.logoSaturation} min={-100} max={100} onChange={(v) => upd({ logoSaturation: v })} />
                 <Slider label="ความคมชัด" value={style.logoSharpness} min={0} max={100} onChange={(v) => upd({ logoSharpness: v })} />
-                <Slider label="ขนาดโลโก้" value={style.logoScale} min={0.3} max={4} step={0.05} unit="×" onChange={(v) => upd({ logoScale: v })} />
-                <div className="sv-row"><button type="button" className="btn btn--ghost" onClick={() => { resetKeys(LOGO_KEYS); setLogo(undefined) }}>↺ รีเซ็ตโลโก้เป็นค่าเริ่มต้น</button></div>
                 <label className="sv-foot">ข้อความท้ายภาพ
                   <input value={style.footer} maxLength={40} onChange={(e) => upd({ footer: e.target.value })} />
                 </label>
-                <p className="source-note">โลโก้ สไตล์ และสีที่เลือกจำไว้ในเครื่องนี้ (รูปพื้นหลังไม่ถูกเก็บ) · ภาพสร้างในเครื่อง ไม่ส่งข้อมูลไปที่ไหน</p>
+
+                <p className="sv-h">💾 บันทึกเป็นต้นแบบ (เก็บรูป การปรับพอดีวง ตำแหน่ง ขนาด ข้อความท้ายภาพ)</p>
+                <label className="sv-foot">ชื่อต้นแบบ
+                  <input id="sv-logo-name" value={logoName} maxLength={30} placeholder="เช่น โลโก้คริสตจักร มุมซ้ายบน" onChange={(e) => setLogoName(e.target.value)} />
+                </label>
+                <div className="sv-row">
+                  <button type="button" className="btn btn--gold" id="sv-logo-save-new" onClick={() => void savePreset(true)}>💾 บันทึกเป็นต้นแบบใหม่</button>
+                  {logoId && logoId !== STD_ID && presets.some((x) => x.id === logoId) && <button type="button" className="btn btn--ghost" id="sv-logo-save-upd" onClick={() => void savePreset(false)}>💾 อัปเดตต้นแบบนี้</button>}
+                </div>
+                <div className="sv-row"><button type="button" className="btn btn--ghost" onClick={() => { resetKeys(LOGO_KEYS); setLogo(undefined); setLogoId(STD_ID) }}>↺ รีเซ็ตโลโก้เป็นค่าเริ่มต้น</button></div>
+                <p className="source-note">ต้นแบบโลโก้เก็บในเครื่องนี้ · ภาพสร้างในเครื่อง ไม่ส่งข้อมูลไปที่ไหน</p>
               </div>
             )}
 
