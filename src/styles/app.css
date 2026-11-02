@@ -1482,3 +1482,26 @@ mark{background:#ffe38a;color:inherit;border-radius:3px;padding:0 .1rem}
 .sm-item__body sup{font-size:.65em;margin-right:.15em;opacity:.7}
 .sm-item__btns{display:flex;flex-direction:column;gap:.3rem;align-items:center}
 .sm-empty{margin:.8rem 0}
+
+/* ท่องจำคัมภีร์: แถบเล็ก 3 แถบบนแถบหัวแอป + ค้นหาข้อพระคัมภีร์ */
+.sm-tabs{display:flex;gap:.25rem;min-width:0;flex:1}
+.sm-tab{flex:1;min-width:0;min-height:38px;padding:.1rem .15rem;border-radius:.6rem;border:1.5px solid var(--gold);background:transparent;color:#fff;font:inherit;font-size:.68rem;font-weight:700;line-height:1.1;cursor:pointer}
+.sm-tab--wide{flex:1 1 0;min-width:4.4rem}
+.sm-tab:not(.sm-tab--wide){flex:0 0 2.5rem;padding:.1rem 0}
+.sm-tab--on{background:var(--gold);color:var(--navy)}
+.bs{display:flex;flex-direction:column;gap:.6rem}
+.bs__q{display:flex;flex-direction:column;gap:.25rem;font-weight:700;font-size:.9rem}
+.bs textarea,.bs input,.bs select{padding:.5rem .7rem;border:1.5px solid var(--navy);border-radius:.6rem;background:var(--surface,#fff);color:inherit;font:inherit;font-weight:400;font-size:1rem;min-height:44px}
+.bs__h{margin:0 0 .3rem;font-size:.85rem;font-weight:700}
+.bs__tags ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:.35rem}
+.bs__tag{display:inline-flex;align-items:center;gap:.25rem;padding:.2rem .3rem .2rem .7rem;border-radius:999px;background:var(--gold);color:var(--navy);font-size:.9rem;font-weight:700}
+.bs__tag button{width:28px;height:28px;border:0;border-radius:50%;background:rgba(0,0,0,.12);color:inherit;font-size:.8rem;cursor:pointer}
+.bs__add{display:flex;gap:.4rem;margin-top:.5rem}
+.bs__add input{flex:1;min-width:0}
+.bs__cat{display:flex;flex-direction:column;gap:.2rem;font-weight:700;font-size:.85rem;max-width:16rem}
+.bs__cards{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.5rem}
+.bs__card{padding:.6rem .8rem;border:1.5px solid var(--gold);border-radius:.8rem;background:var(--surface,#fff)}
+.bs__text{margin:.25rem 0 .4rem;line-height:1.6}
+.bs__text sup{font-size:.65em;margin-right:.15em;opacity:.7}
+.topbar__back{white-space:nowrap;flex:none}
+.topbar__slot:has(.sm-tabs){flex:1;min-width:0;margin:0 .3rem}

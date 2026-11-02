@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import BiblePicker, { type PickedPassage } from '../components/BiblePicker'
+import BibleSearchPanel from '../components/BibleSearchPanel'
 import ListenSettings, { PickBox, useListenPicks } from '../components/ListenSettings'
 import NotebookCategoryBar, { ALL, NONE } from '../components/NotebookCategoryBar'
 import { spaceOf } from '../lib/notebookSpaces'
@@ -27,6 +28,7 @@ export default function ScriptureMemorize({ nb, n }: { nb: NotebookApi; n: numbe
   const picks = useListenPicks(`scripture${n}`)
   const [sel, setSel] = useState(ALL)
   const [openId, setOpenId] = useState<string | null>(null) // หมวดที่เปิดอยู่
+  const [tab, setTab] = useState<'search' | 'cats' | 'three'>('cats') // แถบเล็กด้านบน: ค้นหาข้อพระคัมภีร์ · หมวด · 3
   const [slot, setSlot] = useState<HTMLElement | null>(null)
   useEffect(() => setSlot(document.getElementById('topbar-slot')), [])
   useEffect(() => { tts.setLoop(true) }, []) // eslint-disable-line react-hooks/exhaustive-deps — ท่องจำ: วนซ้ำเป็นค่าตั้งต้น (ปิดได้)
@@ -55,6 +57,20 @@ export default function ScriptureMemorize({ nb, n }: { nb: NotebookApi; n: numbe
   const visible = cats.cats.filter((c) => sel === ALL || sel === c.name)
   return (
     <>
+      {slot && createPortal(
+        <div className="sm-tabs" role="tablist" aria-label="เมนูท่องจำคัมภีร์">
+          <button type="button" role="tab" aria-selected={tab === 'search'} className={`sm-tab sm-tab--wide${tab === 'search' ? ' sm-tab--on' : ''}`} onClick={() => setTab('search')}>🔎 ค้นหาข้อพระคัมภีร์</button>
+          <button type="button" role="tab" aria-selected={tab === 'cats'} className={`sm-tab${tab === 'cats' ? ' sm-tab--on' : ''}`} onClick={() => setTab('cats')}>📖 หมวด</button>
+          <button type="button" role="tab" aria-selected={tab === 'three'} className={`sm-tab${tab === 'three' ? ' sm-tab--on' : ''}`} onClick={() => setTab('three')}>3</button>
+        </div>, slot)}
+      <div hidden={tab !== 'search'}>
+        <BibleSearchPanel
+          categories={cats.cats.map((c) => c.name)}
+          onSave={(category, label, verses) => nb.add({ title: label, category, refs: [], story: '', text: verses.map((v) => `${v.n}\t${v.text}`).join('\n'), notes: '' })}
+        />
+      </div>
+      {tab === 'three' && <p className="source-note sm-empty">แถบ 3 ยังว่างอยู่ — บอกได้ว่าอยากให้เป็นอะไร</p>}
+      <div hidden={tab !== 'cats'}>
       <NotebookCategoryBar
         icon={spaceOf(n)?.icon ?? '📖'}
         cats={cats.cats}
@@ -87,6 +103,7 @@ export default function ScriptureMemorize({ nb, n }: { nb: NotebookApi; n: numbe
         )}
       </ul>
       <SyncLine sync={nb.sync} onRetry={nb.syncNow} list={list} />
+      </div>
     </>
   )
 }
