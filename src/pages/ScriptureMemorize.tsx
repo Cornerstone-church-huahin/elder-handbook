@@ -8,6 +8,7 @@ import NotebookCategoryBar, { ALL, NONE } from '../components/NotebookCategoryBa
 import { spaceOf } from '../lib/notebookSpaces'
 import { useNotebookCategories, type NotebookApi, type NotePrayer } from '../lib/prayerNotebook'
 import { speakableRef, useSpeech } from '../lib/speech'
+import { parseRef } from '../data/bible'
 
 /** บรรทัดที่เก็บ → เลขข้อ + ข้อความ (รุ่นแรกเก็บเฉพาะข้อความ ใช้ notes เป็นเลขข้อแรก) */
 const parseLines = (p: NotePrayer) => p.text.split('\n').map((l, i) => {
@@ -53,7 +54,7 @@ export default function ScriptureMemorize({ nb, n }: { nb: NotebookApi; n: numbe
     if (openId === id) setOpenId(null)
   }
 
-  if (open) return <CategoryView nb={nb} cat={open.name} tts={tts} picks={picks} slot={slot} onBack={() => { tts.stop(); setOpenId(null) }} />
+  if (open) return <CategoryView nb={nb} cat={open.name} catNames={cats.cats.map((c) => c.name)} tts={tts} picks={picks} slot={slot} onBack={() => { tts.stop(); setOpenId(null) }} />
 
   const visible = cats.cats.filter((c) => sel === ALL || sel === c.name)
   return (
@@ -113,13 +114,34 @@ export default function ScriptureMemorize({ nb, n }: { nb: NotebookApi; n: numbe
   )
 }
 
-function CategoryView({ nb, cat, tts, picks, slot, onBack }: { nb: NotebookApi; cat: string; tts: ReturnType<typeof useSpeech>; picks: ReturnType<typeof useListenPicks>; slot: HTMLElement | null; onBack: () => void }) {
+function CategoryView({ nb, cat, catNames, tts, picks, slot, onBack }: { nb: NotebookApi; cat: string; catNames: string[]; tts: ReturnType<typeof useSpeech>; picks: ReturnType<typeof useListenPicks>; slot: HTMLElement | null; onBack: () => void }) {
   const [passage, setPassage] = useState<PickedPassage | null>(null)
   const [manual, setManual] = useState('')
   const [delId, setDelId] = useState<string | null>(null)
   const [cur, setCur] = useState<string | null>(null)
   const [pickerKey, setPickerKey] = useState(0)
   const [sharing, setSharing] = useState<NotePrayer | null>(null)
+  // ---- แก้ไขการ์ด: เปลี่ยนข้อ/บท · แก้ข้อความแต่ละข้อ · ย้ายหมวด ----
+  const [editId, setEditId] = useState<string | null>(null)
+  const [editPassage, setEditPassage] = useState<PickedPassage | null>(null)
+  const [edited, setEdited] = useState<Record<number, string>>({}) // ข้อความที่แก้เอง (เลขข้อ → ข้อความ)
+  const [editCat, setEditCat] = useState('')
+  const [note, setNote] = useState('')
+  const startEdit = (p: NotePrayer) => {
+    setEditId(p.id); setEditPassage(null); setEditCat(p.category); setNote('')
+    setEdited(Object.fromEntries(parseLines(p).map((l) => [l.n, l.t])))
+  }
+  const editRows = (p: NotePrayer) => editPassage
+    ? editPassage.verses.map((n, i) => ({ n, t: edited[n] ?? editPassage.lines[i] ?? '' }))
+    : parseLines(p).map((l) => ({ n: l.n, t: edited[l.n] ?? l.t }))
+  const saveEdit = (p: NotePrayer) => {
+    const rows = editRows(p).filter((r) => r.t.trim())
+    if (!rows.length) return
+    nb.update(p.id, { title: editPassage?.label ?? p.title, category: editCat, text: rows.map((r) => `${r.n}\t${r.t.trim()}`).join('\n'), notes: '' })
+    setNote(editCat !== p.category ? `ย้าย “${editPassage?.label ?? p.title}” ไปหมวด ${editCat || 'ไม่มีหมวด'} แล้ว` : `แก้ไข “${editPassage?.label ?? p.title}” แล้ว`)
+    setEditId(null); setEditPassage(null)
+  }
+  const initialOf = (p: NotePrayer) => { const r = parseRef(p.title); return r && r.verses.length ? { book: r.book, ch: r.chapter, verses: r.verses } : undefined }
   const items = useMemo(() => (nb.list ?? []).filter((p) => p.category === cat).sort((a, b) => a.id.localeCompare(b.id)), [nb.list, cat])
   const active = tts.speaking || tts.paused
 
@@ -184,27 +206,55 @@ function CategoryView({ nb, cat, tts, picks, slot, onBack }: { nb: NotebookApi; 
         <button type="button" className="btn btn--gold" disabled={!passage || !content.length} onClick={save}>💾 บันทึกข้อนี้</button>
       </section>}
 
+      {note && <p className="nb-sync nb-sync--ok" role="status">{note}</p>}
       {items.length === 0 && <p className="source-note sm-empty">{cat ? 'หมวดนี้ยังไม่มีข้อพระคัมภีร์' : 'ไม่มีข้อที่อยู่นอกหมวด'}</p>}
       <ul className="sm-list">
         {items.map((p) => {
           const on = active && cur === p.id
           const lines = parseLines(p)
           return (
-            <li key={p.id} className={`sm-item${on ? ' sm-item--on' : ''}`}>
-              {tts.supported && <PickBox picks={picks} id={p.id} label={p.title} />}
-              <div className="sm-item__body">
-                <b>📖 {p.title}</b>
-                <p>{lines.map((l, i) => <span key={i}>{<sup>{l.n}</sup>}{l.t} </span>)}</p>
-              </div>
-              <div className="sm-item__btns">
-                {tts.supported && (on
-                  ? <button type="button" className="us-play us-play--on" onClick={tts.stop} aria-label="หยุดอ่าน">⏹</button>
-                  : <button type="button" className="us-play" onClick={() => play(queueFrom(p.id))} aria-label={`ฟัง ${p.title}`}>▶</button>)}
-                <button type="button" className="mini" aria-label={`แชร์ ${p.title}`} onClick={() => setSharing(p)}>📤</button>
-                {delId === p.id
-                  ? <span className="edit-only"><button type="button" className="btn btn--danger" onClick={() => { if (cur === p.id) tts.stop(); nb.remove(p.id); setDelId(null) }}>ลบ</button> <button type="button" className="btn btn--ghost" onClick={() => setDelId(null)}>ไม่ลบ</button></span>
-                  : <button type="button" className="mini edit-only" aria-label={`ลบ ${p.title}`} onClick={() => setDelId(p.id)}>🗑️</button>}
-              </div>
+            <li key={p.id} className={`sm-item${on ? ' sm-item--on' : ''}${editId === p.id ? ' sm-item--edit' : ''}`}>
+              {editId === p.id ? (
+                <div className="sm-edit">
+                  <p className="sm-edit__h">✏️ แก้ไข {p.title}</p>
+                  <BiblePicker initial={initialOf(p)} onChange={setEditPassage} />
+                  <label className="sm-edit__cat">ย้ายไปหมวด
+                    <select aria-label="ย้ายไปหมวด" value={editCat} onChange={(e) => setEditCat(e.target.value)}>
+                      <option value="">ไม่มีหมวด</option>
+                      {[...catNames, ...(editCat && !catNames.includes(editCat) ? [editCat] : [])].map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </label>
+                  <p className="sv-h">ข้อความแต่ละข้อ (แก้ได้)</p>
+                  {editRows(p).map((r) => (
+                    <label key={r.n} className="sm-edit__row"><b>ข้อ {r.n}</b>
+                      <textarea aria-label={`ข้อความข้อ ${r.n}`} rows={3} value={r.t} onChange={(e) => setEdited({ ...edited, [r.n]: e.target.value })} />
+                    </label>
+                  ))}
+                  <div className="sv-row">
+                    <button type="button" className="btn btn--gold" id="sm-edit-save" onClick={() => saveEdit(p)}>💾 บันทึกการแก้ไข</button>
+                    <button type="button" className="btn btn--ghost" onClick={() => setEdited({})}>↺ ใช้ข้อความ 1971 ตามต้นฉบับ</button>
+                    <button type="button" className="btn btn--ghost" id="sm-edit-cancel" onClick={() => { setEditId(null); setEditPassage(null) }}>ยกเลิก</button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {tts.supported && <PickBox picks={picks} id={p.id} label={p.title} />}
+                  <div className="sm-item__body">
+                    <b>📖 {p.title}</b>
+                    <p>{lines.map((l, i) => <span key={i}>{<sup>{l.n}</sup>}{l.t} </span>)}</p>
+                  </div>
+                  <div className="sm-item__btns">
+                    {tts.supported && (on
+                      ? <button type="button" className="us-play us-play--on" onClick={tts.stop} aria-label="หยุดอ่าน">⏹</button>
+                      : <button type="button" className="us-play" onClick={() => play(queueFrom(p.id))} aria-label={`ฟัง ${p.title}`}>▶</button>)}
+                    <button type="button" className="mini edit-only sm-editbtn" aria-label={`แก้ไข ${p.title}`} onClick={() => startEdit(p)}>✏️</button>
+                    <button type="button" className="mini" aria-label={`แชร์ ${p.title}`} onClick={() => setSharing(p)}>📤</button>
+                    {delId === p.id
+                      ? <span className="edit-only"><button type="button" className="btn btn--danger" onClick={() => { if (cur === p.id) tts.stop(); nb.remove(p.id); setDelId(null) }}>ลบ</button> <button type="button" className="btn btn--ghost" onClick={() => setDelId(null)}>ไม่ลบ</button></span>
+                      : <button type="button" className="mini edit-only" aria-label={`ลบ ${p.title}`} onClick={() => setDelId(p.id)}>🗑️</button>}
+                  </div>
+                </>
+              )}
             </li>
           )
         })}
