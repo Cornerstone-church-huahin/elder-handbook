@@ -1430,6 +1430,7 @@ mark{background:#ffe38a;color:inherit;border-radius:3px;padding:0 .1rem}
 .greeting__btns{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.3rem;width:100%;flex:1 1 100%}
 .greeting__btns .urgent-btn{min-height:32px;padding:0 .4rem;font-size:.8rem;gap:.25rem;justify-content:center;flex:none;min-width:0}
 .greeting__btns .urgent-btn span:last-child{overflow:hidden;text-overflow:ellipsis}
-.nbk-btn{background:var(--surface-2,#fff);border-color:var(--gold);color:var(--navy)}
-:root[data-theme=dark] .nbk-btn{color:var(--parchment)}
-@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .nbk-btn{color:var(--parchment)}}
+.nbk-btn{color:#fff;border-color:transparent;text-shadow:0 1px 1px rgba(0,0,0,.25)}
+.nbk-btn--1{background:linear-gradient(135deg,#1f7a5c,#35a57a)}
+.nbk-btn--2{background:linear-gradient(135deg,#5b3f8c,#8a68c4)}
+.nbk-btn--3{background:linear-gradient(135deg,#1b6b8f,#35a0c8)}
