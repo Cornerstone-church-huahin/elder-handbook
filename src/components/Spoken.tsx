@@ -50,7 +50,8 @@ function wordAt(text: string, at: number): Seg | null {
 
 /** เปิดป๊อปอัพแก้คำอ่าน (PronEditor ใน AppShell) */
 export const PRON_EVENT = 'khatha-pron-edit'
-export type PronEditDetail = { text: string; start: number; end: number }
+/** full = แสดงข้อความทั้งก้อนให้แตะเลือกคำได้ทุกคำ (เปิดจากไอคอน 🔤 บนการ์ด) */
+export type PronEditDetail = { text: string; start: number; end: number; full?: boolean }
 export const openPronEditor = (d: PronEditDetail) => window.dispatchEvent(new CustomEvent<PronEditDetail>(PRON_EVENT, { detail: d }))
 /** กดค้างที่ข้อความ → แถบเครื่องมือ (TextTools ใน AppShell): ฟังจากตรงนี้ · คัดลอก · แชร์ · แก้คำอ่าน */
 export const TOOLS_EVENT = 'khatha-text-tools'

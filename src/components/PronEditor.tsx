@@ -59,8 +59,9 @@ export default function PronEditor() {
     window.setTimeout(close, 700)
   }
   // ช่วงข้อความที่แสดงให้แตะเลือกคำ (ประมาณ 1–2 บรรทัดรอบคำที่เลือก)
-  const from = Math.max(0, range[0] - 70)
-  const to = Math.min(d.text.length, range[1] + 70)
+  const from = d.full ? 0 : Math.max(0, range[0] - 70)
+  const to = d.full ? d.text.length : Math.min(d.text.length, range[1] + 70)
+  const fixed = new Set([...store.items.map((x) => x.word.trim()), ...BUILTIN_PRON.map(([w]) => w)]) // คำที่เคยแก้คำอ่านไว้แล้ว (แสดงสีต่าง)
   const view = segs.filter((sg) => sg.index + sg.segment.length > from && sg.index < to)
   const pick = (sg: { index: number; segment: string }) => {
     const a = sg.index
@@ -82,12 +83,12 @@ export default function PronEditor() {
           <div className="sheet__title"><strong>🔤 แก้คำอ่าน</strong><span>ข้อความบนจอไม่เปลี่ยน · ใช้ทุกหน้า ทุกเครื่อง</span></div>
           <button type="button" className="sheet__close" onClick={close}>ปิด</button>
         </div>
-        <p className="source-note">แตะคำที่ต้องการแก้ · แตะอีกคำเพื่อเลือกหลายคำติดกัน</p>
-        <p className="pron-ctx pron-pick">
+        <p className="source-note">แตะคำที่ต้องการแก้ · แตะอีกคำเพื่อเลือกหลายคำติดกัน{d.full ? ' · คำที่ขีดเส้นใต้สีทองคือคำที่เคยแก้คำอ่านไว้แล้ว' : ''}</p>
+        <p className={`pron-ctx pron-pick${d.full ? ' pron-pick--full' : ''}`}>
           {view.map((sg) => {
             const inSel = sg.index >= range[0] && sg.index + sg.segment.length <= range[1]
             return sg.segment.trim()
-              ? <button key={sg.index} type="button" className={`pron-w${inSel ? ' is-on' : ''}`} onClick={() => pick(sg)}>{sg.segment}</button>
+              ? <button key={sg.index} type="button" className={`pron-w${inSel ? ' is-on' : ''}${fixed.has(sg.segment.trim()) ? ' is-fixed' : ''}`} onClick={() => pick(sg)}>{sg.segment}</button>
               : <span key={sg.index}>{sg.segment}</span>
           })}
         </p>
