@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { loadSavedPrayers } from '../data/savedPrayers'
 import { blockIfViewer } from './access'
 import { getSync, pullRemote, pushRemote, type SyncStatus } from './sync'
+import { useSharedStore } from './sharedStore'
 import { autoTags, tagsForQuery } from './autoTags'
 
 /**
@@ -288,4 +289,36 @@ export function refsWithSuggest(p: Pick<NotePrayer, 'refs' | 'title' | 'category
     }
   }
   return { refs: [...own, ...pick], suggested: pick }
+}
+
+export type NotebookApi = ReturnType<typeof usePrayerNotebook>
+
+/**
+ * สมุดเพิ่มเติม (สมุด 1/2/3 บนหน้าแรก): ระบบเดียวกับสมุดคำอธิษฐานทุกอย่าง (4 ส่วน เสียงอ่าน บันทึก ซิงก์ออนไลน์)
+ * แต่เป็นสมุดว่างของตัวเอง แยกที่เก็บ (khatha.notebookN.v1 · notebookN.json) ไม่ปนกับสมุดคำอธิษฐานหลัก
+ */
+export function useNotebookSpace(n: number): NotebookApi {
+  const store = useSharedStore<NotePrayer>({ localKey: `khatha.notebook${n}.v1`, file: `notebook${n}.json`, label: `สมุด ${n}` })
+  const who = getSync()?.name
+  const list = [...store.items.map(normalize)].sort((a, b) => b.updated - a.updated)
+  const find = (id: string) => store.all.find((x) => x.id === id)
+  return {
+    list,
+    saved: true,
+    sync: store.sync,
+    syncNow: async () => { await store.syncNow() },
+    add: (p: NoteInput) => {
+      const item = normalize({ ...p, keywords: autoTags(p), id: `u${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, icon: iconFor(`${p.category} ${p.title}`), updated: Date.now(), by: who })
+      store.put([item])
+      return item.id
+    },
+    update: (id: string, p: Partial<NoteInput>) => {
+      const x = find(id)
+      if (!x) return
+      const next = iconFor(`${p.category ?? x.category} ${p.title ?? x.title}`)
+      store.put([normalize({ ...x, ...p, keywords: autoTags({ ...x, ...p }), icon: next === '🙏' ? x.icon : next, by: who })])
+    },
+    remove: (id: string) => store.remove(id),
+    restoreDefaults: async () => undefined,
+  }
 }
