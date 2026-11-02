@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import ColorField from './ColorField'
 import {
-  FILTERS, FRAMES, PATTERNS, STYLE_PRESETS, fileToLogo, fileToPhoto, getSharePrefs, renderVerseImage, setSharePrefs, shareText,
+  FILTERS, FRAMES, PATTERNS, STYLE_PRESETS, TONES, autoAdjust, fileToLogo, fileToPhoto, getSharePrefs, renderVerseImage, setSharePrefs, shareText,
   type ShareLine, type ShareStyle,
 } from '../lib/shareVerse'
+import { AI_GOALS, aiEditPhoto, hasGeminiKeyForPhoto } from '../lib/aiPhoto'
 
 type Main = 'text' | 'image'
 type Sub = 'photo' | 'style' | 'color' | 'logo'
@@ -34,7 +35,16 @@ export default function ShareVerseSheet({ refLabel, lines, onClose }: { refLabel
   const init = useRef(getSharePrefs()).current
   const [style, setStyle] = useState<ShareStyle>(init.style)
   const [logo, setLogo] = useState<string | undefined>(init.logo)
-  const [photo, setPhoto] = useState<string | undefined>() // รูปจากเครื่อง (ใช้ระหว่างตกแต่ง ไม่เก็บถาวร)
+  const [orig, setOrig] = useState<string | undefined>() // รูปต้นฉบับจากเครื่อง (ใช้ระหว่างตกแต่ง ไม่เก็บถาวร)
+  const [versions, setVersions] = useState<string[]>([]) // รูปที่ AI แต่งให้ (แต่ละครั้งที่สร้าง)
+  const [vi, setVi] = useState(-1) // รูปที่ใช้อยู่: -1 = ต้นฉบับ
+  const [goals, setGoals] = useState<string[]>(['wires', 'evening'])
+  const [note, setNote] = useState('')
+  const [consent, setConsent] = useState(false)
+  const [aiBusy, setAiBusy] = useState(false)
+  const [aiErr, setAiErr] = useState('')
+  const abort = useRef<AbortController | null>(null)
+  const photo = vi >= 0 ? versions[vi] : orig
   const [main, setMain] = useState<Main>('text')
   const [sub, setSub] = useState<Sub>('photo')
   const [img, setImg] = useState('')
@@ -96,8 +106,26 @@ export default function ShareVerseSheet({ refLabel, lines, onClose }: { refLabel
   }
   const pickPhoto = async (f?: File) => {
     if (!f) return
-    try { setPhoto(await fileToPhoto(f)); upd({ photoZoom: 1, photoX: 0, photoY: 0 }) } catch { flash('เปิดรูปนี้ไม่ได้ ลองรูปอื่น') }
+    try { setOrig(await fileToPhoto(f)); setVersions([]); setVi(-1); setAiErr(''); upd({ photoZoom: 1, photoX: 0, photoY: 0 }) } catch { flash('เปิดรูปนี้ไม่ได้ ลองรูปอื่น') }
   }
+  const autoFix = async () => {
+    if (!photo) return
+    upd(await autoAdjust(photo))
+    flash('ปรับสว่าง คอนทราสต์ ความสดสี ให้อัตโนมัติแล้ว — ปรับต่อเองได้')
+  }
+  const generate = async () => {
+    if (!orig || aiBusy) return
+    setAiErr(''); setAiBusy(true)
+    const c = new AbortController(); abort.current = c
+    try {
+      // แต่งจากรูปต้นฉบับเสมอ: แต่ละครั้งได้ผลต่างกัน เลือกอันที่ชอบจากภาพย่อได้
+      const out = await aiEditPhoto({ photo: orig, goals, note, variant: versions.length, signal: c.signal })
+      setVersions((v) => { const n = [...v, out].slice(-6); setVi(n.length - 1); return n })
+    } catch (e) {
+      if (!c.signal.aborted) setAiErr(e instanceof Error ? e.message : 'แต่งรูปไม่สำเร็จ')
+    } finally { setAiBusy(false) }
+  }
+  useEffect(() => () => abort.current?.abort(), [])
   const pickLogo = async (f?: File) => {
     if (!f) return
     try { setLogo(await fileToLogo(f)); upd({ showLogo: true }) } catch { flash('เปิดรูปนี้ไม่ได้ ลองรูปอื่น') }
@@ -138,11 +166,45 @@ export default function ShareVerseSheet({ refLabel, lines, onClose }: { refLabel
               <div className="sv-tools">
                 <div className="sv-row">
                   <button type="button" className="btn btn--gold" onClick={() => photoIn.current?.click()}>📷 เลือกรูปจากเครื่อง</button>
-                  {photo && <button type="button" className="btn btn--ghost" onClick={() => setPhoto(undefined)}>✕ เอารูปออก</button>}
+                  {photo && <button type="button" className="btn btn--ghost" onClick={() => { setOrig(undefined); setVersions([]); setVi(-1) }}>✕ เอารูปออก</button>}
                   <input ref={photoIn} type="file" accept="image/*" hidden aria-label="เลือกรูปพื้นหลัง" onChange={(e) => { void pickPhoto(e.target.files?.[0]); e.target.value = '' }} />
                 </div>
                 {!photo ? <p className="source-note">ยังไม่ได้เลือกรูป — ตอนนี้ใช้พื้นหลังสี เลือกรูปจากเครื่องแล้วจะปรับภาพ ใส่ฟิลเตอร์ ซูม เลื่อนตำแหน่งได้ที่นี่</p> : (
                   <>
+                    <p className="sv-h">✨ แต่งอัตโนมัติ (ในเครื่อง ฟรี)</p>
+                    <div className="sv-row"><button type="button" className="btn btn--gold" id="sv-auto" onClick={autoFix}>🪄 ปรับสว่าง/สี อัตโนมัติ</button></div>
+                    <Chips label="โทนสีตามช่วงเวลา" items={TONES} value={style.tone} onPick={(v) => upd({ tone: v })} />
+                    {style.tone !== 'none' && <Slider label="ความแรงของโทน" value={style.toneStrength} min={0.1} max={1} step={0.05} onChange={(v) => upd({ toneStrength: v })} />}
+
+                    <p className="sv-h">🤖 AI แต่งรูป (Gemini) — ตัดสายไฟ/ของรก เปลี่ยนโทนแสง สร้างซ้ำได้จนพอใจ</p>
+                    {!hasGeminiKeyForPhoto() ? <p className="ai-keys__err">ต้องใส่คีย์ Gemini ที่ ตั้งค่า › ผู้ช่วย AI ก่อน จึงจะใช้ AI แต่งรูปได้ (ส่วนปรับอัตโนมัติด้านบนใช้ได้เลยโดยไม่ต้องมีคีย์)</p> : (
+                      <>
+                        <div className="sv-goals" role="group" aria-label="สิ่งที่ให้ AI ทำ">
+                          {AI_GOALS.map((g) => (
+                            <label key={g.id} className="sv-chk"><input type="checkbox" checked={goals.includes(g.id)} onChange={(e) => setGoals(e.target.checked ? [...goals, g.id] : goals.filter((x) => x !== g.id))} /> {g.label}</label>
+                          ))}
+                        </div>
+                        <label className="sv-foot">สั่งเพิ่มเติม (ไม่บังคับ)
+                          <input value={note} maxLength={120} placeholder="เช่น ตัดเสาไฟด้านซ้ายออกด้วย" onChange={(e) => setNote(e.target.value)} />
+                        </label>
+                        <label className="sv-chk sv-consent"><input type="checkbox" id="sv-consent" checked={consent} onChange={(e) => setConsent(e.target.checked)} /> ยินยอมส่งรูปนี้ไปให้ Google Gemini ประมวลผล (รูปออกจากเครื่องนี้ และใช้โควต้า Gemini ของคุณ)</label>
+                        <div className="sv-row">
+                          <button type="button" className="btn btn--gold" id="sv-ai" disabled={!consent || !goals.length && !note.trim() || aiBusy} onClick={generate}>{aiBusy ? '⏳ AI กำลังแต่ง…' : versions.length ? `🔁 สร้างใหม่ (แบบอื่น) · ครั้งที่ ${versions.length + 1}` : '✨ ให้ AI แต่งรูป'}</button>
+                          {aiBusy && <button type="button" className="btn btn--ghost" onClick={() => abort.current?.abort()}>ยกเลิก</button>}
+                        </div>
+                        {aiErr && <p className="ai-keys__err" role="alert">{aiErr}</p>}
+                        {versions.length > 0 && (
+                          <div className="sv-vers" role="group" aria-label="รูปที่ AI แต่งให้">
+                            <button type="button" aria-pressed={vi === -1} className={`sv-ver${vi === -1 ? ' sv-ver--on' : ''}`} onClick={() => setVi(-1)}><img src={orig} alt="รูปต้นฉบับ" /><span>ต้นฉบับ</span></button>
+                            {versions.map((v, i) => (
+                              <button key={i} type="button" aria-pressed={vi === i} className={`sv-ver${vi === i ? ' sv-ver--on' : ''}`} onClick={() => setVi(i)}><img src={v} alt={`ผลที่ ${i + 1}`} /><span>ครั้งที่ {i + 1}</span></button>
+                            ))}
+                          </div>
+                        )}
+                        <p className="source-note">AI ตัดสายไฟ/ของรกได้ในหลายภาพ แต่ไม่การันตีว่าสะอาดทุกภาพ — ไม่พอใจก็กด “สร้างใหม่” ได้เรื่อยๆ (เก็บ 6 ครั้งล่าสุด) และกดภาพย่อเพื่อเลือกอันที่ชอบหรือกลับต้นฉบับ</p>
+                      </>
+                    )}
+
                     <p className="sv-h">ฟิลเตอร์</p>
                     <Chips label="ฟิลเตอร์" items={FILTERS} value={style.filter} onPick={(v) => upd({ filter: v })} />
                     <p className="sv-h">ปรับภาพ</p>
