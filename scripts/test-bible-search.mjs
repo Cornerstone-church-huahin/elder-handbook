@@ -1,7 +1,9 @@
 // ท่องจำคัมภีร์: แถบเล็ก 3 แถบบนหัวแอป · ค้นหาข้อพระคัมภีร์จากประโยคยาว → แท็กลบ/เพิ่มได้ → เนื้อหาด้านล่าง → เก็บเข้าหมวด
 import { chromium } from 'playwright'
+import { cardsOpenByDefault } from './_cards-open.mjs'
 const URL = process.env.URL || 'http://localhost:4173/'
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+cardsOpenByDefault(b)
 let fail = 0; const check = (ok, m) => { console.log((ok ? 'PASS ' : 'FAIL ') + m); if (!ok) fail++ }
 const p = await (await b.newContext({ viewport: { width: 390, height: 844 } })).newPage()
 const errs = []; p.on('pageerror', (e) => errs.push(e.message))

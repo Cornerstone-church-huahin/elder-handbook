@@ -1,7 +1,9 @@
 // ท่องจำคัมภีร์: เลือกหมวดก่อนบันทึก (ตั้งต้น = หมวดที่เปิดอยู่ · เปลี่ยนได้ทั้งแบบเลือกจากพระคัมภีร์และแบบเขียนเอง)
 import { chromium } from 'playwright'
+import { cardsOpenByDefault } from './_cards-open.mjs'
 const URL = process.env.URL || 'http://localhost:4173/'
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+cardsOpenByDefault(b)
 let fail = 0; const check = (ok, m) => { console.log((ok ? 'PASS ' : 'FAIL ') + m); if (!ok) fail++ }
 const ctx = await b.newContext({ viewport: { width: 390, height: 844 } })
 const p = await ctx.newPage(); const errs = []; p.on('pageerror', (e) => errs.push(e.message))
@@ -21,6 +23,7 @@ check(await p.locator('.sm-item').count() === 0 && (await p.textContent('.nb-syn
 await p.click('[aria-label="กลับไปหมวดทั้งหมด"]'); await p.click('[aria-label="เปิดหมวด ความหวัง"]'); await p.waitForSelector('.sm-item')
 check((await p.textContent('.sm-item')).includes('สดุดี 127:2'), 'the verse is in the chosen category')
 // แบบเขียนเอง → ไปหมวดการขอ
+if (await p.locator('#sm-add-toggle[aria-expanded="false"]').count()) await p.click('#sm-add-toggle')
 await p.click('#sm-custom-toggle'); check(await p.inputValue('#sm-savecat') === 'ความหวัง', 'custom form also has the selector')
 await p.selectOption('#sm-savecat', 'การขอ'); await p.fill('#sm-custom-label', 'ทดสอบ'); await p.fill('#sm-custom-text', 'ข้อความ'); await p.click('#sm-custom-save'); await p.waitForTimeout(300)
 await p.click('[aria-label="กลับไปหมวดทั้งหมด"]'); await p.click('[aria-label="เปิดหมวด การขอ"]'); await p.waitForSelector('.sm-item')

@@ -124,6 +124,15 @@ function CategoryView({ nb, cat, catNames, tts, picks, slot, onBack }: { nb: Not
   const [spirit, setSpirit] = useState('') // ความหมายฝ่ายวิญญาณของข้อที่กำลังจะบันทึก
   const [spiritPlay, setSpiritPlay] = useState<string | null>(null) // การ์ดที่กำลังเล่นเฉพาะความหมายฝ่ายวิญญาณ (วนซ้ำจนกว่าจะกดหยุด)
   const [spiritEdit, setSpiritEdit] = useState<{ id: string; text: string } | null>(null) // แก้ความหมายบนการ์ดที่บันทึกแล้ว
+  // ---- โครงหน้า: โซน 1 (ฟอร์มบันทึก) เป็นการ์ดเล็กที่คลายออกได้ · โซน 2 (ข้อที่บันทึกแล้ว) เป็นการ์ดย่อ/ขยายได้ ----
+  const [addOpen, setAddOpen] = useState(() => (nb.list ?? []).filter((x) => x.category === cat).length === 0)
+  const [allOpen, setAllOpen] = useState(() => { try { return localStorage.getItem('khatha.sm.cards') === 'open' } catch { return false } }) // ค่าตั้งต้นของการ์ด: ย่อ
+  const [flip, setFlip] = useState<Set<string>>(new Set()) // การ์ดที่สลับสถานะต่างจากค่าตั้งต้น
+  const isOpen = (id: string) => (allOpen ? !flip.has(id) : flip.has(id))
+  const toggleCard = (id: string) => setFlip((f) => { const n = new Set(f); if (n.has(id)) n.delete(id); else n.add(id); return n })
+  // ---- โหมดฟัง: เฉพาะข้อพระคัมภีร์ · ข้อพระคัมภีร์ + ความหมายฝ่ายวิญญาณ ----
+  const [mode, setModeState] = useState<'verse' | 'both'>(() => { try { return localStorage.getItem('khatha.sm.mode.v1') === 'verse' ? 'verse' : 'both' } catch { return 'both' } })
+  const setMode = (m: 'verse' | 'both') => { setModeState(m); try { localStorage.setItem('khatha.sm.mode.v1', m) } catch { /* ignore */ } }
   const [saveCat, setSaveCat] = useState(cat) // หมวดที่จะบันทึกเข้า (ตั้งต้น = หมวดที่เปิดอยู่)
   useEffect(() => setSaveCat(cat), [cat])
   const [manual, setManual] = useState('')
@@ -195,13 +204,20 @@ function CategoryView({ nb, cat, catNames, tts, picks, slot, onBack }: { nb: Not
     ], (sid) => setCur(String(sid).split('|')[0]))
   }
   const pool = picks.count ? items.filter((x) => picks.has(x.id)) : items
+  const sectionsOf = (x: NotePrayer) => {
+    const meaning = mode === 'both' ? speakMeaning(x.cheer) : ''
+    return [
+      { id: `${x.id}|r`, text: speakableRef(x.title) },
+      { id: `${x.id}|t`, text: parseLines(x).map((l) => l.t).join(' ') },
+      ...(meaning ? [{ id: `${x.id}|s`, text: meaning }] : []),
+    ]
+  }
   const play = (xs: NotePrayer[]) => {
     if (!tts.supported || !xs.length) return
     setSpiritPlay(null)
     setCur(xs[0].id)
-    tts.speakSections(xs.flatMap((x) => [{ id: `${x.id}|r`, text: speakableRef(x.title) }, { id: `${x.id}|t`, text: parseLines(x).map((l) => l.t).join(' ') }]), (sid) => setCur(String(sid).split('|')[0]))
+    tts.speakSections(xs.flatMap(sectionsOf), (sid) => setCur(String(sid).split('|')[0]))
   }
-  const queueFrom = (id: string) => { const q = picks.count ? items.filter((x) => picks.has(x.id) || x.id === id) : items; return q.slice(Math.max(0, q.findIndex((x) => x.id === id))) }
   const curIdx = pool.findIndex((x) => x.id === cur)
   const stepTo = (d: number) => { const i = curIdx < 0 ? 0 : curIdx + d; if (i >= 0 && i < pool.length) play(pool.slice(i)) }
 
@@ -229,6 +245,10 @@ function CategoryView({ nb, cat, catNames, tts, picks, slot, onBack }: { nb: Not
         </div>, slot)}
 
       {cat && <section className="card sm-add edit-only" aria-label="เพิ่มข้อพระคัมภีร์">
+        <button type="button" className="sm-add__head" id="sm-add-toggle" aria-expanded={addOpen} onClick={() => setAddOpen(!addOpen)}>
+          <b>➕ เพิ่มข้อพระคัมภีร์</b><span>{addOpen ? '▴ ย่อ' : '▾ คลายออกเพื่อบันทึก'}</span>
+        </button>
+        {addOpen && <div className="sm-add__body">
         <div className="sv-row">
           <button type="button" className={`btn ${custom ? 'btn--gold' : 'btn--ghost'}`} id="sm-custom-toggle" aria-pressed={custom} onClick={() => setCustom(!custom)}>✍️ เขียนเอง / วางข้อความเอง</button>
         </div>
@@ -276,10 +296,21 @@ function CategoryView({ nb, cat, catNames, tts, picks, slot, onBack }: { nb: Not
           </select>
         </label>
         <button type="button" className="btn btn--gold" disabled={!passage || !content.length} onClick={save}>💾 บันทึกข้อนี้</button></>}
+        </div>}
       </section>}
 
       {note && <p className="nb-sync nb-sync--ok" role="status">{note}</p>}
       {items.length === 0 && <p className="source-note sm-empty">{cat ? 'หมวดนี้ยังไม่มีข้อพระคัมภีร์' : 'ไม่มีข้อที่อยู่นอกหมวด'}</p>}
+      {items.length > 0 && <div className="sm-bar" role="group" aria-label="ตัวเลือกการฟังและการแสดงผล">
+        {tts.supported && <fieldset className="sm-mode"><legend>🔊 ฟังแบบ</legend>
+          <label><input type="radio" name="sm-mode" id="sm-mode-verse" checked={mode === 'verse'} onChange={() => setMode('verse')} /> เฉพาะข้อพระคัมภีร์ของแต่ละการ์ด</label>
+          <label><input type="radio" name="sm-mode" id="sm-mode-both" checked={mode === 'both'} onChange={() => setMode('both')} /> ข้อพระคัมภีร์ + ความหมายฝ่ายวิญญาณของแต่ละการ์ด (เรียง · วนซ้ำ)</label>
+        </fieldset>}
+        <div className="sv-row">
+          <button type="button" className="mini" id="sm-expand-all" onClick={() => { setAllOpen(true); setFlip(new Set()) }}>▾ ขยายทั้งหมด</button>
+          <button type="button" className="mini" id="sm-collapse-all" onClick={() => { setAllOpen(false); setFlip(new Set()) }}>▴ ย่อทั้งหมด</button>
+        </div>
+      </div>}
       <ul className="sm-list">
         {items.map((p) => {
           const on = active && cur === p.id
@@ -308,17 +339,29 @@ function CategoryView({ nb, cat, catNames, tts, picks, slot, onBack }: { nb: Not
                     <button type="button" className="btn btn--ghost" id="sm-edit-cancel" onClick={() => { setEditId(null); setEditPassage(null) }}>ยกเลิก</button>
                   </div>
                 </div>
+              ) : !isOpen(p.id) && interp !== p.id && spiritEdit?.id !== p.id ? (
+                <>
+                  {tts.supported && <PickBox picks={picks} id={p.id} label={p.title} />}
+                  <button type="button" className="sm-item__toggle" aria-expanded={false} aria-label={`ขยาย ${p.title}`} onClick={() => toggleCard(p.id)}>
+                    <span><b>📖 {p.title}</b>{p.cheer.trim() ? <small title="มีความหมายฝ่ายวิญญาณ"> 🕊️</small> : null}</span>
+                    <span className="sm-item__prev">{lines.map((l) => l.t).join(' ')}</span>
+                  </button>
+                  {tts.supported && (on
+                    ? <button type="button" className="us-play us-play--on" onClick={tts.stop} aria-label="หยุดอ่าน">⏹</button>
+                    : <button type="button" className="us-play" onClick={() => play([p])} aria-label={`ฟัง ${p.title}`}>▶</button>)}
+                  <button type="button" className="mini" aria-label={`ขยายการ์ด ${p.title}`} onClick={() => toggleCard(p.id)}>▾</button>
+                </>
               ) : (
                 <>
                   {tts.supported && <PickBox picks={picks} id={p.id} label={p.title} />}
                   <div className="sm-item__body">
-                    <b>📖 {p.title}</b>
+                    <button type="button" className="sm-item__toggle sm-item__toggle--open" aria-expanded={true} aria-label={`ย่อ ${p.title}`} onClick={() => toggleCard(p.id)}><b>📖 {p.title}</b> <small>▴ ย่อ</small></button>
                     <p>{lines.map((l, i) => <span key={i}>{<sup>{l.n}</sup>}{l.t} </span>)}</p>
                   </div>
                   <div className="sm-item__btns">
                     {tts.supported && (on
                       ? <button type="button" className="us-play us-play--on" onClick={tts.stop} aria-label="หยุดอ่าน">⏹</button>
-                      : <button type="button" className="us-play" onClick={() => play(queueFrom(p.id))} aria-label={`ฟัง ${p.title}`}>▶</button>)}
+                      : <button type="button" className="us-play" onClick={() => play([p])} aria-label={`ฟัง ${p.title}`}>▶</button>)}
                     <button type="button" className="mini edit-only sm-editbtn" aria-label={`แก้ไข ${p.title}`} onClick={() => startEdit(p)}>✏️</button>
                     <button type="button" className="mini edit-only" aria-label={`แก้คำอ่าน ${p.title}`} title="แก้คำอ่าน (เสียงอ่านผิด) — มีผลทั้งแอป" onClick={() => { const t = `${speakableRef(p.title)}. ${lines.map((l) => l.t).join(' ')}`; const w = words(t).find((x) => x.segment.trim()); openPronEditor({ text: t, start: w?.index ?? 0, end: (w?.index ?? 0) + (w?.segment.length ?? 0), full: true }) }}>🔤</button>
                     <button type="button" className={`mini${interp === p.id ? ' mini--on' : ''}`} aria-label={`ตีความ ${p.title}`} aria-expanded={interp === p.id} title="ตีความข้อนี้" onClick={() => setInterp(interp === p.id ? null : p.id)}>💡</button>

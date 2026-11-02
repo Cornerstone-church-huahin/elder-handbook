@@ -1,7 +1,9 @@
 // สต็อกพื้นหลังของฉัน: สร้างเพิ่มทีละ 5/10 รูป (สุ่มในเครื่อง) · เก็บถาวรในเครื่อง (ปิด-เปิดหน้าแล้วยังอยู่) · ใช้/ลบ/ล้าง · AI สร้าง (Gemini จำลอง)
 import { chromium } from 'playwright'
+import { cardsOpenByDefault } from './_cards-open.mjs'
 const URL = process.env.URL || 'http://localhost:4173/'
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+cardsOpenByDefault(b)
 let fail = 0; const check = (ok, m) => { console.log((ok ? 'PASS ' : 'FAIL ') + m); if (!ok) fail++ }
 const ctx = await b.newContext({ viewport: { width: 390, height: 844 } })
 await ctx.addInitScript(() => localStorage.setItem('khatha.aiSettings.v1', JSON.stringify({ vendor: 'gemini', keys: { gemini: 'AIzaFAKEKEYFORTEST' }, models: {} })))

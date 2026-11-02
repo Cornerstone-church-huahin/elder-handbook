@@ -1,7 +1,9 @@
 // รูปถ่ายฟรีจากเน็ต (Wikimedia Commons จำลอง): คัดเฉพาะสาธารณสมบัติ/CC0 · โหลดเพิ่ม · เลือกแล้วใช้เป็นพื้นหลัง · แจ้งข้อผิดพลาดเมื่อออฟไลน์
 import { chromium } from 'playwright'
+import { cardsOpenByDefault } from './_cards-open.mjs'
 const URL = process.env.URL || 'http://localhost:4173/'
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+cardsOpenByDefault(b)
 let fail = 0; const check = (ok, m) => { console.log((ok ? 'PASS ' : 'FAIL ') + m); if (!ok) fail++ }
 const ctx = await b.newContext({ viewport: { width: 390, height: 844 } })
 const p = await ctx.newPage(); const errs = []; p.on('pageerror', (e) => errs.push(e.message))

@@ -1,7 +1,9 @@
 // 💡 ตีความแบบไม่ใช้ AI: ข้ออ้างอิงโยง (ทุกข้อ) + ตีความสำเร็จรูป 50 ข้อยอดนิยม — ไม่มีคีย์ AI ก็ใช้ได้
 import { chromium } from 'playwright'
+import { cardsOpenByDefault } from './_cards-open.mjs'
 const URL = process.env.URL || 'http://localhost:4173/'
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+cardsOpenByDefault(b)
 let fail = 0; const check = (ok, m) => { console.log((ok ? 'PASS ' : 'FAIL ') + m); if (!ok) fail++ }
 const ctx = await b.newContext({ viewport: { width: 390, height: 844 } })
 let ai = 0; await ctx.route('**/generativelanguage.googleapis.com/**', (r) => { ai++; r.abort() })

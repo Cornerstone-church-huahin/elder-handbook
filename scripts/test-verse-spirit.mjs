@@ -1,7 +1,9 @@
 // ท่องจำคัมภีร์: ช่อง 🕊️ ความหมายฝ่ายวิญญาณ — เติมอัตโนมัติ (ชุดสำเร็จรูปฟรี / AI) · แก้เอง/แทนที่ได้ · บันทึกกับการ์ด · แก้ภายหลังบนการ์ด
 import { chromium } from 'playwright'
+import { cardsOpenByDefault } from './_cards-open.mjs'
 const URL = process.env.URL || 'http://localhost:4173/'
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+cardsOpenByDefault(b)
 let fail = 0; const check = (ok, m) => { console.log((ok ? 'PASS ' : 'FAIL ') + m); if (!ok) fail++ }
 const J = { points: [{ term: 'ไม้อ้อช้ำ', meaning: 'คนที่อ่อนแอและเจ็บปวด' }, { term: 'ไส้ตะเกียง', meaning: 'ความเชื่อที่เหลือน้อย' }], summary: 'พระเจ้าอ่อนโยนต่อคนที่อ่อนแอ' }
 let calls = 0
@@ -15,7 +17,7 @@ async function setup(withKey) {
   await p.click('[aria-label="เปิดหมวด ทดสอบ"]'); await p.waitForSelector('#bp-book')
   return { p, errs }
 }
-const pick = async (p, book, ch, v) => { await p.fill('#bp-book', book); await p.click(`.bp__hits >> text=${book}`); await p.selectOption('#bp-ch', String(ch)); await p.click('text=ล้าง >> nth=0').catch(() => {}); await p.click(`[aria-label="ข้อ ${v}"]`); await p.waitForFunction(() => document.querySelectorAll('.sm-verses li').length >= 1) }
+const pick = async (p, book, ch, v) => { if (await p.locator('#sm-add-toggle[aria-expanded="false"]').count()) await p.click('#sm-add-toggle'); await p.fill('#bp-book', book); await p.click(`.bp__hits >> text=${book}`); await p.selectOption('#bp-ch', String(ch)); await p.click('text=ล้าง >> nth=0').catch(() => {}); await p.click(`[aria-label="ข้อ ${v}"]`); await p.waitForFunction(() => document.querySelectorAll('.sm-verses li').length >= 1) }
 {
   const { p, errs } = await setup(true)
   const sb = await p.locator('#sp-text').count()
@@ -49,6 +51,7 @@ const pick = async (p, book, ch, v) => { await p.fill('#bp-book', book); await p
   await p.locator('.sm-item').nth(0).locator('[aria-label^="แก้ความหมายฝ่ายวิญญาณ"]').click(); await p.click('#spe-clear'); await p.click('#spe-save')
   check(await p.locator('.sm-item').nth(0).locator('.sm-spirit__t').count() === 0 && await p.locator('.sm-item').nth(0).locator('.sm-spirit__add').count() === 1, 'clearing removes the meaning and offers “➕ ความหมายฝ่ายวิญญาณ”')
   // 7) ติ๊ก "ให้ AI เติมให้เอง" → เลือกข้อที่ไม่มีชุดสำเร็จรูป แล้ว AI เติมเอง
+  if (await p.locator('#sm-add-toggle[aria-expanded="false"]').count()) await p.click('#sm-add-toggle')
   await p.locator('#sp-auto').check(); const c0 = calls
   await pick(p, 'ยูดา', 1, 1); await p.waitForFunction(() => document.querySelector('#sp-text')?.value.includes('ไม้อ้อช้ำ'))
   check(calls === c0 + 1, 'with “AI auto-fill” ticked, choosing a verse fills it automatically (1 call)')

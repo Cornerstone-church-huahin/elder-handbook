@@ -1,7 +1,9 @@
 // ท่องจำคัมภีร์: ปุ่ม ✏️ แก้ไขในการ์ดข้อพระคัมภีร์ (อยู่ด้านขวา) — เปลี่ยนข้อ/บท · แก้ข้อความ · ย้ายหมวด · ยกเลิก
 import { chromium } from 'playwright'
+import { cardsOpenByDefault } from './_cards-open.mjs'
 const URL = process.env.URL || 'http://localhost:4173/'
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+cardsOpenByDefault(b)
 let fail = 0; const check = (ok, m) => { console.log((ok ? 'PASS ' : 'FAIL ') + m); if (!ok) fail++ }
 const p = await (await b.newContext({ viewport: { width: 390, height: 844 } })).newPage(); const errs = []; p.on('pageerror', (e) => errs.push(e.message))
 await p.goto(URL + '#/notebook/1'); await p.waitForSelector('#nb-catsel')

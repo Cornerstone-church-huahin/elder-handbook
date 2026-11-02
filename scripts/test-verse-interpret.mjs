@@ -1,7 +1,9 @@
 // ท่องจำคัมภีร์: ไอคอน 💡 ตีความบนการ์ด → แผงเด้ง (บริบทออฟไลน์) → AI ตีความ (จำลอง Gemini) → พับ/ขยาย/สร้างใหม่/ลบ/เก็บไว้กับการ์ด
 import { chromium } from 'playwright'
+import { cardsOpenByDefault } from './_cards-open.mjs'
 const URL = process.env.URL || 'http://localhost:4173/'
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+cardsOpenByDefault(b)
 let fail = 0; const check = (ok, m) => { console.log((ok ? 'PASS ' : 'FAIL ') + m); if (!ok) fail++ }
 const J = { context: 'เปโตรเขียนถึงคริสเตียนที่กระจัดกระจายและถูกกดดัน', meaning: 'ผู้เขียนหนุนใจผู้อ่านให้มีความหวังที่มั่นคงท่ามกลางความทุกข์', keywords: [{ word: 'ความหวัง', note: 'ความมั่นใจต่อสิ่งที่พระเจ้าสัญญา' }], truth: 'พระเจ้าทรงสัตย์ซื่อต่อพระสัญญา', today: 'วันนี้ที่งานหนักและข่าวร้ายเยอะ ข้อนี้ชวนให้เรายึดสิ่งที่ไม่เปลี่ยนแปลง', apply: { life: 'จัดเวลาสงบทุกเช้า', thought: 'มองปัญหาในภาพใหญ่ของพระสัญญา', action: 'ส่งข้อความหนุนใจเพื่อนหนึ่งคน' }, caution: 'ไม่ได้หมายความว่าจะไม่มีความทุกข์', related: ['โรม 5:3', 'เรื่องแต่ง 99:99'] }
 let calls = 0
@@ -19,12 +21,12 @@ async function run(withKey) {
 }
 {
   const { p, errs } = await run(true)
-  const card = p.locator('.sm-item').first(), btn = card.locator('[aria-label^="ตีความ"]')
+  const card = p.locator('.sm-item').first(), btn = card.locator('button[aria-label^="ตีความ"]')
   const bb = await btn.boundingBox(), cb = await card.boundingBox()
   check(!!bb && bb.x > cb.x + cb.width * 0.7, '💡 icon sits in the right-hand column of the card')
   await btn.click(); await p.waitForSelector('.vi')
-  const vb = await p.locator('.vi').boundingBox()
-  check(vb.width > cb.width * 0.85 && vb.y > bb.y, 'the panel pops up full width below the verse')
+  const vb = await p.locator('.vi').boundingBox(); const bb2 = await btn.boundingBox(), cb2 = await card.boundingBox()
+  check(vb.width > cb2.width * 0.85 && vb.y > bb2.y, 'the panel pops up full width below the verse')
   check((await p.textContent('.vi')).includes('ผู้เขียน:') && (await p.textContent('.vi')).includes('เปโตร'), 'offline context (book intro) is shown without any AI')
   await p.click('#vi-near'); check((await p.locator('.vi-near p').count()) >= 2, 'neighbouring verses (1971) can be expanded')
   await p.click('#vi-run'); await p.waitForSelector('.vi-sec--hi')

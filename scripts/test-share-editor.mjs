@@ -1,8 +1,10 @@
 // แชร์เป็นภาพ: ลาก/ย่อขยายข้อความและโลโก้บนภาพ · แถบจัดวาง · ปรับโลโก้/ความคมชัด · ย้อนกลับทีละหน้าโดยไม่ออกจากหน้าต่าง · เปลี่ยนรูปได้ทุกหน้า · จำรูปไว้ตอนปิด-เปิด
 import { chromium } from 'playwright'
+import { cardsOpenByDefault } from './_cards-open.mjs'
 import fs from 'node:fs'
 const URL = process.env.URL || 'http://localhost:4173/'
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+cardsOpenByDefault(b)
 let fail = 0; const check = (ok, m) => { console.log((ok ? 'PASS ' : 'FAIL ') + m); if (!ok) fail++ }
 const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, hasTouch: false })
 const p = await ctx.newPage(); const errs = []; p.on('pageerror', (e) => errs.push(e.message))

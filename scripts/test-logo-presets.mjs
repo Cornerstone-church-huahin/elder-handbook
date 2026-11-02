@@ -1,8 +1,10 @@
 // โลโก้ต้นแบบ: ปรับพอดีวง (ซูม/เลื่อน/เต็มวง) · บันทึกหลายอัน พร้อมตำแหน่ง · แตะแล้วกลับมาครบ · อัปเดต/ลบ · จำไว้หลังปิดแอป
 import { chromium } from 'playwright'
+import { cardsOpenByDefault } from './_cards-open.mjs'
 import fs from 'node:fs'
 const URL = process.env.URL || 'http://localhost:4173/'
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+cardsOpenByDefault(b)
 let fail = 0; const check = (ok, m) => { console.log((ok ? 'PASS ' : 'FAIL ') + m); if (!ok) fail++ }
 const p = await (await b.newContext({ viewport: { width: 390, height: 844 } })).newPage(); const errs = []; p.on('pageerror', (e) => errs.push(e.message))
 const mk = async (name, w, h, color) => { await p.goto('about:blank'); const d = await p.evaluate(([w2, h2, c]) => { const cv = document.createElement('canvas'); cv.width = w2; cv.height = h2; const x = cv.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, w2, h2); x.fillStyle = c; x.beginPath(); x.arc(w2 / 2, h2 / 2, Math.min(w2, h2) * 0.34, 0, 7); x.fill(); x.fillStyle = '#fff'; x.fillRect(w2 / 2 - 6, h2 * 0.3, 12, h2 * 0.4); return cv.toDataURL('image/png') }, [w, h, color]); fs.writeFileSync(`/tmp/claude-0/${name}.png`, Buffer.from(d.split(',')[1], 'base64')) }
