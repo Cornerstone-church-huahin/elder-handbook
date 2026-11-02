@@ -1564,3 +1564,10 @@ mark{background:#ffe38a;color:inherit;border-radius:3px;padding:0 .1rem}
 .sv-ver{flex:0 0 5.2rem;display:flex;flex-direction:column;align-items:center;gap:.15rem;padding:.2rem;border:2px solid transparent;border-radius:.6rem;background:none;color:inherit;font:inherit;font-size:.75rem;cursor:pointer}
 .sv-ver img{width:100%;height:5.5rem;object-fit:cover;border-radius:.4rem}
 .sv-ver--on{border-color:var(--gold);background:rgba(212,175,55,.15)}
+
+/* ตัวอย่างภาพแบบลากได้ */
+.sv-preview{position:relative}
+.sv-canvas{max-height:30vh;max-width:100%;width:auto;height:auto;aspect-ratio:4/5;border-radius:.6rem;background:#0002;box-shadow:0 2px 10px rgba(0,0,0,.2);touch-action:none;cursor:grab;display:block}
+.sv-swap{position:absolute;top:.4rem;right:.4rem;min-height:36px;padding:0 .7rem;border-radius:999px;border:0;background:rgba(20,33,61,.85);color:#fff;font:inherit;font-size:.8rem;font-weight:700;cursor:pointer}
+.sv-hint{margin:0;font-size:.78rem;text-align:center;opacity:.8}
+.sv-actions .sv-nav{flex:0 0 3rem;padding:0}

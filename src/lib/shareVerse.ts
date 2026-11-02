@@ -28,12 +28,17 @@ export interface ShareStyle {
   quote: boolean
   showLogo: boolean
   footer: string
+  sharpness: number // ความคมชัดของรูปพื้นหลัง 0–100
+  textX: number; textY: number; textScale: number // ตำแหน่ง (สัดส่วนของการ์ด) และขนาดของกลุ่มข้อความ
+  logoX: number; logoY: number; logoScale: number // ตำแหน่งและขนาดของกลุ่มโลโก้
+  logoBrightness: number; logoSaturation: number; logoSharpness: number // ปรับโลโก้: สว่าง/สี (-100..100) · คมชัด 0–100
 }
 
 const BASE: ShareStyle = {
   preset: 'navy', bg1: '#14213d', bg2: '#1d3557', bg3: '#0b132b', text: '#fdf6e3', accent: '#e0b84c', pattern: 'rays', frame: 'double', frameColor: '#e0b84c',
   photoZoom: 1, photoX: 0, photoY: 0, filter: 'none', brightness: 0, contrast: 0, saturation: 0, blur: 0, tone: 'none', toneStrength: 0.6,
   overlay: '#000000', overlayOpacity: 0.45, overlayMode: 'bottom', align: 'center', font: 'sans', fontScale: 1, box: 'none', quote: true, showLogo: true, footer: 'คริสตจักรศิลาเอก',
+  sharpness: 0, textX: 0.5, textY: 0.47, textScale: 1, logoX: 0.5, logoY: 0.86, logoScale: 1, logoBrightness: 0, logoSaturation: 0, logoSharpness: 0,
 }
 
 /** สไตล์สำเร็จรูป: แตะครั้งเดียวได้ทั้งชุด (สี ลวดลาย กรอบ ฟิลเตอร์) แล้วปรับต่อเองได้ */
@@ -249,14 +254,43 @@ function drawFrame(ctx: CanvasRenderingContext2D, W: number, H: number, kind: Fr
   ctx.restore()
 }
 
-/** วาดการ์ดข้อพระคัมภีร์เป็นภาพ JPEG (ขนาดเต็ม 1080×1350 · scale ใช้ทำภาพตัวอย่างเล็ก) */
-export async function renderVerseImage(o: { ref: string; lines: ShareLine[]; style?: ShareStyle; logo?: string; photo?: string; scale?: number }): Promise<Blob> {
+export interface Box { x: number; y: number; w: number; h: number }
+export interface Boxes { text: Box; logo: Box | null }
+/** ตำแหน่งมุมจับย่อ/ขยาย (มุมขวาล่างของกรอบ — ถ้ากรอบล้นการ์ดจะขยับเข้ามาให้จับได้เสมอ) */
+export const handleOf = (b: Box) => ({ x: Math.max(50, Math.min(1080 - 50, b.x + b.w)), y: Math.max(50, Math.min(1350 - 50, b.y + b.h)) })
+
+/** เพิ่มความคมชัด (unsharp ด้วยเคอร์เนล 3×3) กับพิกเซลที่วาดไว้แล้ว amount 0–100 */
+function sharpen(ctx: CanvasRenderingContext2D, w: number, h: number, amount: number) {
+  if (amount <= 0 || w < 3 || h < 3) return
+  const img = ctx.getImageData(0, 0, w, h)
+  const src = img.data, out = new Uint8ClampedArray(src.length)
+  const a = (amount / 100) * 1.1
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4
+      if (y === 0 || x === 0 || y === h - 1 || x === w - 1) { out[i] = src[i]; out[i + 1] = src[i + 1]; out[i + 2] = src[i + 2]; out[i + 3] = src[i + 3]; continue }
+      for (let k = 0; k < 3; k++) {
+        const v = src[i + k] * (1 + 4 * a) - a * (src[i - 4 + k] + src[i + 4 + k] + src[i - w * 4 + k] + src[i + w * 4 + k])
+        out[i + k] = v
+      }
+      out[i + 3] = src[i + 3]
+    }
+  }
+  ctx.putImageData(new ImageData(out, w, h), 0, 0)
+}
+
+/**
+ * วาดการ์ดข้อพระคัมภีร์ลงบน canvas ที่ให้มา (พิกัดตรรกะ 1080×1350 · K = สเกลของ canvas เช่น 0.5 ทำภาพตัวอย่าง)
+ * ข้อความ (รวมเครื่องหมายคำพูด ชื่อข้อ) และโลโก้ (รวมข้อความท้ายภาพ) เป็น "กลุ่ม" ที่เลื่อนตำแหน่งและย่อขยายอิสระได้
+ * คืนกรอบของแต่ละกลุ่ม (พิกัดตรรกะ) ไว้ใช้ลาก/ย่อขยายด้วยนิ้ว · ui.selected = วาดเส้นประและมุมจับให้กลุ่มที่เลือก (เฉพาะภาพตัวอย่าง)
+ */
+export async function drawVerse(c: HTMLCanvasElement, o: { ref: string; lines: ShareLine[]; style?: ShareStyle; logo?: string; photo?: string; K?: number; ui?: { selected: 'text' | 'logo' | null } }): Promise<Boxes> {
   const st = o.style ?? getSharePrefs().style
-  const K = o.scale ?? 1
+  const K = o.K ?? 1
   const W = 1080, H = 1350
-  const c = document.createElement('canvas')
   c.width = Math.round(W * K); c.height = Math.round(H * K)
-  const ctx = c.getContext('2d')!
+  const ctx = c.getContext('2d', { willReadFrequently: st.sharpness > 0 })!
+  ctx.setTransform(1, 0, 0, 1, 0, 0)
   ctx.scale(K, K)
   try { await document.fonts?.ready } catch { /* ignore */ }
   const body = getComputedStyle(document.body).fontFamily || 'sans-serif'
@@ -273,6 +307,7 @@ export async function renderVerseImage(o: { ref: string; lines: ShareLine[]; sty
     if ('filter' in ctx) ctx.filter = adj
     ctx.drawImage(photo, dx, dy, w, h)
     if ('filter' in ctx) ctx.filter = 'none'
+    if (st.sharpness > 0) sharpen(ctx, c.width, c.height, st.sharpness)
     // โทนสีตามช่วงเวลา: ไล่แสงสีทับภาพแบบ soft-light/multiply/screen (ไม่ต้องใช้ AI)
     if (st.tone !== 'none' && st.toneStrength > 0) {
       const a = st.toneStrength
@@ -303,59 +338,100 @@ export async function renderVerseImage(o: { ref: string; lines: ShareLine[]; sty
   }
   drawPattern(ctx, W, H, st.pattern, st.text)
 
-  // ---------- ข้อความ ----------
+
+  // ---------- กลุ่มข้อความ ----------
   const left = st.align === 'left'
-  const padX = 120
-  const maxW = left ? W - padX * 2 : 860
-  const cx = left ? padX : W / 2
-  ctx.textAlign = left ? 'left' : 'center'; ctx.textBaseline = 'alphabetic'
-  if (st.quote) { ctx.fillStyle = st.accent; ctx.globalAlpha = 0.65; ctx.font = '700 190px Georgia, serif'; ctx.fillText('“', cx - (left ? 8 : 0), 270); ctx.globalAlpha = 1 }
+  const gw = 860
+  const weight = 600
   const text = o.lines.map((l) => (o.lines.length > 1 && l.n ? sup(l.n) : '') + l.t).join(' ').replace(/\s+/g, ' ').trim()
-  const top = 330, maxH = 640
-  const weight = st.font === 'serif' ? 600 : 600
-  let size = Math.round(56 * st.fontScale), rows: string[] = []
+  let size = Math.round(56 * st.fontScale), rows: string[] = [], lh = 0, bodyTop = 0, bodyBottom = 0, gH = 0
   for (; size >= 26; size -= 2) {
     ctx.font = `${weight} ${size}px ${family}`
-    rows = wrap(ctx, text, maxW)
-    if (rows.length * size * 1.55 <= maxH) break
+    rows = wrap(ctx, text, gw)
+    lh = size * 1.55
+    bodyTop = st.quote ? 170 : 20
+    bodyBottom = bodyTop + rows.length * lh
+    gH = bodyBottom + 72 + 48 + 27 + 13
+    if (gH * st.textScale <= H * 0.94) break
   }
-  const lh = size * 1.55
-  const maxRows = Math.floor(maxH / lh)
-  if (rows.length > maxRows) { rows = rows.slice(0, maxRows); rows[rows.length - 1] = rows[rows.length - 1].replace(/\s*\S{0,3}$/, '') + '…' }
-  const blockH = rows.length * lh
-  const y0 = top + Math.max(0, (maxH - blockH) / 2)
+  const tx = st.textX * W, ty = st.textY * H
+  const lx0 = left ? -gw / 2 : 0
+  ctx.save()
+  ctx.translate(tx, ty); ctx.scale(st.textScale, st.textScale); ctx.translate(0, -gH / 2)
+  ctx.textAlign = left ? 'left' : 'center'; ctx.textBaseline = 'alphabetic'
   if (st.box !== 'none') {
     const dark = lum(st.text) > 0.5
     ctx.save()
     ctx.fillStyle = st.box === 'glass' ? (dark ? 'rgba(0,0,0,.38)' : 'rgba(255,255,255,.5)') : dark ? 'rgba(0,0,0,.72)' : 'rgba(255,255,255,.9)'
-    rrect(ctx, 70, y0 - 40, W - 140, blockH + 80, 36); ctx.fill(); ctx.restore()
+    rrect(ctx, -gw / 2 - 40, bodyTop - 40, gw + 80, bodyBottom - bodyTop + 80, 36); ctx.fill(); ctx.restore()
   }
+  if (st.quote) { ctx.fillStyle = st.accent; ctx.globalAlpha = 0.65; ctx.font = '700 190px Georgia, serif'; ctx.fillText('“', lx0 - (left ? 8 : 0), 140); ctx.globalAlpha = 1 }
   ctx.fillStyle = st.text; ctx.font = `${weight} ${size}px ${family}`
   ctx.shadowColor = photo ? 'rgba(0,0,0,.45)' : 'rgba(0,0,0,.18)'; ctx.shadowBlur = photo ? 12 : 6
-  let y = y0 + size
-  for (const r of rows) { ctx.fillText(r, cx, y); y += lh }
+  let y = bodyTop + size
+  for (const r of rows) { ctx.fillText(r, lx0, y); y += lh }
   ctx.shadowBlur = 0
-  ctx.fillStyle = st.accent; ctx.font = `700 54px ${family}`
-  ctx.fillText(o.ref, cx, 1015)
-  ctx.globalAlpha = 0.9; ctx.font = `400 30px ${family}`; ctx.fillStyle = st.text
-  ctx.fillText('พระคัมภีร์ไทย ฉบับ 1971', cx, 1063)
-  ctx.globalAlpha = 1
-  ctx.fillStyle = st.accent; ctx.fillRect(left ? cx : W / 2 - 70, 1090, 140, 3)
-  // โลโก้ + ข้อความท้ายภาพ
-  let withLogo = false
-  if (st.showLogo) {
-    const img = await loadImg(o.logo || './icon-192.png')
-    if (img) {
-      const s = 100, k = Math.min(s / img.width, s / img.height)
-      const w = img.width * k, h = img.height * k
-      const lx = left ? cx + s / 2 : W / 2
-      ctx.save(); ctx.beginPath(); ctx.arc(lx, 1160, s / 2 + 6, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,.92)'; ctx.fill(); ctx.clip()
-      ctx.drawImage(img, lx - w / 2, 1160 - h / 2, w, h); ctx.restore()
-      withLogo = true
+  const refY = bodyBottom + 72
+  ctx.fillStyle = st.accent; ctx.font = `700 54px ${family}`; ctx.fillText(o.ref, lx0, refY)
+  ctx.globalAlpha = 0.9; ctx.font = `400 30px ${family}`; ctx.fillStyle = st.text; ctx.fillText('พระคัมภีร์ไทย ฉบับ 1971', lx0, refY + 48); ctx.globalAlpha = 1
+  ctx.fillStyle = st.accent; ctx.fillRect(left ? lx0 : -70, refY + 75, 140, 3)
+  ctx.restore()
+  const tw = (gw + 100) * st.textScale, th = gH * st.textScale
+  const boxText: Box = { x: tx - tw / 2, y: ty - th / 2, w: tw, h: th }
+
+  // ---------- กลุ่มโลโก้ + ข้อความท้ายภาพ ----------
+  let boxLogo: Box | null = null
+  const lgx = st.logoX * W, lgy = st.logoY * H
+  let logoImg: HTMLImageElement | null = null
+  if (st.showLogo) logoImg = await loadImg(o.logo || './icon-192.png')
+  if (logoImg || st.footer) {
+    ctx.save()
+    ctx.translate(lgx, lgy); ctx.scale(st.logoScale, st.logoScale)
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'
+    let top = 0, bottom = 0, half = 40
+    if (logoImg) {
+      const s = 100, k = Math.min(s / logoImg.width, s / logoImg.height)
+      const w = Math.max(1, Math.round(logoImg.width * k)), h = Math.max(1, Math.round(logoImg.height * k))
+      // ปรับโลโก้: สว่าง / สี / ความคมชัด (ทำบน canvas เล็กก่อนวาดลงการ์ด)
+      const lc = document.createElement('canvas'); lc.width = w * 2; lc.height = h * 2
+      const lctx = lc.getContext('2d', { willReadFrequently: st.logoSharpness > 0 })!
+      if ('filter' in lctx) lctx.filter = `brightness(${1 + st.logoBrightness / 100}) saturate(${1 + st.logoSaturation / 100})`
+      lctx.drawImage(logoImg, 0, 0, lc.width, lc.height)
+      if ('filter' in lctx) lctx.filter = 'none'
+      sharpen(lctx, lc.width, lc.height, st.logoSharpness)
+      ctx.save(); ctx.beginPath(); ctx.arc(0, 0, s / 2 + 6, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,.92)'; ctx.fill(); ctx.clip()
+      ctx.drawImage(lc, -w / 2, -h / 2, w, h); ctx.restore()
+      top = -(s / 2 + 8); bottom = s / 2 + 8; half = s / 2 + 8
+    }
+    if (st.footer) {
+      ctx.fillStyle = st.text; ctx.globalAlpha = 0.92; ctx.font = `600 34px ${family}`
+      const fy = logoImg ? 108 : 0
+      ctx.fillText(st.footer, 0, fy); ctx.globalAlpha = 1
+      half = Math.max(half, ctx.measureText(st.footer).width / 2 + 10)
+      top = Math.min(top, fy - 36); bottom = Math.max(bottom, fy + 14)
+    }
+    ctx.restore()
+    boxLogo = { x: lgx - half * st.logoScale, y: lgy + top * st.logoScale, w: half * 2 * st.logoScale, h: (bottom - top) * st.logoScale }
+  }
+  drawFrame(ctx, W, H, st.frame, st.frameColor)
+
+  // ---------- เส้นประ + มุมจับ (เฉพาะภาพตัวอย่าง) ----------
+  if (o.ui?.selected) {
+    const b = o.ui.selected === 'text' ? boxText : boxLogo
+    if (b) {
+      ctx.save(); ctx.setLineDash([14, 10]); ctx.lineWidth = 4; ctx.strokeStyle = '#ffffff'; ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = 6
+      ctx.strokeRect(b.x, b.y, b.w, b.h); ctx.setLineDash([]); ctx.fillStyle = '#e0b84c'; ctx.strokeStyle = '#14213d'; ctx.lineWidth = 4
+      const hd = handleOf(b); ctx.beginPath(); ctx.arc(hd.x, hd.y, 28, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); ctx.restore()
     }
   }
-  if (st.footer) { ctx.fillStyle = st.text; ctx.globalAlpha = 0.92; ctx.font = `600 34px ${family}`; ctx.fillText(st.footer, cx, withLogo ? 1268 : 1190); ctx.globalAlpha = 1 }
-  drawFrame(ctx, W, H, st.frame, st.frameColor)
+  return { text: boxText, logo: boxLogo }
+}
+
+/** ภาพเต็ม JPEG 1080×1350 สำหรับแชร์/บันทึก (ไม่มีเส้นประ) */
+export async function renderVerseImage(o: { ref: string; lines: ShareLine[]; style?: ShareStyle; logo?: string; photo?: string; scale?: number }): Promise<Blob> {
+  const c = document.createElement('canvas')
+  const K = o.scale ?? 1
+  await drawVerse(c, { ...o, K })
   return await new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error('สร้างภาพไม่ได้'))), 'image/jpeg', K < 1 ? 0.8 : 0.92))
 }
 

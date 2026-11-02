@@ -12,14 +12,14 @@ async function open(withKey) {
   await p.click('.sm-tab >> text=ค้นหาข้อพระคัมภีร์'); await p.fill('#bs-q', 'ความกลัว กังวล')
   await p.getByRole('button', { name: '🔎 ค้นหา', exact: true }).click(); await p.waitForSelector('.bs__card .bs__text', { timeout: 60000 })
   await p.locator('.bs__card').first().getByRole('button', { name: /แชร์/ }).click(); await p.waitForSelector('.sv-text')
-  await p.getByRole('tab', { name: /แชร์เป็นภาพ/ }).click(); await p.waitForSelector('.sv-img')
+  await p.getByRole('tab', { name: /แชร์เป็นภาพ/ }).click(); await p.waitForSelector('.sv-canvas')
   const photo = await p.evaluate(() => { const c = document.createElement('canvas'); c.width = 900; c.height = 700; const x = c.getContext('2d'); const g = x.createLinearGradient(0, 0, 0, 700); g.addColorStop(0, '#6aa0d8'); g.addColorStop(1, '#6b8e4e'); x.fillStyle = g; x.fillRect(0, 0, 900, 700); x.strokeStyle = '#222'; x.lineWidth = 4; x.beginPath(); x.moveTo(0, 120); x.quadraticCurveTo(450, 220, 900, 100); x.stroke(); return c.toDataURL('image/png') })
   fs.writeFileSync('/tmp/claude-0/ai-photo.png', Buffer.from(photo.split(',')[1], 'base64'))
   await p.setInputFiles('[aria-label="เลือกรูปพื้นหลัง"]', '/tmp/claude-0/ai-photo.png'); await p.waitForSelector('#sv-auto')
   return { p, ctx, errs }
 }
-const src = (p) => p.locator('.sv-img').getAttribute('src')
-const changed = async (p, before) => { await p.waitForFunction((b) => document.querySelector('.sv-img').src !== b, before, { timeout: 8000 }); return true }
+const src = (p) => p.locator('.sv-canvas').evaluate((c) => c.toDataURL())
+const changed = async (p, before) => { await p.waitForFunction((b) => document.querySelector('.sv-canvas').toDataURL() !== b, before, { timeout: 8000 }); return true }
 
 // ---- ไม่มีคีย์: ปรับอัตโนมัติในเครื่อง ----
 {
