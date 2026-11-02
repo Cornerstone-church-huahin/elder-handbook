@@ -10,6 +10,8 @@ import { useNotebookCategories, type NotebookApi, type NotePrayer } from '../lib
 import { speakableRef, useSpeech } from '../lib/speech'
 import { openPronEditor, words } from '../components/Spoken'
 import { parseRef } from '../data/bible'
+import MdLite from '../components/MdLite'
+import { plainMd } from '../lib/mdLite'
 import SpiritField from '../components/SpiritField'
 import VerseInterpret from '../components/VerseInterpret'
 
@@ -120,6 +122,7 @@ export default function ScriptureMemorize({ nb, n }: { nb: NotebookApi; n: numbe
 function CategoryView({ nb, cat, catNames, tts, picks, slot, onBack }: { nb: NotebookApi; cat: string; catNames: string[]; tts: ReturnType<typeof useSpeech>; picks: ReturnType<typeof useListenPicks>; slot: HTMLElement | null; onBack: () => void }) {
   const [passage, setPassage] = useState<PickedPassage | null>(null)
   const [spirit, setSpirit] = useState('') // ความหมายฝ่ายวิญญาณของข้อที่กำลังจะบันทึก
+  const [spiritPlay, setSpiritPlay] = useState<string | null>(null) // การ์ดที่กำลังเล่นเฉพาะความหมายฝ่ายวิญญาณ (วนซ้ำจนกว่าจะกดหยุด)
   const [spiritEdit, setSpiritEdit] = useState<{ id: string; text: string } | null>(null) // แก้ความหมายบนการ์ดที่บันทึกแล้ว
   const [saveCat, setSaveCat] = useState(cat) // หมวดที่จะบันทึกเข้า (ตั้งต้น = หมวดที่เปิดอยู่)
   useEffect(() => setSaveCat(cat), [cat])
@@ -179,6 +182,13 @@ function CategoryView({ nb, cat, catNames, tts, picks, slot, onBack }: { nb: Not
     setNote(saveCat === cat ? '' : `✅ บันทึกแล้วในหมวด “${saveCat || 'ไม่มีหมวด'}”`)
   }
 
+  const playSpirit = (p: NotePrayer) => {
+    const t = plainMd(p.cheer)
+    if (!tts.supported || !t) return
+    setCur(null); setSpiritPlay(p.id)
+    tts.setLoop(true) // เล่นซ้ำตลอดจนกว่าจะกดหยุด
+    tts.speakSections([{ id: `${p.id}|s`, text: t }], () => {})
+  }
   const pool = picks.count ? items.filter((x) => picks.has(x.id)) : items
   const play = (xs: NotePrayer[]) => {
     if (!tts.supported || !xs.length) return
@@ -324,7 +334,12 @@ function CategoryView({ nb, cat, catNames, tts, picks, slot, onBack }: { nb: Not
                         </>
                       ) : (
                         <>
-                          <p className="sm-spirit__t">{p.cheer}</p>
+                          <MdLite className="sm-spirit__t" text={p.cheer} />
+                          <div className="sv-row">
+                            {tts.supported && (spiritPlay === p.id && active && cur === null
+                              ? <button type="button" className="btn btn--gold" aria-label={`หยุดฟังความหมาย ${p.title}`} onClick={() => { tts.stop(); setSpiritPlay(null) }}>⏹ หยุด (กำลังเล่นวนซ้ำ)</button>
+                              : <button type="button" className="btn btn--ghost" aria-label={`ฟังความหมายฝ่ายวิญญาณ ${p.title}`} title="ฟังเฉพาะความหมายฝ่ายวิญญาณ เล่นวนซ้ำจนกว่าจะกดหยุด" onClick={() => playSpirit(p)}>🔁 ฟังวนซ้ำ</button>)}
+                          </div>
                           <div className="sv-row edit-only"><button type="button" className="mini" aria-label={`แก้ความหมายฝ่ายวิญญาณ ${p.title}`} onClick={() => setSpiritEdit({ id: p.id, text: p.cheer })}>✏️ แก้ความหมาย</button></div>
                         </>
                       )}
