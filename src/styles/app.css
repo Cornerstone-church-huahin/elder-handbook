@@ -1434,3 +1434,18 @@ mark{background:#ffe38a;color:inherit;border-radius:3px;padding:0 .1rem}
 .nbk-btn--1{background:linear-gradient(135deg,#1f7a5c,#35a57a)}
 .nbk-btn--2{background:linear-gradient(135deg,#5b3f8c,#8a68c4)}
 .nbk-btn--3{background:linear-gradient(135deg,#1b6b8f,#35a0c8)}
+
+/* ท่องจำคัมภีร์: แถบเลือกหมวด + ⚙️ จัดการหมวด */
+.nb-catbar{align-items:center}
+.nb-catsel{position:relative;flex:1;min-width:0;display:flex;align-items:center}
+.nb-catsel__icon{position:absolute;left:.7rem;font-size:1.15rem;pointer-events:none}
+.nb-catsel select{width:100%;min-height:48px;padding:0 .8rem 0 2.5rem;border:2px solid var(--navy);border-radius:999px;background:var(--surface,#fff);color:inherit;font:inherit;font-weight:700;font-size:1rem}
+.nb-gear{flex:none;width:48px;height:48px;border-radius:50%;border:2px solid var(--gold);background:var(--surface,#fff);font-size:1.3rem;cursor:pointer}
+.nb-gear--on{background:var(--gold)}
+.nb-catmgr{margin-top:.6rem}
+.nb-catmgr .section__title{margin:0 0 .5rem}
+.nb-catmgr__list{list-style:none;margin:0 0 .6rem;padding:0;display:flex;flex-direction:column;gap:.4rem}
+.nb-catmgr__list li{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem}
+.nb-catmgr input{flex:1 1 9rem;min-width:0;min-height:44px;padding:0 .7rem;border:1.5px solid var(--navy);border-radius:.6rem;background:var(--surface,#fff);color:inherit;font:inherit}
+.nb-catmgr__add{display:flex;gap:.4rem;align-items:center}
+.nb-catmgr__del{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem;font-size:.85rem}
