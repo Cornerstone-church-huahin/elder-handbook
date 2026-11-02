@@ -7,7 +7,7 @@ const J = { context: 'เปโตรเขียนถึงคริสเต�
 let calls = 0
 async function run(withKey) {
   const ctx = await b.newContext({ viewport: { width: 390, height: 844 } })
-  if (withKey) await ctx.addInitScript(() => localStorage.setItem('khatha.aiSettings.v1', JSON.stringify({ vendor: 'gemini', keys: { gemini: 'AIzaFAKEKEYFORTEST' }, models: {} })))
+  if (withKey) await ctx.addInitScript(() => localStorage.setItem('khatha.aiSettings.v1', JSON.stringify({ vendor: 'claude', keys: { gemini: 'AIzaFAKEKEYFORTEST' }, models: {} })))
   await ctx.route('**/generativelanguage.googleapis.com/**', async (r) => { calls++; await r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(J) }] } }] }) }) })
   const p = await ctx.newPage(); const errs = []; p.on('pageerror', (e) => errs.push(e.message))
   await p.goto(URL + '#/notebook/1'); await p.waitForSelector('#nb-catsel')
