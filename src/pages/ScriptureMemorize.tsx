@@ -119,6 +119,20 @@ export default function ScriptureMemorize({ nb, n }: { nb: NotebookApi; n: numbe
 function CategoryView({ nb, cat, catNames, tts, picks, slot, onBack }: { nb: NotebookApi; cat: string; catNames: string[]; tts: ReturnType<typeof useSpeech>; picks: ReturnType<typeof useListenPicks>; slot: HTMLElement | null; onBack: () => void }) {
   const [passage, setPassage] = useState<PickedPassage | null>(null)
   const [manual, setManual] = useState('')
+  // ---- ✍️ เขียนเอง: พิมพ์/วางข้ออ้างอิงและข้อความเอง (เช่น ตามพระคัมภีร์เล่มที่ใช้อยู่) ----
+  const [custom, setCustom] = useState(false)
+  const [cLabel, setCLabel] = useState('')
+  const [cText, setCText] = useState('')
+  const cLines = cText.split('\n').map((x) => x.trim()).filter(Boolean)
+  const saveCustom = () => {
+    const title = cLabel.trim()
+    if (!title || !cLines.length) return
+    const r = parseRef(title)
+    const first = r?.verses[0] ?? 1
+    const nums = r && r.verses.length === cLines.length ? r.verses : cLines.map((_, i) => first + i)
+    nb.add({ title, category: cat, refs: [], story: '', text: cLines.map((t, i) => `${nums[i]}\t${t}`).join('\n'), notes: '' })
+    setCLabel(''); setCText(''); setCustom(false)
+  }
   const [delId, setDelId] = useState<string | null>(null)
   const [cur, setCur] = useState<string | null>(null)
   const [pickerKey, setPickerKey] = useState(0)
@@ -191,6 +205,22 @@ function CategoryView({ nb, cat, catNames, tts, picks, slot, onBack }: { nb: Not
         </div>, slot)}
 
       {cat && <section className="card sm-add edit-only" aria-label="เพิ่มข้อพระคัมภีร์">
+        <div className="sv-row">
+          <button type="button" className={`btn ${custom ? 'btn--gold' : 'btn--ghost'}`} id="sm-custom-toggle" aria-pressed={custom} onClick={() => setCustom(!custom)}>✍️ เขียนเอง / วางข้อความเอง</button>
+        </div>
+        {custom ? (
+          <div className="sm-custom">
+            <p className="source-note">พิมพ์หรือวางข้อความเองได้ทุกข้อ (เช่น ตามพระคัมภีร์เล่มที่ใช้อยู่ หรือข้อความที่ไม่มีในฉบับ 1971) — แยกแต่ละข้อขึ้นบรรทัดใหม่</p>
+            {passage?.lines.length ? <button type="button" className="btn btn--ghost" id="sm-custom-fill" onClick={() => { setCLabel(passage.label); setCText(passage.lines.join('\n')) }}>📋 ใช้ข้อที่เลือกไว้ด้านล่างเป็นต้นแบบ แล้วแก้ไขเอง</button> : null}
+            <label>ข้ออ้างอิง / หัวข้อ
+              <input id="sm-custom-label" type="text" value={cLabel} onChange={(e) => setCLabel(e.target.value)} placeholder="เช่น สดุดี 127:1" />
+            </label>
+            <label>ข้อความ
+              <textarea id="sm-custom-text" rows={5} value={cText} onChange={(e) => setCText(e.target.value)} placeholder="พิมพ์หรือวางข้อความที่นี่ (หลายข้อ: บรรทัดละข้อ)" />
+            </label>
+            <button type="button" className="btn btn--gold" id="sm-custom-save" disabled={!cLabel.trim() || !cLines.length} onClick={saveCustom}>💾 บันทึกข้อนี้</button>
+          </div>
+        ) : null}
         <BiblePicker key={pickerKey} onChange={setPassage} />
         <div className="sm-content" aria-live="polite">
           <p className="sm-content__h">เนื้อหา</p>
@@ -206,7 +236,7 @@ function CategoryView({ nb, cat, catNames, tts, picks, slot, onBack }: { nb: Not
               </label>
             )}
         </div>
-        <button type="button" className="btn btn--gold" disabled={!passage || !content.length} onClick={save}>💾 บันทึกข้อนี้</button>
+        {!custom && <button type="button" className="btn btn--gold" disabled={!passage || !content.length} onClick={save}>💾 บันทึกข้อนี้</button>}
       </section>}
 
       {note && <p className="nb-sync nb-sync--ok" role="status">{note}</p>}
