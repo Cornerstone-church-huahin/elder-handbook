@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import BiblePicker, { type PickedPassage } from '../components/BiblePicker'
 import BibleSearchPanel from '../components/BibleSearchPanel'
 import ShareVerseSheet from '../components/ShareVerseSheet'
-import ListenSettings, { PickBox, useListenPicks } from '../components/ListenSettings'
+import ListenSettings, { PickBox, useListenPicks, VoiceModeNote } from '../components/ListenSettings'
 import NotebookCategoryBar, { ALL, NONE } from '../components/NotebookCategoryBar'
 import { spaceOf } from '../lib/notebookSpaces'
 import { useNotebookCategories, type NotebookApi, type NotePrayer } from '../lib/prayerNotebook'
@@ -144,6 +144,7 @@ export default function ScriptureMemorize({ nb, n }: { nb: NotebookApi; n: numbe
         onRemove={(c) => removeCat(c.id, c.name)}
       />
       {playable.length > 0 && tts.supported && <div className="sm-bar" role="group" aria-label="ฟังทั้งหมวด">
+        <VoiceModeNote />
         <ListenModeBox mode={mode} setMode={setMode} what="เรียงตามที่ติ๊ก · วนซ้ำ" />
         <div className="sv-row">
           {activeTts ? (
@@ -372,7 +373,7 @@ function CategoryView({ nb, cat, catNames, tts, picks, slot, onBack }: { nb: Not
       {note && <p className="nb-sync nb-sync--ok" role="status">{note}</p>}
       {items.length === 0 && <p className="source-note sm-empty">{cat ? 'หมวดนี้ยังไม่มีข้อพระคัมภีร์' : 'ไม่มีข้อที่อยู่นอกหมวด'}</p>}
       {items.length > 0 && <div className="sm-bar" role="group" aria-label="ตัวเลือกการฟังและการแสดงผล">
-        {tts.supported && <ListenModeBox mode={mode} setMode={setMode} what="เรียง · วนซ้ำ" />}
+        {tts.supported && <><VoiceModeNote /><ListenModeBox mode={mode} setMode={setMode} what="เรียง · วนซ้ำ" /></>}
         <div className="sv-row">
           <button type="button" className="mini" id="sm-expand-all" onClick={() => { setAllOpen(true); setFlip(new Set()) }}>▾ ขยายทั้งหมด</button>
           <button type="button" className="mini" id="sm-collapse-all" onClick={() => { setAllOpen(false); setFlip(new Set()) }}>▴ ย่อทั้งหมด</button>

@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { RATES } from '../lib/speech'
+import { cloudAvailable, getCloudPrefs, hasGeminiKey, lastCloudError } from '../lib/cloudVoice'
 
 /**
  * ตั้งค่าเสียงอ่านชุดเดียวกันทุกหน้า (สคริปต์ด่วน · ถามตอบ · การประชุม ฯลฯ)
@@ -52,6 +54,7 @@ export default function ListenSettings({ tts, picks, ids }: { tts: Tts; picks: L
   return (
     <section className="card us-settings" aria-label="ตั้งค่าเสียงอ่าน">
       <h2 className="section__title">⚙️ ตั้งค่าเสียงอ่าน</h2>
+      <VoiceModeNote />
       <p className="us-pickbar">
         <span>ติ๊กช่อง ☑ หน้าการ์ดเพื่อเลือกที่จะฟัง{picks.count ? ` · เลือกแล้ว ${picks.count}` : ' · ไม่ติ๊กเลย = ฟังทั้งหมด'}</span>
         <button type="button" className="mini" onClick={() => picks.setAll(ids)}>เลือกทั้งหมด</button>
@@ -69,5 +72,23 @@ export default function ListenSettings({ tts, picks, ids }: { tts: Tts; picks: L
       <p className="source-note">ความเร็วนี้ใช้ร่วมกับทั้งแอป (สมุดคำอธิษฐาน พระคัมภีร์ ฯลฯ) และเก็บไว้ในเครื่องนี้</p>
       {tts.noVoice && <p className="ai-keys__err">เครื่องนี้ยังไม่มีเสียงภาษาไทย · Android: ตั้งค่า › การจัดการทั่วไป › การอ่านออกเสียง › Google › ติดตั้งข้อมูลเสียงภาษาไทย</p>}
     </section>
+  )
+}
+
+/**
+ * บอกชัดว่าตอนนี้เสียงอ่านเป็นแบบไหน และจะเล่นต่อเมื่อกดโฮม/ย่อแอป/จอดับหรือไม่
+ * · เสียงมือถือ (Web Speech): ระบบมือถือตัดเสียงเมื่อออกจากแอป — เว็บแอปบังคับให้เล่นต่อไม่ได้
+ * · เสียงไฟล์ (Gemini): เล่นเป็นไฟล์เสียงเหมือนเพลง เล่นต่อได้ จึงต้องมีคีย์ Gemini และเปิดสวิตช์ในตั้งค่า
+ */
+export function VoiceModeNote() {
+  const ok = cloudAvailable()
+  const p = getCloudPrefs()
+  const why = ok ? '' : !hasGeminiKey() ? 'ยังไม่ได้ใส่คีย์ Gemini' : !p.on ? 'สวิตช์ “ฟังต่อเนื่องแม้จอดับ” ปิดอยู่' : `เรียก Gemini ไม่ได้ชั่วคราว${lastCloudError() ? ` (${lastCloudError()})` : ''}`
+  return ok ? (
+    <p className="voice-note voice-note--ok" role="status">✅ โหมดไฟล์เสียง (Gemini): กดโฮม ย่อแอป หรือจอดับแล้ว เสียงยังเล่นต่อได้</p>
+  ) : (
+    <p className="voice-note voice-note--warn" role="status">
+      ⚠️ ตอนนี้ใช้เสียงมือถือ — เมื่อกดโฮม/ย่อแอป/จอดับ <b>เสียงจะหยุด</b> ({why}) · ให้ใส่คีย์ Gemini ที่ ตั้งค่า › ผู้ช่วย AI แล้วเปิด “ฟังต่อเนื่องแม้จอดับ” <Link to="/settings" className="voice-note__link">ไปตั้งค่า ›</Link>
+    </p>
   )
 }
