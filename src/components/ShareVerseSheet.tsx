@@ -5,7 +5,8 @@ import {
   type Boxes, type ShareLine, type ShareStyle,
 } from '../lib/shareVerse'
 import { AI_GOALS, aiEditPhoto, hasGeminiKeyForPhoto } from '../lib/aiPhoto'
-import { ARTS, makeArt } from '../lib/shareBackgrounds'
+import { ARTS, SCENES, makeArt } from '../lib/shareBackgrounds'
+import { COMMONS_TOPICS, fetchCommonsPhoto, searchCommons, type CommonsHit } from '../lib/commonsPhotos'
 
 type Main = 'text' | 'image'
 type Sub = 'photo' | 'style' | 'layout' | 'color' | 'logo'
@@ -68,12 +69,43 @@ export default function ShareVerseSheet({ refLabel, lines, onClose }: { refLabel
   const resetKeys = (keys: (keyof ShareStyle)[]) => upd(Object.fromEntries(keys.map((k) => [k, DEFAULT_STYLE[k]])) as Partial<ShareStyle>)
   const [confirmReset, setConfirmReset] = useState(false)
   const [thumbs, setThumbs] = useState<Record<string, string>>(thumbCache)
+  const [scene, setScene] = useState('all') // หมวดของพื้นหลังสำเร็จรูป
+  const [artMax, setArtMax] = useState(12) // แสดงกี่แบบ (ดูเพิ่มทีละ 12)
+  const artsAll = ARTS.filter((a) => scene === 'all' || a.scene === scene)
+  const artsShown = artsAll.slice(0, artMax)
   useEffect(() => {
-    // ภาพย่อของพื้นหลังสำเร็จรูป: สร้างครั้งแรกที่เปิดแท็บภาพ แล้วจำไว้
-    if (main !== 'image' || sub !== 'photo' || ARTS.every((a) => thumbCache[a.id])) return
-    const t = window.setTimeout(() => { for (const a of ARTS) thumbCache[a.id] ??= makeArt(a.id, 216); setThumbs({ ...thumbCache }) }, 30)
+    // ภาพย่อสร้างเฉพาะที่แสดงอยู่ แล้วจำไว้ (120 แบบ สร้างทั้งหมดใช้เวลาไม่ถึงวินาที)
+    if (main !== 'image' || sub !== 'photo') return
+    const need = artsShown.filter((a) => !thumbCache[a.id])
+    if (!need.length) return
+    const t = window.setTimeout(() => { for (const a of need) thumbCache[a.id] ??= makeArt(a.id, 216); setThumbs({ ...thumbCache }) }, 20)
     return () => window.clearTimeout(t)
-  }, [main, sub])
+  }, [main, sub, scene, artMax]) // eslint-disable-line react-hooks/exhaustive-deps
+  // ---------- ค้นรูปฟรีจากอินเทอร์เน็ต (Wikimedia Commons · สาธารณสมบัติ/CC0) ----------
+  const [web, setWeb] = useState(false)
+  const [webQ, setWebQ] = useState('sunrise')
+  const [webHits, setWebHits] = useState<CommonsHit[]>([])
+  const [webNext, setWebNext] = useState<number | null>(null)
+  const [webBusy, setWebBusy] = useState(false)
+  const [webErr, setWebErr] = useState('')
+  const [webCredit, setWebCredit] = useState('')
+  const webSearch = async (q: string, offset = 0) => {
+    if (!q.trim()) return
+    setWebBusy(true); setWebErr('')
+    try {
+      const r = await searchCommons(q.trim(), offset)
+      setWebHits((h) => (offset ? [...h, ...r.hits] : r.hits)); setWebNext(r.next)
+      if (!r.hits.length && !offset) setWebErr('ไม่พบรูปสาธารณสมบัติ/CC0 ที่ตรงกับคำนี้ ลองคำอื่น (คำภาษาอังกฤษจะได้ผลมากกว่า)')
+    } catch (e) { setWebErr(e instanceof Error ? e.message : 'ค้นไม่สำเร็จ') } finally { setWebBusy(false) }
+  }
+  const webPick = async (h: CommonsHit) => {
+    setWebBusy(true); setWebErr('')
+    try {
+      const data = await fetchCommonsPhoto(h.title)
+      setOrig(data); setVersions([]); setVi(-1); setAiErr(''); upd({ photoZoom: 1, photoX: 0, photoY: 0 })
+      setWebCredit(`${h.title.replace(/^File:/, '')} · ${h.license} · Wikimedia Commons`)
+    } catch (e) { setWebErr(e instanceof Error ? e.message : 'โหลดรูปไม่สำเร็จ') } finally { setWebBusy(false) }
+  }
   const pickArt = (id: string) => { setOrig(makeArt(id, 1080)); setVersions([]); setVi(-1); setAiErr(''); upd({ photoZoom: 1, photoX: 0, photoY: 0 }) }
   const resetAll = () => { setStyle({ ...DEFAULT_STYLE }); setLogo(undefined); setConfirmReset(false); flash('รีเซ็ตทุกอย่างเป็นค่าเริ่มต้นแล้ว (รูปที่เลือกยังอยู่)') }
 
@@ -310,14 +342,43 @@ export default function ShareVerseSheet({ refLabel, lines, onClose }: { refLabel
                   <button type="button" className="btn btn--gold" onClick={() => photoIn.current?.click()}>📷 เลือกรูปจากเครื่อง</button>
                   {photo && <button type="button" className="btn btn--ghost" onClick={() => { setOrig(undefined); setVersions([]); setVi(-1) }}>✕ เอารูปออก</button>}
                 </div>
-                <p className="sv-h">🖼️ พื้นหลังสำเร็จรูป (ฟรี วาดขึ้นในแอป — ใช้ได้ทุกที่ ไม่มีลิขสิทธิ์)</p>
+                <p className="sv-h">🖼️ พื้นหลังสำเร็จรูป {ARTS.length} แบบ (ฟรี วาดขึ้นในแอป ไม่มีลิขสิทธิ์)</p>
+                <div className="sv-chips" role="group" aria-label="หมวดพื้นหลัง">
+                  <button type="button" aria-pressed={scene === 'all'} className={`sv-chip${scene === 'all' ? ' sv-chip--on' : ''}`} onClick={() => { setScene('all'); setArtMax(12) }}>ทั้งหมด ({ARTS.length})</button>
+                  {SCENES.map((x) => <button key={x.id} type="button" aria-pressed={scene === x.id} className={`sv-chip${scene === x.id ? ' sv-chip--on' : ''}`} onClick={() => { setScene(x.id); setArtMax(12) }}>{x.label}</button>)}
+                </div>
                 <div className="sv-arts" role="group" aria-label="พื้นหลังสำเร็จรูป">
-                  {ARTS.map((a) => (
+                  {artsShown.map((a) => (
                     <button key={a.id} type="button" className="sv-art" aria-label={`พื้นหลัง ${a.label}`} onClick={() => pickArt(a.id)}>
                       {thumbs[a.id] ? <img src={thumbs[a.id]} alt="" /> : <span className="sv-art__ph" />}<span>{a.label}</span>
                     </button>
                   ))}
                 </div>
+                {artsAll.length > artMax && <div className="sv-row"><button type="button" className="btn btn--ghost" id="sv-more-arts" onClick={() => setArtMax(artMax + 12)}>▾ ดูเพิ่ม (แสดง {artMax} จาก {artsAll.length})</button></div>}
+                <p className="sv-h">🌐 รูปถ่ายฟรีจากอินเทอร์เน็ต (Wikimedia Commons — เฉพาะสาธารณสมบัติ/CC0 ไม่ต้องให้เครดิต)</p>
+                <div className="sv-row"><button type="button" className="btn btn--ghost" id="sv-web-toggle" aria-expanded={web} onClick={() => { setWeb(!web); if (!web && !webHits.length) void webSearch(webQ) }}>{web ? '▴ ซ่อนการค้นรูปจากเน็ต' : '🌐 ค้นรูปฟรีจากเน็ต (หลายพันรูป)'}</button></div>
+                {web && (
+                  <div className="sv-web">
+                    <div className="sv-chips" role="group" aria-label="หัวข้อรูป">
+                      {COMMONS_TOPICS.map((t) => <button key={t.id} type="button" aria-pressed={webQ === t.q} className={`sv-chip${webQ === t.q ? ' sv-chip--on' : ''}`} onClick={() => { setWebQ(t.q); void webSearch(t.q) }}>{t.label}</button>)}
+                    </div>
+                    <div className="sv-row">
+                      <input className="sv-webq" aria-label="คำค้นรูป" value={webQ} placeholder="คำค้น เช่น sunrise, mountain, ทะเล" onChange={(e) => setWebQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void webSearch(webQ)} />
+                      <button type="button" className="btn btn--gold" id="sv-web-go" disabled={webBusy} onClick={() => void webSearch(webQ)}>{webBusy ? '⏳' : '🔎 ค้น'}</button>
+                    </div>
+                    {webErr && <p className="ai-keys__err" role="alert">{webErr}</p>}
+                    <div className="sv-arts sv-arts--web" role="group" aria-label="ผลค้นรูปฟรี">
+                      {webHits.map((h) => (
+                        <button key={h.title} type="button" className="sv-art" aria-label={`เลือกรูป ${h.title.replace(/^File:/, '')}`} disabled={webBusy} onClick={() => void webPick(h)}>
+                          <img src={h.thumb} alt="" loading="lazy" /><span>{h.license}</span>
+                        </button>
+                      ))}
+                    </div>
+                    {webNext !== null && webHits.length > 0 && <div className="sv-row"><button type="button" className="btn btn--ghost" id="sv-web-more" disabled={webBusy} onClick={() => void webSearch(webQ, webNext)}>▾ โหลดรูปเพิ่ม</button></div>}
+                    {webCredit && <p className="source-note" role="status">ใช้รูป: {webCredit}</p>}
+                    <p className="source-note">ต้องมีอินเทอร์เน็ต · ค้นจาก commons.wikimedia.org (ไม่ส่งข้อมูลส่วนตัวของคุณ) · คัดเฉพาะรูปที่สาธารณสมบัติหรือ CC0 และขนาดไม่เล็กเกินไป · ภาษาอังกฤษได้ผลมากกว่าไทย</p>
+                  </div>
+                )}
                 {!photo ? <p className="source-note">ยังไม่ได้เลือกรูป — ตอนนี้ใช้พื้นหลังสี เลือกรูปจากเครื่องแล้วจะปรับภาพ ใส่ฟิลเตอร์ ซูม เลื่อนตำแหน่งได้ที่นี่</p> : (
                   <>
                     <div className="sv-row"><button type="button" className="btn btn--ghost" id="sv-reset-photo" onClick={() => resetKeys(PHOTO_KEYS)}>↺ รีเซ็ตการปรับรูปเป็นค่าเริ่มต้น</button></div>

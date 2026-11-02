@@ -18,12 +18,23 @@ const settle = () => p.waitForTimeout(500)
 
 // ---- พื้นหลังสำเร็จรูป ----
 await p.waitForFunction(() => document.querySelectorAll('.sv-art img').length === 12, null, { timeout: 15000 })
-check(await p.locator('.sv-art').count() === 12 && await p.locator('.sv-art img').count() === 12, '12 built-in backgrounds with thumbnails')
+check(await p.locator('.sv-art').count() === 12 && await p.locator('.sv-art img').count() === 12, 'first page: 12 built-in backgrounds with thumbnails')
+const total = Number((await p.locator('.sv-h', { hasText: 'พื้นหลังสำเร็จรูป' }).textContent()).match(/(\d+) แบบ/)[1])
+check(total >= 100, 'library has 100+ built-in backgrounds (' + total + ')')
+for (let i = 0; i < 9; i++) await p.locator('#sv-more-arts').tap().catch(() => {})
+await p.waitForFunction((n) => document.querySelectorAll('.sv-art').length === n, total, { timeout: 15000 })
+await p.waitForFunction((n) => document.querySelectorAll('.sv-art img').length === n, total, { timeout: 20000 })
+check(await p.locator('.sv-art img').count() === total, '"ดูเพิ่ม" reveals all ' + total + ' with thumbnails')
+const thumbSrcs = await p.locator('.sv-art img').evaluateAll((els) => els.map((e) => e.src.length + e.src.slice(-60)))
+check(new Set(thumbSrcs).size >= total - 2, 'thumbnails are all different (' + new Set(thumbSrcs).size + ')')
+await p.getByRole('button', { name: 'ทะเลสงบ', exact: true }).tap(); await p.waitForTimeout(300)
+check(await p.locator('.sv-art').count() === 8, 'category chip filters to one scene (8 variants)')
+await p.getByRole('button', { name: /^ทั้งหมด/ }).tap()
 const cvs = p.locator('.sv-canvas'); const before0 = await cvs.evaluate((c) => c.toDataURL())
-await p.locator('[aria-label="พื้นหลัง รุ่งอรุณเหนือเขา"]').tap(); await settle()
+await p.locator('[aria-label="พื้นหลัง รุ่งอรุณ · ดั้งเดิม"]').tap(); await settle()
 const after = await cvs.evaluate((c) => c.toDataURL()); check(after !== before0, 'tapping a background changes the card')
 const seen = new Set([after])
-for (const id of ['อาทิตย์ตก + กางเขน', 'ดาวและพระจันทร์', 'ทะเลสงบ', 'ลำแสงผ่านเมฆ', 'ป่าหมอก']) { await p.locator(`[aria-label="พื้นหลัง ${id}"]`).tap(); await settle(); seen.add(await cvs.evaluate((c) => c.toDataURL())) }
+for (const id of ['อาทิตย์ตก+กางเขน · ดั้งเดิม', 'ดาวและพระจันทร์ · ดั้งเดิม', 'ทะเลสงบ · ดั้งเดิม', 'ลำแสงผ่านเมฆ · ดั้งเดิม', 'ป่าหมอก · ดั้งเดิม']) { await p.locator(`[aria-label="พื้นหลัง ${id}"]`).tap(); await settle(); seen.add(await cvs.evaluate((c) => c.toDataURL())) }
 check(seen.size === 6, 'each background looks different (' + seen.size + '/6 distinct)')
 check(await p.locator('#sv-reset-photo').count() === 1, 'photo tools appear after choosing a background')
 
