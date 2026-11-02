@@ -1653,3 +1653,7 @@ mark{background:#ffe38a;color:inherit;border-radius:3px;padding:0 .1rem}
 .sm-item__toggle{flex:1;min-width:0;display:flex;flex-direction:column;gap:.15rem;background:none;border:0;padding:.1rem 0;font:inherit;text-align:left;cursor:pointer;color:inherit}
 .sm-item__toggle--open{flex:none;flex-direction:row;align-items:baseline;gap:.4rem}
 .sm-item__prev{font-size:.85rem;opacity:.75;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+
+.sm-cat-row{display:flex;align-items:center;gap:.35rem}
+.sm-cat-row .sm-cat{flex:1;min-width:0}
+.sm-cat-row--on .sm-cat{background:rgba(212,175,55,.2)}
