@@ -8,6 +8,7 @@ import NotebookCategoryBar, { ALL, NONE } from '../components/NotebookCategoryBa
 import { spaceOf } from '../lib/notebookSpaces'
 import { useNotebookCategories, type NotebookApi, type NotePrayer } from '../lib/prayerNotebook'
 import { speakableRef, useSpeech } from '../lib/speech'
+import { openPronEditor, words } from '../components/Spoken'
 import { parseRef } from '../data/bible'
 
 /** บรรทัดที่เก็บ → เลขข้อ + ข้อความ (รุ่นแรกเก็บเฉพาะข้อความ ใช้ notes เป็นเลขข้อแรก) */
@@ -248,6 +249,7 @@ function CategoryView({ nb, cat, catNames, tts, picks, slot, onBack }: { nb: Not
                       ? <button type="button" className="us-play us-play--on" onClick={tts.stop} aria-label="หยุดอ่าน">⏹</button>
                       : <button type="button" className="us-play" onClick={() => play(queueFrom(p.id))} aria-label={`ฟัง ${p.title}`}>▶</button>)}
                     <button type="button" className="mini edit-only sm-editbtn" aria-label={`แก้ไข ${p.title}`} onClick={() => startEdit(p)}>✏️</button>
+                    <button type="button" className="mini edit-only" aria-label={`แก้คำอ่าน ${p.title}`} title="แก้คำอ่าน (เสียงอ่านผิด) — มีผลทั้งแอป" onClick={() => { const t = `${speakableRef(p.title)}. ${lines.map((l) => l.t).join(' ')}`; const w = words(t).find((x) => x.segment.trim()); openPronEditor({ text: t, start: w?.index ?? 0, end: (w?.index ?? 0) + (w?.segment.length ?? 0), full: true }) }}>🔤</button>
                     <button type="button" className="mini" aria-label={`แชร์ ${p.title}`} onClick={() => setSharing(p)}>📤</button>
                     {delId === p.id
                       ? <span className="edit-only"><button type="button" className="btn btn--danger" onClick={() => { if (cur === p.id) tts.stop(); nb.remove(p.id); setDelId(null) }}>ลบ</button> <button type="button" className="btn btn--ghost" onClick={() => setDelId(null)}>ไม่ลบ</button></span>

@@ -1606,3 +1606,6 @@ mark{background:#ffe38a;color:inherit;border-radius:3px;padding:0 .1rem}
 .sv-logotile--on{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold)}
 .sv-edwrap{display:flex;justify-content:center}
 .sv-logoed{width:min(100%,260px);height:auto;aspect-ratio:1/1;border-radius:.7rem;border:2px solid var(--navy);cursor:grab;display:block}
+
+.pron-w.is-fixed{text-decoration:underline;text-decoration-color:var(--gold);text-decoration-thickness:3px;text-underline-offset:3px}
+.pron-pick--full{max-height:30vh;overflow:auto}
