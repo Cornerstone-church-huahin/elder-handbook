@@ -1584,3 +1584,6 @@ mark{background:#ffe38a;color:inherit;border-radius:3px;padding:0 .1rem}
 .sv-webq{flex:1;min-width:0;min-height:44px;padding:0 .7rem;border:1.5px solid var(--navy);border-radius:.6rem;background:var(--surface,#fff);color:inherit;font:inherit}
 .sv-arts--web{grid-template-columns:repeat(3,1fr)}
 .sv-arts--web .sv-art img{aspect-ratio:1/1}
+
+.sv-stockitem{position:relative}
+.sv-stockx{position:absolute;top:.25rem;right:.25rem;width:26px;height:26px;border-radius:50%;border:0;background:rgba(20,33,61,.8);color:#fff;font-size:.7rem;cursor:pointer;padding:0}

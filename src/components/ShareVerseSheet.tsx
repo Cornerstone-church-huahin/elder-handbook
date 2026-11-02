@@ -4,8 +4,9 @@ import {
   FILTERS, FRAMES, PATTERNS, STYLE_PRESETS, TONES, autoAdjust, DEFAULT_STYLE, drawVerse, fileToLogo, handleOf, fileToPhoto, getSharePrefs, renderVerseImage, setSharePrefs, shareText,
   type Boxes, type ShareLine, type ShareStyle,
 } from '../lib/shareVerse'
-import { AI_GOALS, aiEditPhoto, hasGeminiKeyForPhoto } from '../lib/aiPhoto'
-import { ARTS, SCENES, makeArt } from '../lib/shareBackgrounds'
+import { AI_GOALS, aiEditPhoto, aiGenerateBackground, hasGeminiKeyForPhoto } from '../lib/aiPhoto'
+import { ARTS, SCENES, makeArt, makeRandomArt } from '../lib/shareBackgrounds'
+import { addStock, blobToDataUrl, clearStock, listStock, removeStock, shrinkToBlob, type StockItem } from '../lib/shareStock'
 import { COMMONS_TOPICS, fetchCommonsPhoto, searchCommons, type CommonsHit } from '../lib/commonsPhotos'
 
 type Main = 'text' | 'image'
@@ -81,6 +82,42 @@ export default function ShareVerseSheet({ refLabel, lines, onClose }: { refLabel
     const t = window.setTimeout(() => { for (const a of need) thumbCache[a.id] ??= makeArt(a.id, 216); setThumbs({ ...thumbCache }) }, 20)
     return () => window.clearTimeout(t)
   }, [main, sub, scene, artMax]) // eslint-disable-line react-hooks/exhaustive-deps
+  // ---------- สต็อกพื้นหลังของฉัน (สร้างเพิ่มทีละ 5–10 รูป เก็บในเครื่อง) ----------
+  const [stock, setStock] = useState<StockItem[]>([])
+  const [stockMax, setStockMax] = useState(12)
+  const [gen, setGen] = useState<{ done: number; total: number } | null>(null)
+  const [stockErr, setStockErr] = useState('')
+  const [stockClear, setStockClear] = useState(false)
+  const refreshStock = async () => setStock(await listStock())
+  useEffect(() => { if (main === 'image' && sub === 'photo') void refreshStock() }, [main, sub])
+  const thumbOf = async (dataUrl: string) => blobToDataUrl(await shrinkToBlob(dataUrl, 216, 0.8))
+  const genStock = async (n: number, ai = false) => {
+    if (gen) return
+    setStockErr(''); setGen({ done: 0, total: n })
+    const made: StockItem[] = []
+    try {
+      for (let i = 0; i < n; i++) {
+        let dataUrl: string, label: string
+        if (ai) ({ dataUrl, label } = await aiGenerateBackground(i))
+        else { const seed = Date.now() + i * 7919 + Math.floor(Math.random() * 1e6); ({ dataUrl, label } = makeRandomArt(seed, 1080)) }
+        const full = await shrinkToBlob(dataUrl, 1600, 0.88)
+        made.push({ id: `s${Date.now().toString(36)}${i}${Math.random().toString(36).slice(2, 6)}`, at: Date.now() + i, kind: ai ? 'ai' : 'art', label, thumb: await thumbOf(dataUrl), full })
+        setGen({ done: i + 1, total: n })
+        await new Promise((r) => window.setTimeout(r, 0)) // ให้จอไม่ค้างระหว่างสร้าง
+      }
+    } catch (e) {
+      setStockErr(e instanceof Error ? e.message : 'สร้างไม่สำเร็จ')
+    } finally {
+      if (made.length) await addStock(made).catch(() => setStockErr('เก็บลงสต็อกไม่ได้ (พื้นที่เครื่องอาจเต็ม)'))
+      setGen(null); await refreshStock()
+    }
+  }
+  const useStockItem = async (it: StockItem) => {
+    try { setOrig(await blobToDataUrl(it.full)); setVersions([]); setVi(-1); setAiErr(''); upd({ photoZoom: 1, photoX: 0, photoY: 0 }) } catch { flash('เปิดรูปนี้ไม่ได้') }
+  }
+  const delStock = async (id: string) => { await removeStock(id); await refreshStock() }
+  const wipeStock = async () => { await clearStock(); setStockClear(false); await refreshStock(); setStockMax(12) }
+
   // ---------- ค้นรูปฟรีจากอินเทอร์เน็ต (Wikimedia Commons · สาธารณสมบัติ/CC0) ----------
   const [web, setWeb] = useState(false)
   const [webQ, setWebQ] = useState('sunrise')
@@ -355,6 +392,30 @@ export default function ShareVerseSheet({ refLabel, lines, onClose }: { refLabel
                   ))}
                 </div>
                 {artsAll.length > artMax && <div className="sv-row"><button type="button" className="btn btn--ghost" id="sv-more-arts" onClick={() => setArtMax(artMax + 12)}>▾ ดูเพิ่ม (แสดง {artMax} จาก {artsAll.length})</button></div>}
+                <p className="sv-h">📦 สต็อกพื้นหลังของฉัน ({stock.length} รูป) — สร้างเพิ่มทีละ 5–10 รูป เก็บไว้ใช้ภายหลัง</p>
+                <div className="sv-row">
+                  <button type="button" className="btn btn--gold" id="sv-gen5" disabled={!!gen} onClick={() => void genStock(5)}>🎲 สร้างเพิ่ม 5 รูป</button>
+                  <button type="button" className="btn btn--gold" id="sv-gen10" disabled={!!gen} onClick={() => void genStock(10)}>🎲 สร้างเพิ่ม 10 รูป</button>
+                  {hasGeminiKeyForPhoto() && <button type="button" className="btn btn--ghost" id="sv-genai" disabled={!!gen} onClick={() => void genStock(5, true)}>✨ ให้ AI สร้าง 5 รูป</button>}
+                </div>
+                {gen && <p className="source-note" role="status">กำลังสร้าง {gen.done}/{gen.total}…</p>}
+                {stockErr && <p className="ai-keys__err" role="alert">{stockErr}</p>}
+                {stock.length === 0 && !gen && <p className="source-note">ยังไม่มีรูปในสต็อก — กด “สร้างเพิ่ม” แบบสุ่มในเครื่อง (ฟรี ไม่จำกัด) หรือ “ให้ AI สร้าง” (ใช้โควต้า Gemini ของคุณ ต้องมีคีย์) รูปที่สร้างเก็บไว้ในเครื่องนี้ ปิดแอปแล้วยังอยู่</p>}
+                <div className="sv-arts" role="group" aria-label="สต็อกพื้นหลังของฉัน">
+                  {stock.slice(0, stockMax).map((it) => (
+                    <div key={it.id} className="sv-stockitem">
+                      <button type="button" className="sv-art" aria-label={`ใช้พื้นหลัง ${it.label}`} onClick={() => void useStockItem(it)}>
+                        <img src={it.thumb} alt="" /><span>{it.kind === 'ai' ? '✨ ' : ''}{it.label}</span>
+                      </button>
+                      <button type="button" className="sv-stockx" aria-label={`ลบ ${it.label} ออกจากสต็อก`} onClick={() => void delStock(it.id)}>✕</button>
+                    </div>
+                  ))}
+                </div>
+                {stock.length > stockMax && <div className="sv-row"><button type="button" className="btn btn--ghost" id="sv-stock-more" onClick={() => setStockMax(stockMax + 12)}>▾ ดูเพิ่ม (แสดง {stockMax} จาก {stock.length})</button></div>}
+                {stock.length > 0 && (stockClear
+                  ? <div className="sv-confirm" role="alertdialog" aria-label="ยืนยันล้างสต็อก"><span>ลบรูปในสต็อกทั้งหมด {stock.length} รูป?</span><button type="button" className="btn btn--danger" id="sv-stock-clear-yes" onClick={() => void wipeStock()}>ลบทั้งหมด</button><button type="button" className="btn btn--ghost" onClick={() => setStockClear(false)}>ยกเลิก</button></div>
+                  : <div className="sv-row"><button type="button" className="btn btn--ghost" id="sv-stock-clear" onClick={() => setStockClear(true)}>🗑️ ล้างสต็อกทั้งหมด</button></div>)}
+
                 <p className="sv-h">🌐 รูปถ่ายฟรีจากอินเทอร์เน็ต (Wikimedia Commons — เฉพาะสาธารณสมบัติ/CC0 ไม่ต้องให้เครดิต)</p>
                 <div className="sv-row"><button type="button" className="btn btn--ghost" id="sv-web-toggle" aria-expanded={web} onClick={() => { setWeb(!web); if (!web && !webHits.length) void webSearch(webQ) }}>{web ? '▴ ซ่อนการค้นรูปจากเน็ต' : '🌐 ค้นรูปฟรีจากเน็ต (หลายพันรูป)'}</button></div>
                 {web && (
