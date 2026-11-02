@@ -4,9 +4,9 @@ import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
 import { parseRef, refUrl } from '../data/bible'
 import { Spoken, useFollow } from '../components/Spoken'
 import { autoCheer } from '../lib/cheer'
-import { cleanStory, refsWithSuggest, scoreNote, useNotebookCategories, useNotebookSpace, usePrayerNotebook, type NotebookApi, type NotePrayer } from '../lib/prayerNotebook'
-import NotebookCategoryBar, { ALL, NONE } from '../components/NotebookCategoryBar'
+import { cleanStory, refsWithSuggest, scoreNote, useNotebookSpace, usePrayerNotebook, type NotebookApi, type NotePrayer } from '../lib/prayerNotebook'
 import { spaceOf } from '../lib/notebookSpaces'
+import ScriptureMemorize from './ScriptureMemorize'
 import type { SyncStatus } from '../lib/sync'
 import { speakableRef, useSpeech, type SpeechSection } from '../lib/speech'
 import { PrayerMode, useVerseTexts } from './Prayer'
@@ -27,11 +27,10 @@ export function NotebookSpacePage() {
 }
 function NotebookSpaceView({ n }: { n: number }) {
   const nb = useNotebookSpace(n)
-  const cats = useNotebookCategories(n)
-  return <NotebookView nb={nb} space={n} catApi={spaceOf(n)?.cats ? cats : undefined} />
+  return spaceOf(n)?.kind === 'scripture' ? <ScriptureMemorize nb={nb} n={n} /> : <NotebookView nb={nb} space={n} />
 }
 
-function NotebookView({ nb, space, catApi }: { nb: NotebookApi; space?: number; catApi?: ReturnType<typeof useNotebookCategories> }) {
+function NotebookView({ nb, space }: { nb: NotebookApi; space?: number }) {
   const [params, setParams] = useSearchParams()
   const { list, saved, sync, syncNow, add, update, remove, restoreDefaults } = nb
   const [q, setQ] = useState(params.get('q') ?? '')
@@ -41,7 +40,6 @@ function NotebookView({ nb, space, catApi }: { nb: NotebookApi; space?: number; 
   const [confirmDel, setConfirmDel] = useState<string | null>(null)
   const [flash, setFlash] = useState<string | null>(null)
   const [big, setBig] = useState<NotePrayer | null>(null)
-  const [catSel, setCatSel] = useState(ALL) // หมวดที่เลือกดู (สมุดเพิ่มเติม)
   const refs = useRef(new Map<string, HTMLElement>())
 
   const query = q.trim()
@@ -52,14 +50,14 @@ function NotebookView({ nb, space, catApi }: { nb: NotebookApi; space?: number; 
     return () => document.body.classList.remove('reading')
   }, [reading])
   const shown = useMemo(() => {
-    const all = (list ?? []).filter((p) => !space || catSel === ALL || (catSel === NONE ? !p.category : p.category === catSel))
+    const all = list ?? []
     if (!query) return all
     return all
       .map((p) => ({ p, s: scoreNote(p, query) }))
       .filter((x) => x.s > 0)
       .sort((a, b) => b.s - a.s)
       .map((x) => x.p)
-  }, [list, query, catSel, space])
+  }, [list, query])
 
   // ค้นหา: การ์ดที่ตรงที่สุดขึ้นมาบนสุดและกางออก
   useEffect(() => {
@@ -89,7 +87,7 @@ function NotebookView({ nb, space, catApi }: { nb: NotebookApi; space?: number; 
 
   const startNew = () => {
     setEditing('new')
-    setDraft({ ...EMPTY, title: query, category: space && catSel !== ALL && catSel !== NONE ? catSel : '' })
+    setDraft({ ...EMPTY, title: query })
     setOpen(null)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -123,66 +121,34 @@ function NotebookView({ nb, space, catApi }: { nb: NotebookApi; space?: number; 
     setTimeout(() => setFlash(null), 1800)
   }
 
-  const categories = catApi ? catApi.cats.map((c) => c.name) : Array.from(new Set((list ?? []).map((p) => p.category).filter(Boolean)))
-  const counts: Record<string, number> = {}
-  for (const p of list ?? []) if (p.category) counts[p.category] = (counts[p.category] ?? 0) + 1
-  const noneCount = (list ?? []).filter((p) => !p.category).length
+  const categories = Array.from(new Set((list ?? []).map((p) => p.category).filter(Boolean)))
 
   return (
     <>
-      {space && catApi ? (
-        <NotebookCategoryBar
-          icon={spaceOf(space)?.icon ?? '📖'}
-          cats={catApi.cats}
-          counts={counts}
-          noneCount={noneCount}
-          total={(list ?? []).length}
-          value={catSel}
-          onChange={(v) => { setCatSel(v); setOpen(null) }}
-          onAdd={catApi.add}
-          onRename={(c, name) => {
-            if (!catApi.rename(c.id, name)) return false
-            ;(list ?? []).filter((p) => p.category === c.name).forEach((p) => update(p.id, { category: name.trim() }))
-            if (catSel === c.name) setCatSel(name.trim())
-            return true
-          }}
-          onRemove={(c) => {
-            ;(list ?? []).filter((p) => p.category === c.name).forEach((p) => update(p.id, { category: '' }))
-            catApi.remove(c.id)
-            if (catSel === c.name) setCatSel(ALL)
-          }}
-          onNew={startNew}
-          showNew={editing !== 'new'}
-        />
-      ) : (
-        <>
-        <div className="page-head nb-page-head">
+      <div className="page-head nb-page-head">
         <span className="page-icon" aria-hidden="true">{space ? spaceOf(space)?.icon : '🙏'}</span>
         <h1>{space ? spaceOf(space)?.name : 'เตรียมคำอธิษฐาน'}</h1>
-        </div>
+      </div>
 
-        <div className="nb-bar">
+      <div className="nb-bar">
         <label className="nb-search">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="2" /><path d="M20 20l-3.5-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
           <input id="nb-q" type="search" placeholder="ค้นหาคำอธิษฐาน เช่น ถวาย อาหาร ป่วย" value={q} onChange={(e) => onSearch(e.target.value)} aria-label="ค้นหาคำอธิษฐาน" />
           {q && <button type="button" className="nb-search__clear" aria-label="ล้างคำค้น" onClick={() => onSearch('')}>✕</button>}
         </label>
         {editing !== 'new' && <button type="button" className="btn btn--gold nb-add edit-only" onClick={startNew}>＋ เพิ่ม</button>}
-        </div>
-
-        </>
-      )}
+      </div>
 
       {!saved && <p className="empty">เครื่องนี้บันทึกข้อมูลไม่ได้ (อาจเปิดแบบส่วนตัว) สิ่งที่แก้ไขจะหายเมื่อปิดหน้า</p>}
 
       {editing === 'new' && (
-        <Editor draft={draft} setDraft={setDraft} categories={categories} pickCat={!!catApi} onSave={save} onCancel={cancel} isNew />
+        <Editor draft={draft} setDraft={setDraft} categories={categories} onSave={save} onCancel={cancel} isNew />
       )}
 
       {list === null ? (
         <p className="empty">กำลังเปิดสมุดคำอธิษฐาน…</p>
       ) : shown.length === 0 ? (
-        space ? null : <div className="card nb-empty">
+        <div className="card nb-empty">
           <p>{query ? `ยังไม่มีคำอธิษฐานเรื่อง “${query}”` : space ? `${spaceOf(space)?.name ?? 'สมุด'} ยังว่างอยู่ กด “＋ เพิ่ม” เพื่อเริ่มบันทึก` : 'ยังไม่มีคำอธิษฐานในสมุด'}</p>
           {editing !== 'new' && <button type="button" className="btn btn--gold" onClick={startNew}>＋ เพิ่มคำอธิษฐาน{query ? 'เรื่องนี้' : ''}</button>}
         </div>
@@ -191,7 +157,7 @@ function NotebookView({ nb, space, catApi }: { nb: NotebookApi; space?: number; 
           {shown.map((p) =>
             editing === p.id ? (
               <div key={p.id} ref={(el) => { if (el) refs.current.set(p.id, el) }}>
-                <Editor draft={draft} setDraft={setDraft} categories={categories} pickCat={!!catApi} onSave={save} onCancel={cancel} />
+                <Editor draft={draft} setDraft={setDraft} categories={categories} onSave={save} onCancel={cancel} />
               </div>
             ) : (
               <NoteCard
@@ -243,7 +209,7 @@ function when(t: number) {
   return d.toDateString() === new Date().toDateString() ? `${hm} น.` : `${d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })} ${hm} น.`
 }
 
-function SyncLine({ sync, onRetry, list }: { sync: SyncStatus; onRetry: () => void; list: NotePrayer[] }) {
+export function SyncLine({ sync, onRetry, list }: { sync: SyncStatus; onRetry: () => void; list: NotePrayer[] }) {
   // ใครแก้ไขล่าสุด (จากทุกเครื่องที่ใช้ร่วมกัน)
   const last = list.filter((x) => x.by && x.updated > 0).sort((a, b) => b.updated - a.updated)[0]
   if (sync.state === 'off')
@@ -502,8 +468,8 @@ function NoteCard({
 }
 
 function Editor({
-  draft, setDraft, categories, pickCat = false, onSave, onCancel, isNew = false,
-}: { draft: Draft; setDraft: (d: Draft) => void; categories: string[]; pickCat?: boolean; onSave: () => void; onCancel: () => void; isNew?: boolean }) {
+  draft, setDraft, categories, onSave, onCancel, isNew = false,
+}: { draft: Draft; setDraft: (d: Draft) => void; categories: string[]; onSave: () => void; onCancel: () => void; isNew?: boolean }) {
   const first = useRef<HTMLInputElement>(null)
   useEffect(() => {
     if (isNew) first.current?.focus()
@@ -519,17 +485,8 @@ function Editor({
       </label>
       <label>
         หมวด
-        {pickCat ? (
-          <select id="nb-cat" value={draft.category} onChange={set('category')}>
-            <option value="">ไม่มีหมวด</option>
-            {[...categories, ...(draft.category && !categories.includes(draft.category) ? [draft.category] : [])].map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
-        ) : (
-          <>
-            <input id="nb-cat" type="text" list="nb-cats" placeholder="เช่น เจ็บป่วย" value={draft.category} onChange={set('category')} />
-            <datalist id="nb-cats">{categories.map((c) => <option key={c} value={c} />)}</datalist>
-          </>
-        )}
+        <input id="nb-cat" type="text" list="nb-cats" placeholder="เช่น เจ็บป่วย" value={draft.category} onChange={set('category')} />
+        <datalist id="nb-cats">{categories.map((c) => <option key={c} value={c} />)}</datalist>
       </label>
       <div className="nb-editor__row">
         <label>
