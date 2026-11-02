@@ -11,7 +11,7 @@ import { speakableRef, useSpeech } from '../lib/speech'
 import { openPronEditor, words } from '../components/Spoken'
 import { parseRef } from '../data/bible'
 import MdLite from '../components/MdLite'
-import { plainMd } from '../lib/mdLite'
+import { speakMeaning } from '../lib/mdLite'
 import SpiritField from '../components/SpiritField'
 import VerseInterpret from '../components/VerseInterpret'
 
@@ -182,16 +182,22 @@ function CategoryView({ nb, cat, catNames, tts, picks, slot, onBack }: { nb: Not
     setNote(saveCat === cat ? '' : `✅ บันทึกแล้วในหมวด “${saveCat || 'ไม่มีหมวด'}”`)
   }
 
+  // 🔁 ฟังวนซ้ำ: ข้ออ้างอิง → เนื้อข้อพระคัมภีร์ → ความหมายฝ่ายวิญญาณ → (วนกลับไปเริ่มที่ข้อพระคัมภีร์ใหม่) จนกว่าจะกดหยุด
   const playSpirit = (p: NotePrayer) => {
-    const t = plainMd(p.cheer)
-    if (!tts.supported || !t) return
-    setCur(null); setSpiritPlay(p.id)
-    tts.setLoop(true) // เล่นซ้ำตลอดจนกว่าจะกดหยุด
-    tts.speakSections([{ id: `${p.id}|s`, text: t }], () => {})
+    const meaning = speakMeaning(p.cheer)
+    if (!tts.supported || !meaning) return
+    setCur(p.id); setSpiritPlay(p.id)
+    tts.setLoop(true)
+    tts.speakSections([
+      { id: `${p.id}|r`, text: speakableRef(p.title) },
+      { id: `${p.id}|t`, text: parseLines(p).map((l) => l.t).join(' ') },
+      { id: `${p.id}|s`, text: meaning },
+    ], (sid) => setCur(String(sid).split('|')[0]))
   }
   const pool = picks.count ? items.filter((x) => picks.has(x.id)) : items
   const play = (xs: NotePrayer[]) => {
     if (!tts.supported || !xs.length) return
+    setSpiritPlay(null)
     setCur(xs[0].id)
     tts.speakSections(xs.flatMap((x) => [{ id: `${x.id}|r`, text: speakableRef(x.title) }, { id: `${x.id}|t`, text: parseLines(x).map((l) => l.t).join(' ') }]), (sid) => setCur(String(sid).split('|')[0]))
   }
@@ -336,9 +342,9 @@ function CategoryView({ nb, cat, catNames, tts, picks, slot, onBack }: { nb: Not
                         <>
                           <MdLite className="sm-spirit__t" text={p.cheer} />
                           <div className="sv-row">
-                            {tts.supported && (spiritPlay === p.id && active && cur === null
+                            {tts.supported && (spiritPlay === p.id && active && cur === p.id
                               ? <button type="button" className="btn btn--gold" aria-label={`หยุดฟังความหมาย ${p.title}`} onClick={() => { tts.stop(); setSpiritPlay(null) }}>⏹ หยุด (กำลังเล่นวนซ้ำ)</button>
-                              : <button type="button" className="btn btn--ghost" aria-label={`ฟังความหมายฝ่ายวิญญาณ ${p.title}`} title="ฟังเฉพาะความหมายฝ่ายวิญญาณ เล่นวนซ้ำจนกว่าจะกดหยุด" onClick={() => playSpirit(p)}>🔁 ฟังวนซ้ำ</button>)}
+                              : <button type="button" className="btn btn--ghost" aria-label={`ฟังความหมายฝ่ายวิญญาณ ${p.title}`} title="อ่านข้อพระคัมภีร์ แล้วต่อด้วยความหมายฝ่ายวิญญาณ วนซ้ำจนกว่าจะกดหยุด" onClick={() => playSpirit(p)}>🔁 ฟังวนซ้ำ (ข้อ + ความหมาย)</button>)}
                           </div>
                           <div className="sv-row edit-only"><button type="button" className="mini" aria-label={`แก้ความหมายฝ่ายวิญญาณ ${p.title}`} onClick={() => setSpiritEdit({ id: p.id, text: p.cheer })}>✏️ แก้ความหมาย</button></div>
                         </>
