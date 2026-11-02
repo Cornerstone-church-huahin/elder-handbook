@@ -34,7 +34,7 @@ export interface ShareStyle {
   logoBrightness: number; logoSaturation: number; logoSharpness: number // ปรับโลโก้: สว่าง/สี (-100..100) · คมชัด 0–100
 }
 
-const BASE: ShareStyle = {
+export const DEFAULT_STYLE: ShareStyle = {
   preset: 'navy', bg1: '#14213d', bg2: '#1d3557', bg3: '#0b132b', text: '#fdf6e3', accent: '#e0b84c', pattern: 'rays', frame: 'double', frameColor: '#e0b84c',
   photoZoom: 1, photoX: 0, photoY: 0, filter: 'none', brightness: 0, contrast: 0, saturation: 0, blur: 0, tone: 'none', toneStrength: 0.6,
   overlay: '#000000', overlayOpacity: 0.45, overlayMode: 'bottom', align: 'center', font: 'sans', fontScale: 1, box: 'none', quote: true, showLogo: true, footer: 'คริสตจักรศิลาเอก',
@@ -80,9 +80,9 @@ const KEY = 'khatha.share.v2'
 export function getSharePrefs(): SharePrefs {
   try {
     const v = JSON.parse(localStorage.getItem(KEY) ?? 'null') as { style?: Partial<ShareStyle>; logo?: string } | null
-    return { style: { ...BASE, ...(v?.style ?? {}) }, logo: v?.logo }
+    return { style: { ...DEFAULT_STYLE, ...(v?.style ?? {}) }, logo: v?.logo }
   } catch {
-    return { style: { ...BASE } }
+    return { style: { ...DEFAULT_STYLE } }
   }
 }
 export function setSharePrefs(p: SharePrefs) {
@@ -186,6 +186,7 @@ function rrect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h
   ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath()
 }
 
+let bgCache: { key: string; canvas: HTMLCanvasElement } | null = null
 const cache = new Map<string, Promise<HTMLImageElement | null>>()
 const loadImg = (src: string) => {
   if (!cache.has(src)) {
@@ -297,46 +298,61 @@ export async function drawVerse(c: HTMLCanvasElement, o: { ref: string; lines: S
   const family = st.font === 'serif' ? `"Noto Serif Thai","Sarabun","Tahoma",Georgia,serif` : body
 
   const photo = o.photo ? await loadImg(o.photo) : null
-  if (photo) {
-    // ภาพจากเครื่อง: เต็มการ์ด ซูม/เลื่อนได้ + ปรับภาพ/ฟิลเตอร์
-    const k = Math.max(W / photo.width, H / photo.height) * st.photoZoom
-    const w = photo.width * k, h = photo.height * k
-    const dx = (W - w) / 2 + st.photoX * Math.max(0, (w - W) / 2), dy = (H - h) / 2 + st.photoY * Math.max(0, (h - H) / 2)
-    const f = FILTERS.find((x) => x.id === st.filter)?.css ?? ''
-    const adj = `${f} brightness(${1 + st.brightness / 100}) contrast(${1 + st.contrast / 100}) saturate(${1 + st.saturation / 100})${st.blur ? ` blur(${st.blur}px)` : ''}`.trim()
-    if ('filter' in ctx) ctx.filter = adj
-    ctx.drawImage(photo, dx, dy, w, h)
-    if ('filter' in ctx) ctx.filter = 'none'
-    if (st.sharpness > 0) sharpen(ctx, c.width, c.height, st.sharpness)
-    // โทนสีตามช่วงเวลา: ไล่แสงสีทับภาพแบบ soft-light/multiply/screen (ไม่ต้องใช้ AI)
-    if (st.tone !== 'none' && st.toneStrength > 0) {
-      const a = st.toneStrength
-      const blend = (op: GlobalCompositeOperation, from: string, to: string, alpha: number, dir: 'v' | 'd' = 'v') => {
-        ctx.save(); ctx.globalCompositeOperation = op; ctx.globalAlpha = alpha
-        const g = dir === 'v' ? ctx.createLinearGradient(0, 0, 0, H) : ctx.createLinearGradient(0, 0, W, H)
-        g.addColorStop(0, from); g.addColorStop(1, to); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); ctx.restore()
-      }
-      if (st.tone === 'morning') { blend('soft-light', '#ffe7b8', '#ffb98a', a); blend('screen', '#fff1d0', '#00000000', a * 0.35) }
-      else if (st.tone === 'golden') { blend('soft-light', '#ffc766', '#ff9a3c', a * 1.1); blend('screen', '#ffd28a', '#00000000', a * 0.25) }
-      else if (st.tone === 'evening') { blend('soft-light', '#ff7a3d', '#7a3b8f', a * 1.15); blend('multiply', '#ffc9a0', '#7d5a9e', a * 0.3) }
-      else if (st.tone === 'night') { blend('multiply', '#2c3e8f', '#0d1440', a * 0.55); blend('soft-light', '#4a6cff', '#1a1f5a', a * 0.7) }
-      else if (st.tone === 'cool') { blend('soft-light', '#7fc0ff', '#4a78d8', a) }
-    }
-    // ฟิล์มสีทับ เพื่อให้ตัวอักษรอ่านชัด
-    if (st.overlayOpacity > 0) {
-      if (st.overlayMode === 'solid') { ctx.fillStyle = rgba(st.overlay, st.overlayOpacity); ctx.fillRect(0, 0, W, H) }
-      else if (st.overlayMode === 'bottom') { const g = ctx.createLinearGradient(0, H * 0.15, 0, H); g.addColorStop(0, rgba(st.overlay, 0)); g.addColorStop(1, rgba(st.overlay, Math.min(1, st.overlayOpacity * 1.7))); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H) }
-      else { const g = ctx.createRadialGradient(W / 2, H / 2, H * 0.2, W / 2, H / 2, H * 0.75); g.addColorStop(0, rgba(st.overlay, st.overlayOpacity * 0.3)); g.addColorStop(1, rgba(st.overlay, Math.min(1, st.overlayOpacity * 1.6))); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H) }
-    }
+  // พื้นหลัง (รูป+ฟิลเตอร์+โทน+ฟิล์ม+ลวดลาย) หนักที่สุด → จำผลไว้ ตอนลากข้อความ/โลโก้วาดเฉพาะส่วนที่เปลี่ยน จึงลื่นบนมือถือ
+  const ph = o.photo ? `${o.photo.length}:${o.photo.slice(60, 100)}:${o.photo.slice(-40)}` : ''
+  const bgKey = JSON.stringify([K, ph, st.bg1, st.bg2, st.bg3, st.text, st.accent, st.pattern, st.photoZoom, st.photoX, st.photoY, st.filter, st.brightness, st.contrast, st.saturation, st.blur, st.sharpness, st.tone, st.toneStrength, st.overlay, st.overlayOpacity, st.overlayMode])
+  if (bgCache?.key === bgKey) {
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(bgCache.canvas, 0, 0); ctx.restore()
   } else {
-    const g = ctx.createLinearGradient(0, 0, W, H)
-    g.addColorStop(0, st.bg1); g.addColorStop(0.55, st.bg2); g.addColorStop(1, st.bg3)
-    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H)
-    const glow = ctx.createRadialGradient(W / 2, 170, 20, W / 2, 170, 760)
-    glow.addColorStop(0, rgba(lum(st.bg2) > 0.55 ? '#ffffff' : st.accent, lum(st.bg2) > 0.55 ? 0.5 : 0.3)); glow.addColorStop(1, 'rgba(255,255,255,0)')
-    ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H)
+    const bc = document.createElement('canvas'); bc.width = c.width; bc.height = c.height
+    const bctx = bc.getContext('2d', { willReadFrequently: st.sharpness > 0 })!
+    bctx.scale(K, K)
+    const paintBg = (ctx: CanvasRenderingContext2D) => {
+    if (photo) {
+      // ภาพจากเครื่อง: เต็มการ์ด ซูม/เลื่อนได้ + ปรับภาพ/ฟิลเตอร์
+      const k = Math.max(W / photo.width, H / photo.height) * st.photoZoom
+      const w = photo.width * k, h = photo.height * k
+      const dx = (W - w) / 2 + st.photoX * Math.max(0, (w - W) / 2), dy = (H - h) / 2 + st.photoY * Math.max(0, (h - H) / 2)
+      const f = FILTERS.find((x) => x.id === st.filter)?.css ?? ''
+      const adj = `${f} brightness(${1 + st.brightness / 100}) contrast(${1 + st.contrast / 100}) saturate(${1 + st.saturation / 100})${st.blur ? ` blur(${st.blur}px)` : ''}`.trim()
+      if ('filter' in ctx) ctx.filter = adj
+      ctx.drawImage(photo, dx, dy, w, h)
+      if ('filter' in ctx) ctx.filter = 'none'
+      if (st.sharpness > 0) sharpen(ctx, ctx.canvas.width, ctx.canvas.height, st.sharpness)
+      // โทนสีตามช่วงเวลา: ไล่แสงสีทับภาพแบบ soft-light/multiply/screen (ไม่ต้องใช้ AI)
+      if (st.tone !== 'none' && st.toneStrength > 0) {
+        const a = st.toneStrength
+        const blend = (op: GlobalCompositeOperation, from: string, to: string, alpha: number, dir: 'v' | 'd' = 'v') => {
+          ctx.save(); ctx.globalCompositeOperation = op; ctx.globalAlpha = alpha
+          const g = dir === 'v' ? ctx.createLinearGradient(0, 0, 0, H) : ctx.createLinearGradient(0, 0, W, H)
+          g.addColorStop(0, from); g.addColorStop(1, to); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); ctx.restore()
+        }
+        if (st.tone === 'morning') { blend('soft-light', '#ffe7b8', '#ffb98a', a); blend('screen', '#fff1d0', '#00000000', a * 0.35) }
+        else if (st.tone === 'golden') { blend('soft-light', '#ffc766', '#ff9a3c', a * 1.1); blend('screen', '#ffd28a', '#00000000', a * 0.25) }
+        else if (st.tone === 'evening') { blend('soft-light', '#ff7a3d', '#7a3b8f', a * 1.15); blend('multiply', '#ffc9a0', '#7d5a9e', a * 0.3) }
+        else if (st.tone === 'night') { blend('multiply', '#2c3e8f', '#0d1440', a * 0.55); blend('soft-light', '#4a6cff', '#1a1f5a', a * 0.7) }
+        else if (st.tone === 'cool') { blend('soft-light', '#7fc0ff', '#4a78d8', a) }
+      }
+      // ฟิล์มสีทับ เพื่อให้ตัวอักษรอ่านชัด
+      if (st.overlayOpacity > 0) {
+        if (st.overlayMode === 'solid') { ctx.fillStyle = rgba(st.overlay, st.overlayOpacity); ctx.fillRect(0, 0, W, H) }
+        else if (st.overlayMode === 'bottom') { const g = ctx.createLinearGradient(0, H * 0.15, 0, H); g.addColorStop(0, rgba(st.overlay, 0)); g.addColorStop(1, rgba(st.overlay, Math.min(1, st.overlayOpacity * 1.7))); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H) }
+        else { const g = ctx.createRadialGradient(W / 2, H / 2, H * 0.2, W / 2, H / 2, H * 0.75); g.addColorStop(0, rgba(st.overlay, st.overlayOpacity * 0.3)); g.addColorStop(1, rgba(st.overlay, Math.min(1, st.overlayOpacity * 1.6))); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H) }
+      }
+    } else {
+      const g = ctx.createLinearGradient(0, 0, W, H)
+      g.addColorStop(0, st.bg1); g.addColorStop(0.55, st.bg2); g.addColorStop(1, st.bg3)
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H)
+      const glow = ctx.createRadialGradient(W / 2, 170, 20, W / 2, 170, 760)
+      glow.addColorStop(0, rgba(lum(st.bg2) > 0.55 ? '#ffffff' : st.accent, lum(st.bg2) > 0.55 ? 0.5 : 0.3)); glow.addColorStop(1, 'rgba(255,255,255,0)')
+      ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H)
+    }
+    drawPattern(ctx, W, H, st.pattern, st.text)
+    }
+    paintBg(bctx)
+    bgCache = { key: bgKey, canvas: bc }
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(bc, 0, 0); ctx.restore()
   }
-  drawPattern(ctx, W, H, st.pattern, st.text)
 
 
   // ---------- กลุ่มข้อความ ----------

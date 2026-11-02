@@ -14,6 +14,29 @@ import { canInstall, install, isInstalled, isIOS, onInstallChange } from '../lib
 import { useEffect } from 'react'
 import { getAiSettings, isStandaloneSite, saveAiSettings, testAiKey, VENDORS, type AiSettings, type AiVendor } from '../lib/ai'
 
+/** เวอร์ชันที่ใช้อยู่ + ปุ่มโหลดแอปเวอร์ชันล่าสุด (ล้างตัวเก็บแอปเก่าแล้วโหลดใหม่ — ข้อมูลที่บันทึกไว้ไม่หาย) */
+function VersionInfo() {
+  const [busy, setBusy] = useState(false)
+  const built = (() => { try { return new Date(__BUILD__).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' }) } catch { return '' } })()
+  const update = async () => {
+    setBusy(true)
+    try {
+      const regs = await navigator.serviceWorker?.getRegistrations?.()
+      await Promise.all((regs ?? []).map((r) => r.unregister()))
+      const keys = await caches?.keys?.()
+      await Promise.all((keys ?? []).filter((k) => /precache/i.test(k)).map((k) => caches.delete(k)))
+    } catch { /* ignore */ }
+    location.reload()
+  }
+  return (
+    <Fold title="🔄 เวอร์ชันของแอป">
+      <p>แอปฉบับที่ใช้อยู่สร้างเมื่อ <b>{built || 'ไม่ทราบ'}</b></p>
+      <p className="source-note">ถ้าเพิ่งมีการแก้ไขแอปแต่ยังไม่เห็นของใหม่ (มือถือเก็บแอปเก่าไว้) กดปุ่มด้านล่าง ข้อมูลที่บันทึกไว้ในเครื่องไม่หาย</p>
+      <button type="button" className="btn btn--gold" id="update-app" disabled={busy} onClick={update}>{busy ? 'กำลังโหลด…' : '🔄 โหลดแอปเวอร์ชันล่าสุด'}</button>
+    </Fold>
+  )
+}
+
 export default function Settings() {
   const role = useRole()
   const { scale, setScale } = useFontScale()
@@ -46,6 +69,7 @@ export default function Settings() {
 
       <InstallSettings />
       <SpeechSettings />
+      <VersionInfo />
       <VoiceSettings />
       <PronounceSettings />
 
