@@ -10,6 +10,7 @@ import { useNotebookCategories, type NotebookApi, type NotePrayer } from '../lib
 import { speakableRef, useSpeech } from '../lib/speech'
 import { openPronEditor, words } from '../components/Spoken'
 import { parseRef } from '../data/bible'
+import SpiritField from '../components/SpiritField'
 import VerseInterpret from '../components/VerseInterpret'
 
 /** บรรทัดที่เก็บ → เลขข้อ + ข้อความ (รุ่นแรกเก็บเฉพาะข้อความ ใช้ notes เป็นเลขข้อแรก) */
@@ -118,6 +119,8 @@ export default function ScriptureMemorize({ nb, n }: { nb: NotebookApi; n: numbe
 
 function CategoryView({ nb, cat, catNames, tts, picks, slot, onBack }: { nb: NotebookApi; cat: string; catNames: string[]; tts: ReturnType<typeof useSpeech>; picks: ReturnType<typeof useListenPicks>; slot: HTMLElement | null; onBack: () => void }) {
   const [passage, setPassage] = useState<PickedPassage | null>(null)
+  const [spirit, setSpirit] = useState('') // ความหมายฝ่ายวิญญาณของข้อที่กำลังจะบันทึก
+  const [spiritEdit, setSpiritEdit] = useState<{ id: string; text: string } | null>(null) // แก้ความหมายบนการ์ดที่บันทึกแล้ว
   const [saveCat, setSaveCat] = useState(cat) // หมวดที่จะบันทึกเข้า (ตั้งต้น = หมวดที่เปิดอยู่)
   useEffect(() => setSaveCat(cat), [cat])
   const [manual, setManual] = useState('')
@@ -132,8 +135,8 @@ function CategoryView({ nb, cat, catNames, tts, picks, slot, onBack }: { nb: Not
     const r = parseRef(title)
     const first = r?.verses[0] ?? 1
     const nums = r && r.verses.length === cLines.length ? r.verses : cLines.map((_, i) => first + i)
-    nb.add({ title, category: saveCat, refs: [], story: '', text: cLines.map((t, i) => `${nums[i]}\t${t}`).join('\n'), notes: '' })
-    setCLabel(''); setCText(''); setCustom(false)
+    nb.add({ title, category: saveCat, refs: [], story: '', cheer: spirit.trim(), text: cLines.map((t, i) => `${nums[i]}\t${t}`).join('\n'), notes: '' })
+    setCLabel(''); setCText(''); setSpirit(''); setCustom(false)
     setNote(saveCat === cat ? '' : `✅ บันทึกแล้วในหมวด “${saveCat || 'ไม่มีหมวด'}”`)
   }
   const [delId, setDelId] = useState<string | null>(null)
@@ -168,8 +171,9 @@ function CategoryView({ nb, cat, catNames, tts, picks, slot, onBack }: { nb: Not
   const content = passage ? (passage.lines.length ? passage.lines : manual.split('\n').map((x) => x.trim()).filter(Boolean)) : []
   const save = () => {
     if (!passage || !content.length) return
-    nb.add({ title: passage.label, category: saveCat, refs: [], story: '', text: (passage.lines.length ? passage.lines.map((t, i) => `${passage.verses[i]}\t${t}`) : content.map((t, i) => `${passage.verses[i] ?? passage.verses[0] + i}\t${t}`)).join('\n'), notes: '' })
+    nb.add({ title: passage.label, category: saveCat, refs: [], story: '', cheer: spirit.trim(), text: (passage.lines.length ? passage.lines.map((t, i) => `${passage.verses[i]}\t${t}`) : content.map((t, i) => `${passage.verses[i] ?? passage.verses[0] + i}\t${t}`)).join('\n'), notes: '' })
     setPassage(null)
+    setSpirit('')
     setManual('')
     setPickerKey(pickerKey + 1) // ล้างช่องเลือก เตรียมใส่ข้อถัดไป
     setNote(saveCat === cat ? '' : `✅ บันทึกแล้วในหมวด “${saveCat || 'ไม่มีหมวด'}”`)
@@ -222,7 +226,8 @@ function CategoryView({ nb, cat, catNames, tts, picks, slot, onBack }: { nb: Not
             <label>ข้อความ
               <textarea id="sm-custom-text" rows={5} value={cText} onChange={(e) => setCText(e.target.value)} placeholder="พิมพ์หรือวางข้อความที่นี่ (หลายข้อ: บรรทัดละข้อ)" />
             </label>
-            <label className="sm-savecat">💾 บันทึกเข้าหมวด
+            <SpiritField label={cLabel.trim()} lines={cLines.map((t, i) => ({ n: i + 1, t }))} value={spirit} onChange={setSpirit} idPrefix="spc" />
+          <label className="sm-savecat">💾 บันทึกเข้าหมวด
           <select id="sm-savecat" aria-label="บันทึกเข้าหมวด" value={saveCat} onChange={(e) => setSaveCat(e.target.value)}>
             <option value="">ไม่มีหมวด</option>
             {[...catNames, ...(saveCat && !catNames.includes(saveCat) ? [saveCat] : [])].map((c) => <option key={c} value={c}>{c}</option>)}
@@ -247,6 +252,7 @@ function CategoryView({ nb, cat, catNames, tts, picks, slot, onBack }: { nb: Not
             )}
         </div>
         {!custom && <>
+            <SpiritField label={passage?.label ?? ''} lines={(passage?.lines ?? []).map((t, i) => ({ n: passage!.verses[i], t }))} value={spirit} onChange={setSpirit} autoFill idPrefix="sp" />
           <label className="sm-savecat">💾 บันทึกเข้าหมวด
           <select id="sm-savecat" aria-label="บันทึกเข้าหมวด" value={saveCat} onChange={(e) => setSaveCat(e.target.value)}>
             <option value="">ไม่มีหมวด</option>
@@ -305,6 +311,26 @@ function CategoryView({ nb, cat, catNames, tts, picks, slot, onBack }: { nb: Not
                       ? <span className="edit-only"><button type="button" className="btn btn--danger" onClick={() => { if (cur === p.id) tts.stop(); nb.remove(p.id); setDelId(null) }}>ลบ</button> <button type="button" className="btn btn--ghost" onClick={() => setDelId(null)}>ไม่ลบ</button></span>
                       : <button type="button" className="mini edit-only" aria-label={`ลบ ${p.title}`} onClick={() => setDelId(p.id)}>🗑️</button>}
                   </div>
+                  {(p.cheer.trim() || spiritEdit?.id === p.id) && (
+                    <div className="sm-spirit">
+                      <p className="sm-spirit__h">🕊️ ความหมายฝ่ายวิญญาณ</p>
+                      {spiritEdit?.id === p.id ? (
+                        <>
+                          <SpiritField label={p.title} lines={lines} value={spiritEdit.text} onChange={(v) => setSpiritEdit({ id: p.id, text: v })} idPrefix="spe" />
+                          <div className="sv-row">
+                            <button type="button" className="btn btn--gold" id="spe-save" onClick={() => { nb.update(p.id, { cheer: spiritEdit.text.trim() }); setSpiritEdit(null) }}>💾 บันทึกความหมาย</button>
+                            <button type="button" className="btn btn--ghost" id="spe-cancel" onClick={() => setSpiritEdit(null)}>ยกเลิก</button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <p className="sm-spirit__t">{p.cheer}</p>
+                          <div className="sv-row edit-only"><button type="button" className="mini" aria-label={`แก้ความหมายฝ่ายวิญญาณ ${p.title}`} onClick={() => setSpiritEdit({ id: p.id, text: p.cheer })}>✏️ แก้ความหมาย</button></div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                  {!p.cheer.trim() && spiritEdit?.id !== p.id && <button type="button" className="mini edit-only sm-spirit__add" aria-label={`เพิ่มความหมายฝ่ายวิญญาณ ${p.title}`} onClick={() => setSpiritEdit({ id: p.id, text: '' })}>➕ ความหมายฝ่ายวิญญาณ</button>}
                   {interp === p.id && <VerseInterpret title={p.title} lines={lines} story={p.story} canEdit onSave={(v) => nb.update(p.id, { story: v })} onClose={() => setInterp(null)} />}
                 </>
               )}
