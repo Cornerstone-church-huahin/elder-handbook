@@ -1,16 +1,17 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import ColorField from './ColorField'
 import {
-  FILTERS, FRAMES, PATTERNS, STYLE_PRESETS, TONES, autoAdjust, fileToLogo, fileToPhoto, getSharePrefs, renderVerseImage, setSharePrefs, shareText,
-  type ShareLine, type ShareStyle,
+  FILTERS, FRAMES, PATTERNS, STYLE_PRESETS, TONES, autoAdjust, drawVerse, fileToLogo, handleOf, fileToPhoto, getSharePrefs, renderVerseImage, setSharePrefs, shareText,
+  type Boxes, type ShareLine, type ShareStyle,
 } from '../lib/shareVerse'
 import { AI_GOALS, aiEditPhoto, hasGeminiKeyForPhoto } from '../lib/aiPhoto'
 
 type Main = 'text' | 'image'
-type Sub = 'photo' | 'style' | 'color' | 'logo'
+type Sub = 'photo' | 'style' | 'layout' | 'color' | 'logo'
+type Pick = 'text' | 'logo' | null
 
 const SUBS: { id: Sub; label: string }[] = [
-  { id: 'photo', label: '📷 ภาพ' }, { id: 'style', label: '🎨 สไตล์' }, { id: 'color', label: '🌈 สี' }, { id: 'logo', label: '🏷️ โลโก้' },
+  { id: 'photo', label: '📷 ภาพ' }, { id: 'style', label: '🎨 สไตล์' }, { id: 'layout', label: '✋ จัดวาง' }, { id: 'color', label: '🌈 สี' }, { id: 'logo', label: '🏷️ โลโก้' },
 ]
 
 function Chips<T extends string>({ items, value, onPick, label }: { items: { id: T; label: string }[]; value: T; onPick: (v: T) => void; label: string }) {
@@ -26,6 +27,9 @@ function Slider({ label, value, min, max, step = 1, onChange, unit = '' }: { lab
       <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(+e.target.value)} /></label>
   )
 }
+/** รูปที่เลือกไว้ + ผล AI: จำไว้ตลอดที่เปิดแอป (ปิดหน้าต่างแล้วเปิดข้ออื่นยังใช้รูปเดิมได้ · ไม่เก็บถาวร) */
+const kept: { orig?: string; versions: string[]; vi: number } = { versions: [], vi: -1 }
+
 /**
  * แชร์ข้อพระคัมภีร์ 2 แบบ
  *  1) ข้อความ — แชร์เข้าแอปอื่น / ส่งไลน์ / คัดลอก
@@ -35,9 +39,10 @@ export default function ShareVerseSheet({ refLabel, lines, onClose }: { refLabel
   const init = useRef(getSharePrefs()).current
   const [style, setStyle] = useState<ShareStyle>(init.style)
   const [logo, setLogo] = useState<string | undefined>(init.logo)
-  const [orig, setOrig] = useState<string | undefined>() // รูปต้นฉบับจากเครื่อง (ใช้ระหว่างตกแต่ง ไม่เก็บถาวร)
-  const [versions, setVersions] = useState<string[]>([]) // รูปที่ AI แต่งให้ (แต่ละครั้งที่สร้าง)
-  const [vi, setVi] = useState(-1) // รูปที่ใช้อยู่: -1 = ต้นฉบับ
+  const [orig, setOrig] = useState<string | undefined>(kept.orig) // รูปต้นฉบับจากเครื่อง (ใช้ระหว่างตกแต่ง ไม่เก็บถาวร)
+  const [versions, setVersions] = useState<string[]>(kept.versions) // รูปที่ AI แต่งให้ (แต่ละครั้งที่สร้าง)
+  const [vi, setVi] = useState(kept.vi) // รูปที่ใช้อยู่: -1 = ต้นฉบับ
+  useEffect(() => { kept.orig = orig; kept.versions = versions; kept.vi = vi }, [orig, versions, vi])
   const [goals, setGoals] = useState<string[]>(['wires', 'evening'])
   const [note, setNote] = useState('')
   const [consent, setConsent] = useState(false)
@@ -47,7 +52,7 @@ export default function ShareVerseSheet({ refLabel, lines, onClose }: { refLabel
   const photo = vi >= 0 ? versions[vi] : orig
   const [main, setMain] = useState<Main>('text')
   const [sub, setSub] = useState<Sub>('photo')
-  const [img, setImg] = useState('')
+  const [sel, setSel] = useState<Pick>('text') // กลุ่มที่เลือกบนภาพตัวอย่าง (ข้อความ/โลโก้)
   const [msg, setMsg] = useState('')
   const [busy, setBusy] = useState(false)
   const logoIn = useRef<HTMLInputElement>(null)
@@ -57,23 +62,128 @@ export default function ShareVerseSheet({ refLabel, lines, onClose }: { refLabel
 
   useEffect(() => { setSharePrefs({ style, logo }) }, [style, logo])
 
+  // ---------- ภาพตัวอย่างสด (canvas) + ลาก/ย่อขยายข้อความและโลโก้ด้วยนิ้ว ----------
+  const cv = useRef<HTMLCanvasElement>(null)
+  const boxes = useRef<Boxes | null>(null)
+  const latest = useRef({ refLabel, lines, style, logo, photo, sel })
+  latest.current = { refLabel, lines, style, logo, photo, sel }
+  const running = useRef(false)
+  const again = useRef(false)
+  const redraw = useCallback(async () => {
+    if (!cv.current) return
+    if (running.current) { again.current = true; return }
+    running.current = true
+    try {
+      const l = latest.current
+      const off = document.createElement('canvas')
+      const b = await drawVerse(off, { ref: l.refLabel, lines: l.lines, style: l.style, logo: l.logo, photo: l.photo, K: 0.5, ui: { selected: l.sel } })
+      const v = cv.current
+      if (v) { v.width = off.width; v.height = off.height; v.getContext('2d')!.drawImage(off, 0, 0); boxes.current = b; v.dataset.boxes = JSON.stringify(b) }
+    } catch {
+      flash('สร้างภาพไม่ได้ในเครื่องนี้')
+    } finally {
+      running.current = false
+      if (again.current) { again.current = false; void redraw() }
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const linesKey = JSON.stringify(lines)
+  useEffect(() => { if (main === 'image') void redraw() }, [main, refLabel, linesKey, style, logo, photo, sel, redraw])
+
+  const pts = useRef(new Map<number, { x: number; y: number }>())
+  const drag = useRef<{ mode: 'move' | 'resize'; target: 'text' | 'logo'; sx: number; sy: number; ox: number; oy: number; os: number; cx: number; cy: number } | null>(null)
+  const pinch = useRef<{ target: 'text' | 'logo'; d0: number; s0: number } | null>(null)
+  const W = 1080, H = 1350
+  const toLogical = (e: React.PointerEvent) => { const r = cv.current!.getBoundingClientRect(); return { x: ((e.clientX - r.left) / r.width) * W, y: ((e.clientY - r.top) / r.height) * H } }
+  const hit = (b: { x: number; y: number; w: number; h: number } | null, p: { x: number; y: number }, pad = 0) => !!b && p.x >= b.x - pad && p.x <= b.x + b.w + pad && p.y >= b.y - pad && p.y <= b.y + b.h + pad
+  const setScale = (t: 'text' | 'logo', v: number) => upd(t === 'text' ? { textScale: Math.max(0.3, Math.min(2.5, v)) } : { logoScale: Math.max(0.3, Math.min(4, v)) })
+  const onDown = (e: React.PointerEvent) => {
+    if (!cv.current) return
+    cv.current.setPointerCapture(e.pointerId)
+    const p = toLogical(e)
+    pts.current.set(e.pointerId, p)
+    const st = latest.current.style
+    if (pts.current.size === 2 && latest.current.sel) {
+      const [a, b] = [...pts.current.values()]
+      pinch.current = { target: latest.current.sel, d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, s0: latest.current.sel === 'text' ? st.textScale : st.logoScale }
+      drag.current = null
+      return
+    }
+    const bx = boxes.current
+    if (!bx) return
+    const cur = latest.current.sel
+    const curBox = cur === 'text' ? bx.text : cur === 'logo' ? bx.logo : null
+    const hd = curBox ? handleOf(curBox) : null
+    if (curBox && hd && Math.hypot(p.x - hd.x, p.y - hd.y) <= 48) {
+      // จับมุมทอง → ย่อ/ขยาย
+      const cx = curBox.x + curBox.w / 2, cy = curBox.y + curBox.h / 2
+      drag.current = { mode: 'resize', target: cur!, sx: p.x, sy: p.y, ox: 0, oy: 0, os: cur === 'text' ? st.textScale : st.logoScale, cx, cy }
+      return
+    }
+    const target: 'text' | 'logo' | null = hit(bx.logo, p, 10) ? 'logo' : hit(bx.text, p, 10) ? 'text' : null
+    setSel(target)
+    if (target) drag.current = { mode: 'move', target, sx: p.x, sy: p.y, ox: target === 'text' ? st.textX : st.logoX, oy: target === 'text' ? st.textY : st.logoY, os: 0, cx: 0, cy: 0 }
+  }
+  const onMove = (e: React.PointerEvent) => {
+    if (!pts.current.has(e.pointerId)) return
+    const p = toLogical(e)
+    pts.current.set(e.pointerId, p)
+    if (pinch.current && pts.current.size >= 2) {
+      const [a, b] = [...pts.current.values()]
+      setScale(pinch.current.target, pinch.current.s0 * ((Math.hypot(a.x - b.x, a.y - b.y) || 1) / pinch.current.d0))
+      return
+    }
+    const d = drag.current
+    if (!d) return
+    if (d.mode === 'move') {
+      const nx = Math.max(0, Math.min(1, d.ox + (p.x - d.sx) / W)), ny = Math.max(0, Math.min(1, d.oy + (p.y - d.sy) / H))
+      upd(d.target === 'text' ? { textX: nx, textY: ny } : { logoX: nx, logoY: ny })
+    } else {
+      const d0 = Math.hypot(d.sx - d.cx, d.sy - d.cy) || 1
+      setScale(d.target, d.os * (Math.hypot(p.x - d.cx, p.y - d.cy) / d0))
+    }
+  }
+  const onUp = (e: React.PointerEvent) => {
+    pts.current.delete(e.pointerId)
+    if (pts.current.size < 2) pinch.current = null
+    if (pts.current.size === 0) drag.current = null
+  }
+
+  // ---------- ย้อนกลับทีละหน้า (ไม่ออกจากหน้าต่าง/ไม่เริ่มใหม่) ----------
+  const stepNow = useRef({ main, sub, onClose })
+  stepNow.current = { main, sub, onClose }
+  const order: Sub[] = ['photo', 'style', 'layout', 'color', 'logo']
+  const goBack = (): boolean => {
+    const { main: m, sub: sb } = stepNow.current
+    if (m === 'image') {
+      const k = order.indexOf(sb)
+      if (k > 0) setSub(order[k - 1])
+      else setMain('text')
+      return true
+    }
+    return false // หน้าแรกของหน้าต่าง → ปิดหน้าต่าง
+  }
+  const goNext = () => {
+    if (main === 'text') { setMain('image'); return }
+    const k = order.indexOf(sub)
+    if (k < order.length - 1) setSub(order[k + 1])
+  }
   useEffect(() => {
-    if (main !== 'image') return
-    let alive = true
-    const t = window.setTimeout(async () => {
-      try {
-        const b = await renderVerseImage({ ref: refLabel, lines, style, logo, photo, scale: 0.5 })
-        if (!alive) return
-        const url = URL.createObjectURL(b)
-        setImg((old) => { if (old) URL.revokeObjectURL(old); return url })
-      } catch {
-        if (alive) flash('สร้างภาพไม่ได้ในเครื่องนี้')
-      }
-    }, 120)
-    return () => { alive = false; window.clearTimeout(t) }
-  }, [main, refLabel, linesKey, style, logo, photo]) // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => () => { setImg((old) => { if (old) URL.revokeObjectURL(old); return '' }) }, [])
+    // ปุ่มย้อนกลับของมือถือ/เบราว์เซอร์ = ย้อนทีละหน้าในหน้าต่างนี้ ถ้าอยู่หน้าแรกจึงปิดหน้าต่าง (ไม่ออกจากหน้าที่กำลังดู)
+    const push = () => window.history.pushState({ ...(window.history.state ?? {}), sv: 1 }, '')
+    push()
+    let closed = false
+    const onPop = () => {
+      if (closed) return
+      if (goBack()) { push(); return }
+      closed = true
+      stepNow.current.onClose()
+    }
+    window.addEventListener('popstate', onPop)
+    return () => {
+      window.removeEventListener('popstate', onPop)
+      if (!closed && window.history.state?.sv) { closed = true; window.history.back() }
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const text = shareText(refLabel, lines, style.footer)
   const shareTextNow = async () => {
@@ -147,16 +257,21 @@ export default function ShareVerseSheet({ refLabel, lines, onClose }: { refLabel
               <button type="button" className="btn btn--gold" onClick={shareTextNow}>📤 แชร์ข้อความ</button>
               <a className="btn btn--ghost" href={`https://line.me/R/msg/text/?${encodeURIComponent(text)}`} target="_blank" rel="noopener noreferrer">💬 ส่งไลน์</a>
               <button type="button" className="btn btn--ghost" onClick={copy}>📋 คัดลอก</button>
+              <button type="button" className="btn btn--ghost" onClick={goNext}>🖼️ ทำเป็นภาพ ▶</button>
             </div>
           </div>
         )}
 
         {main === 'image' && (
           <div className="sv-pane">
+            <input ref={photoIn} type="file" accept="image/*" hidden aria-label="เลือกรูปพื้นหลัง" onChange={(e) => { void pickPhoto(e.target.files?.[0]); e.target.value = '' }} />
             <div className="sv-sticky">
               <div className="sv-preview">
-                {img ? <img className="sv-img" src={img} alt={`ตัวอย่างภาพ ${refLabel}`} /> : <p className="source-note">กำลังสร้างภาพ…</p>}
+                <canvas ref={cv} className="sv-canvas" width={540} height={675} aria-label={`ตัวอย่างภาพ ${refLabel} — ลากข้อความหรือโลโก้เพื่อย้าย บีบนิ้วเพื่อย่อขยาย`}
+                  onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} />
+                <button type="button" className="sv-swap" aria-label="เปลี่ยนรูปพื้นหลัง" onClick={() => photoIn.current?.click()}>📷 {photo ? 'เปลี่ยนรูป' : 'เลือกรูป'}</button>
               </div>
+              <p className="sv-hint">👆 แตะข้อความหรือโลโก้บนภาพ แล้วลากเพื่อย้าย · บีบนิ้ว หรือลากจุดทองที่มุมเพื่อย่อ/ขยาย</p>
               <div className="sv-subs" role="tablist" aria-label="เครื่องมือตกแต่ง">
                 {SUBS.map((x) => <button key={x.id} type="button" role="tab" aria-selected={sub === x.id} className={`sv-sub${sub === x.id ? ' sv-sub--on' : ''}`} onClick={() => setSub(x.id)}>{x.label}</button>)}
               </div>
@@ -167,7 +282,6 @@ export default function ShareVerseSheet({ refLabel, lines, onClose }: { refLabel
                 <div className="sv-row">
                   <button type="button" className="btn btn--gold" onClick={() => photoIn.current?.click()}>📷 เลือกรูปจากเครื่อง</button>
                   {photo && <button type="button" className="btn btn--ghost" onClick={() => { setOrig(undefined); setVersions([]); setVi(-1) }}>✕ เอารูปออก</button>}
-                  <input ref={photoIn} type="file" accept="image/*" hidden aria-label="เลือกรูปพื้นหลัง" onChange={(e) => { void pickPhoto(e.target.files?.[0]); e.target.value = '' }} />
                 </div>
                 {!photo ? <p className="source-note">ยังไม่ได้เลือกรูป — ตอนนี้ใช้พื้นหลังสี เลือกรูปจากเครื่องแล้วจะปรับภาพ ใส่ฟิลเตอร์ ซูม เลื่อนตำแหน่งได้ที่นี่</p> : (
                   <>
@@ -211,6 +325,7 @@ export default function ShareVerseSheet({ refLabel, lines, onClose }: { refLabel
                     <Slider label="สว่าง" value={style.brightness} min={-50} max={50} onChange={(v) => upd({ brightness: v })} />
                     <Slider label="คอนทราสต์" value={style.contrast} min={-50} max={50} onChange={(v) => upd({ contrast: v })} />
                     <Slider label="ความสดของสี" value={style.saturation} min={-100} max={100} onChange={(v) => upd({ saturation: v })} />
+                    <Slider label="ความคมชัด" value={style.sharpness} min={0} max={100} onChange={(v) => upd({ sharpness: v })} />
                     <Slider label="เบลอ" value={style.blur} min={0} max={12} onChange={(v) => upd({ blur: v })} />
                     <p className="sv-h">ตำแหน่งรูป</p>
                     <Slider label="ซูม" value={style.photoZoom} min={1} max={3} step={0.05} unit="×" onChange={(v) => upd({ photoZoom: v })} />
@@ -242,6 +357,25 @@ export default function ShareVerseSheet({ refLabel, lines, onClose }: { refLabel
               </div>
             )}
 
+            {sub === 'layout' && (
+              <div className="sv-tools">
+                <p className="source-note">ลากข้อความหรือโลโก้บนภาพได้เลย หรือใช้แถบเลื่อนด้านล่างเพื่อจัดตำแหน่งละเอียด</p>
+                <p className="sv-h">📝 ข้อความ</p>
+                <Slider label="ซ้าย–ขวา" value={style.textX} min={0} max={1} step={0.01} onChange={(v) => upd({ textX: v })} />
+                <Slider label="บน–ล่าง" value={style.textY} min={0} max={1} step={0.01} onChange={(v) => upd({ textY: v })} />
+                <Slider label="ขนาดกรอบ" value={style.textScale} min={0.3} max={2.5} step={0.05} unit="×" onChange={(v) => upd({ textScale: v })} />
+                <p className="sv-h">🏷️ โลโก้</p>
+                <Slider label="ซ้าย–ขวา" value={style.logoX} min={0} max={1} step={0.01} onChange={(v) => upd({ logoX: v })} />
+                <Slider label="บน–ล่าง" value={style.logoY} min={0} max={1} step={0.01} onChange={(v) => upd({ logoY: v })} />
+                <Slider label="ขนาดโลโก้" value={style.logoScale} min={0.3} max={4} step={0.05} unit="×" onChange={(v) => upd({ logoScale: v })} />
+                <div className="sv-row">
+                  <button type="button" className="btn btn--ghost" onClick={() => upd({ textX: 0.5 })}>↔ ข้อความกึ่งกลาง</button>
+                  <button type="button" className="btn btn--ghost" onClick={() => upd({ logoX: 0.5 })}>↔ โลโก้กึ่งกลาง</button>
+                  <button type="button" className="btn btn--ghost" id="sv-reset-layout" onClick={() => upd({ textX: 0.5, textY: 0.47, textScale: 1, logoX: 0.5, logoY: 0.86, logoScale: 1 })}>↺ จัดตำแหน่งใหม่ทั้งหมด</button>
+                </div>
+              </div>
+            )}
+
             {sub === 'color' && (
               <div className="sv-tools">
                 <p className="source-note">เลือกจากวงสี พิมพ์รหัสสี (#RRGGBB) หรือเลื่อนแถบเฉดสี — รหัสสีที่ได้แสดงด้านขวา</p>
@@ -263,6 +397,11 @@ export default function ShareVerseSheet({ refLabel, lines, onClose }: { refLabel
                   {logo && <button type="button" className="btn btn--ghost" onClick={() => setLogo(undefined)}>↺ ใช้โลโก้มาตรฐาน</button>}
                   <input ref={logoIn} type="file" accept="image/*" hidden aria-label="เลือกรูปโลโก้" onChange={(e) => { void pickLogo(e.target.files?.[0]); e.target.value = '' }} />
                 </div>
+                <p className="sv-h">ปรับโลโก้</p>
+                <Slider label="ความสว่าง" value={style.logoBrightness} min={-60} max={60} onChange={(v) => upd({ logoBrightness: v })} />
+                <Slider label="สี (เพิ่ม/ลด)" value={style.logoSaturation} min={-100} max={100} onChange={(v) => upd({ logoSaturation: v })} />
+                <Slider label="ความคมชัด" value={style.logoSharpness} min={0} max={100} onChange={(v) => upd({ logoSharpness: v })} />
+                <Slider label="ขนาดโลโก้" value={style.logoScale} min={0.3} max={4} step={0.05} unit="×" onChange={(v) => upd({ logoScale: v })} />
                 <label className="sv-foot">ข้อความท้ายภาพ
                   <input value={style.footer} maxLength={40} onChange={(e) => upd({ footer: e.target.value })} />
                 </label>
@@ -271,8 +410,10 @@ export default function ShareVerseSheet({ refLabel, lines, onClose }: { refLabel
             )}
 
             <div className="sv-actions">
-              <button type="button" className="btn btn--gold" disabled={!img || busy} onClick={shareImage}>📤 แชร์ภาพ</button>
-              <button type="button" className="btn btn--ghost" disabled={!img || busy} onClick={download}>💾 บันทึกภาพ</button>
+              <button type="button" className="btn btn--ghost sv-nav" aria-label="ย้อนกลับ" onClick={() => { goBack() }}>◀</button>
+              <button type="button" className="btn btn--gold" disabled={busy} onClick={shareImage}>📤 แชร์ภาพ</button>
+              <button type="button" className="btn btn--ghost" disabled={busy} onClick={download}>💾 บันทึก</button>
+              <button type="button" className="btn btn--ghost sv-nav" aria-label="ถัดไป" disabled={sub === 'logo'} onClick={goNext}>▶</button>
             </div>
           </div>
         )}
