@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import ColorField from './ColorField'
 import {
-  FILTERS, FRAMES, PATTERNS, STYLE_PRESETS, TONES, autoAdjust, drawVerse, fileToLogo, handleOf, fileToPhoto, getSharePrefs, renderVerseImage, setSharePrefs, shareText,
+  FILTERS, FRAMES, PATTERNS, STYLE_PRESETS, TONES, autoAdjust, DEFAULT_STYLE, drawVerse, fileToLogo, handleOf, fileToPhoto, getSharePrefs, renderVerseImage, setSharePrefs, shareText,
   type Boxes, type ShareLine, type ShareStyle,
 } from '../lib/shareVerse'
 import { AI_GOALS, aiEditPhoto, hasGeminiKeyForPhoto } from '../lib/aiPhoto'
+import { ARTS, makeArt } from '../lib/shareBackgrounds'
 
 type Main = 'text' | 'image'
 type Sub = 'photo' | 'style' | 'layout' | 'color' | 'logo'
@@ -29,6 +30,11 @@ function Slider({ label, value, min, max, step = 1, onChange, unit = '' }: { lab
 }
 /** รูปที่เลือกไว้ + ผล AI: จำไว้ตลอดที่เปิดแอป (ปิดหน้าต่างแล้วเปิดข้ออื่นยังใช้รูปเดิมได้ · ไม่เก็บถาวร) */
 const kept: { orig?: string; versions: string[]; vi: number } = { versions: [], vi: -1 }
+const thumbCache: Record<string, string> = {}
+const PHOTO_KEYS: (keyof ShareStyle)[] = ['filter', 'brightness', 'contrast', 'saturation', 'blur', 'sharpness', 'tone', 'toneStrength', 'photoZoom', 'photoX', 'photoY', 'overlay', 'overlayOpacity', 'overlayMode']
+const STYLE_KEYS: (keyof ShareStyle)[] = ['preset', 'pattern', 'frame', 'align', 'font', 'fontScale', 'box', 'quote', 'bg1', 'bg2', 'bg3', 'text', 'accent', 'frameColor']
+const COLOR_KEYS: (keyof ShareStyle)[] = ['bg1', 'bg2', 'bg3', 'text', 'accent', 'frameColor']
+const LOGO_KEYS: (keyof ShareStyle)[] = ['logoBrightness', 'logoSaturation', 'logoSharpness', 'logoScale', 'logoX', 'logoY', 'showLogo']
 
 /**
  * แชร์ข้อพระคัมภีร์ 2 แบบ
@@ -59,6 +65,17 @@ export default function ShareVerseSheet({ refLabel, lines, onClose }: { refLabel
   const photoIn = useRef<HTMLInputElement>(null)
   const flash = (m: string) => { setMsg(m); window.setTimeout(() => setMsg(''), 2600) }
   const upd = (p: Partial<ShareStyle>) => setStyle((s) => ({ ...s, ...p }))
+  const resetKeys = (keys: (keyof ShareStyle)[]) => upd(Object.fromEntries(keys.map((k) => [k, DEFAULT_STYLE[k]])) as Partial<ShareStyle>)
+  const [confirmReset, setConfirmReset] = useState(false)
+  const [thumbs, setThumbs] = useState<Record<string, string>>(thumbCache)
+  useEffect(() => {
+    // ภาพย่อของพื้นหลังสำเร็จรูป: สร้างครั้งแรกที่เปิดแท็บภาพ แล้วจำไว้
+    if (main !== 'image' || sub !== 'photo' || ARTS.every((a) => thumbCache[a.id])) return
+    const t = window.setTimeout(() => { for (const a of ARTS) thumbCache[a.id] ??= makeArt(a.id, 216); setThumbs({ ...thumbCache }) }, 30)
+    return () => window.clearTimeout(t)
+  }, [main, sub])
+  const pickArt = (id: string) => { setOrig(makeArt(id, 1080)); setVersions([]); setVi(-1); setAiErr(''); upd({ photoZoom: 1, photoX: 0, photoY: 0 }) }
+  const resetAll = () => { setStyle({ ...DEFAULT_STYLE }); setLogo(undefined); setConfirmReset(false); flash('รีเซ็ตทุกอย่างเป็นค่าเริ่มต้นแล้ว (รูปที่เลือกยังอยู่)') }
 
   useEffect(() => { setSharePrefs({ style, logo }) }, [style, logo])
 
@@ -97,8 +114,9 @@ export default function ShareVerseSheet({ refLabel, lines, onClose }: { refLabel
   const hit = (b: { x: number; y: number; w: number; h: number } | null, p: { x: number; y: number }, pad = 0) => !!b && p.x >= b.x - pad && p.x <= b.x + b.w + pad && p.y >= b.y - pad && p.y <= b.y + b.h + pad
   const setScale = (t: 'text' | 'logo', v: number) => upd(t === 'text' ? { textScale: Math.max(0.3, Math.min(2.5, v)) } : { logoScale: Math.max(0.3, Math.min(4, v)) })
   const onDown = (e: React.PointerEvent) => {
-    if (!cv.current) return
-    cv.current.setPointerCapture(e.pointerId)
+    if (!cv.current || (e.target as HTMLElement).closest('button')) return // ปุ่ม เปลี่ยนรูป/รีเซ็ต ทำงานของมันเอง
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId) } catch { /* บางเครื่องไม่รองรับ ใช้ต่อได้ */ }
+    e.preventDefault()
     const p = toLogical(e)
     pts.current.set(e.pointerId, p)
     const st = latest.current.style
@@ -266,11 +284,20 @@ export default function ShareVerseSheet({ refLabel, lines, onClose }: { refLabel
           <div className="sv-pane">
             <input ref={photoIn} type="file" accept="image/*" hidden aria-label="เลือกรูปพื้นหลัง" onChange={(e) => { void pickPhoto(e.target.files?.[0]); e.target.value = '' }} />
             <div className="sv-sticky">
-              <div className="sv-preview">
-                <canvas ref={cv} className="sv-canvas" width={540} height={675} aria-label={`ตัวอย่างภาพ ${refLabel} — ลากข้อความหรือโลโก้เพื่อย้าย บีบนิ้วเพื่อย่อขยาย`}
-                  onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} />
+              {/* รับสัมผัสทั้งแถบ (กว้างกว่าภาพ) เพื่อให้บีบนิ้วได้แม้นิ้วหนึ่งอยู่นอกขอบภาพ */}
+              <div className="sv-preview" style={{ touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' } as React.CSSProperties}
+                onContextMenu={(e) => e.preventDefault()} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onLostPointerCapture={onUp}>
+                <canvas ref={cv} className="sv-canvas" width={540} height={675} aria-label={`ตัวอย่างภาพ ${refLabel} — ลากข้อความหรือโลโก้เพื่อย้าย บีบนิ้วเพื่อย่อขยาย`} />
+                <button type="button" className="sv-reset" aria-label="รีเซ็ตทั้งหมดเป็นค่าเริ่มต้น" onClick={() => setConfirmReset(true)}>↺ รีเซ็ต</button>
                 <button type="button" className="sv-swap" aria-label="เปลี่ยนรูปพื้นหลัง" onClick={() => photoIn.current?.click()}>📷 {photo ? 'เปลี่ยนรูป' : 'เลือกรูป'}</button>
               </div>
+              {confirmReset && (
+                <div className="sv-confirm" role="alertdialog" aria-label="ยืนยันรีเซ็ต">
+                  <span>รีเซ็ตสไตล์ ตำแหน่ง สี ฟิลเตอร์ และโลโก้ กลับเป็นค่าเริ่มต้น? (รูปที่เลือกยังอยู่)</span>
+                  <button type="button" className="btn btn--danger" id="sv-reset-all" onClick={resetAll}>รีเซ็ต</button>
+                  <button type="button" className="btn btn--ghost" onClick={() => setConfirmReset(false)}>ยกเลิก</button>
+                </div>
+              )}
               <p className="sv-hint">👆 แตะข้อความหรือโลโก้บนภาพ แล้วลากเพื่อย้าย · บีบนิ้ว หรือลากจุดทองที่มุมเพื่อย่อ/ขยาย</p>
               <div className="sv-subs" role="tablist" aria-label="เครื่องมือตกแต่ง">
                 {SUBS.map((x) => <button key={x.id} type="button" role="tab" aria-selected={sub === x.id} className={`sv-sub${sub === x.id ? ' sv-sub--on' : ''}`} onClick={() => setSub(x.id)}>{x.label}</button>)}
@@ -283,8 +310,17 @@ export default function ShareVerseSheet({ refLabel, lines, onClose }: { refLabel
                   <button type="button" className="btn btn--gold" onClick={() => photoIn.current?.click()}>📷 เลือกรูปจากเครื่อง</button>
                   {photo && <button type="button" className="btn btn--ghost" onClick={() => { setOrig(undefined); setVersions([]); setVi(-1) }}>✕ เอารูปออก</button>}
                 </div>
+                <p className="sv-h">🖼️ พื้นหลังสำเร็จรูป (ฟรี วาดขึ้นในแอป — ใช้ได้ทุกที่ ไม่มีลิขสิทธิ์)</p>
+                <div className="sv-arts" role="group" aria-label="พื้นหลังสำเร็จรูป">
+                  {ARTS.map((a) => (
+                    <button key={a.id} type="button" className="sv-art" aria-label={`พื้นหลัง ${a.label}`} onClick={() => pickArt(a.id)}>
+                      {thumbs[a.id] ? <img src={thumbs[a.id]} alt="" /> : <span className="sv-art__ph" />}<span>{a.label}</span>
+                    </button>
+                  ))}
+                </div>
                 {!photo ? <p className="source-note">ยังไม่ได้เลือกรูป — ตอนนี้ใช้พื้นหลังสี เลือกรูปจากเครื่องแล้วจะปรับภาพ ใส่ฟิลเตอร์ ซูม เลื่อนตำแหน่งได้ที่นี่</p> : (
                   <>
+                    <div className="sv-row"><button type="button" className="btn btn--ghost" id="sv-reset-photo" onClick={() => resetKeys(PHOTO_KEYS)}>↺ รีเซ็ตการปรับรูปเป็นค่าเริ่มต้น</button></div>
                     <p className="sv-h">✨ แต่งอัตโนมัติ (ในเครื่อง ฟรี)</p>
                     <div className="sv-row"><button type="button" className="btn btn--gold" id="sv-auto" onClick={autoFix}>🪄 ปรับสว่าง/สี อัตโนมัติ</button></div>
                     <Chips label="โทนสีตามช่วงเวลา" items={TONES} value={style.tone} onPick={(v) => upd({ tone: v })} />
@@ -354,6 +390,7 @@ export default function ShareVerseSheet({ refLabel, lines, onClose }: { refLabel
                 <Chips label="กล่องหลังข้อความ" items={[{ id: 'none', label: 'ไม่มีกล่อง' }, { id: 'glass', label: 'โปร่งใส' }, { id: 'solid', label: 'ทึบ' }]} value={style.box} onPick={(v) => upd({ box: v })} />
                 <Slider label="ขนาดตัวอักษร" value={style.fontScale} min={0.7} max={1.3} step={0.05} unit="×" onChange={(v) => upd({ fontScale: v })} />
                 <label className="sv-chk"><input type="checkbox" checked={style.quote} onChange={(e) => upd({ quote: e.target.checked })} /> เครื่องหมายคำพูดตกแต่ง “</label>
+                <div className="sv-row"><button type="button" className="btn btn--ghost" onClick={() => resetKeys(STYLE_KEYS)}>↺ รีเซ็ตสไตล์เป็นค่าเริ่มต้น</button></div>
               </div>
             )}
 
@@ -386,6 +423,7 @@ export default function ShareVerseSheet({ refLabel, lines, onClose }: { refLabel
                 <ColorField label="พื้นหลัง 1" value={style.bg1} onChange={(v) => upd({ bg1: v })} />
                 <ColorField label="พื้นหลัง 2" value={style.bg2} onChange={(v) => upd({ bg2: v })} />
                 <ColorField label="พื้นหลัง 3" value={style.bg3} onChange={(v) => upd({ bg3: v })} />
+                <div className="sv-row"><button type="button" className="btn btn--ghost" onClick={() => resetKeys(COLOR_KEYS)}>↺ รีเซ็ตสีเป็นค่าเริ่มต้น</button></div>
               </div>
             )}
 
@@ -402,6 +440,7 @@ export default function ShareVerseSheet({ refLabel, lines, onClose }: { refLabel
                 <Slider label="สี (เพิ่ม/ลด)" value={style.logoSaturation} min={-100} max={100} onChange={(v) => upd({ logoSaturation: v })} />
                 <Slider label="ความคมชัด" value={style.logoSharpness} min={0} max={100} onChange={(v) => upd({ logoSharpness: v })} />
                 <Slider label="ขนาดโลโก้" value={style.logoScale} min={0.3} max={4} step={0.05} unit="×" onChange={(v) => upd({ logoScale: v })} />
+                <div className="sv-row"><button type="button" className="btn btn--ghost" onClick={() => { resetKeys(LOGO_KEYS); setLogo(undefined) }}>↺ รีเซ็ตโลโก้เป็นค่าเริ่มต้น</button></div>
                 <label className="sv-foot">ข้อความท้ายภาพ
                   <input value={style.footer} maxLength={40} onChange={(e) => upd({ footer: e.target.value })} />
                 </label>

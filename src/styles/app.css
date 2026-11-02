@@ -1571,3 +1571,11 @@ mark{background:#ffe38a;color:inherit;border-radius:3px;padding:0 .1rem}
 .sv-swap{position:absolute;top:.4rem;right:.4rem;min-height:36px;padding:0 .7rem;border-radius:999px;border:0;background:rgba(20,33,61,.85);color:#fff;font:inherit;font-size:.8rem;font-weight:700;cursor:pointer}
 .sv-hint{margin:0;font-size:.78rem;text-align:center;opacity:.8}
 .sv-actions .sv-nav{flex:0 0 3rem;padding:0}
+
+/* พื้นหลังสำเร็จรูป + รีเซ็ต */
+.sv-arts{display:grid;grid-template-columns:repeat(4,1fr);gap:.4rem}
+.sv-art{display:flex;flex-direction:column;align-items:center;gap:.15rem;padding:.15rem;border:1.5px solid rgba(0,0,0,.15);border-radius:.5rem;background:none;color:inherit;font:inherit;font-size:.68rem;line-height:1.15;cursor:pointer;text-align:center}
+.sv-art img,.sv-art__ph{width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:.35rem;background:#0001;display:block}
+.sv-reset{position:absolute;top:.4rem;left:.4rem;min-height:36px;padding:0 .7rem;border-radius:999px;border:0;background:rgba(20,33,61,.85);color:#fff;font:inherit;font-size:.8rem;font-weight:700;cursor:pointer}
+.sv-confirm{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;padding:.5rem .6rem;border:1.5px solid #b3261e;border-radius:.6rem;background:rgba(179,38,30,.08);font-size:.85rem}
+.sv-confirm span{flex:1 1 100%}

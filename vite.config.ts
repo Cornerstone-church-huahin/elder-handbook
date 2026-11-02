@@ -5,6 +5,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 // base './' ทำให้ build เปิดได้ทั้งบนโดเมนหลักและในโฟลเดอร์ย่อย
 export default defineConfig({
   base: './',
+  define: { __BUILD__: JSON.stringify(new Date().toISOString()) }, // วัน-เวลาที่ build (แสดงในหน้าตั้งค่า ไว้เช็กว่าได้เวอร์ชันล่าสุดหรือยัง)
   plugins: [
     react(),
     VitePWA({
