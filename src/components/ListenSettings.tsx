@@ -6,7 +6,7 @@ import { RATES } from '../lib/speech'
  * · ความเร็วเก็บในเครื่องค่าเดียว (เหมือนหน้าตั้งค่าและสมุดคำอธิษฐาน) ปรับที่ไหนก็ใช้ทั้งแอป
  * · ติ๊กการ์ดที่ต้องการแล้ว "ฟังที่เลือก" จะเล่นเฉพาะที่ติ๊ก (ไม่ติ๊กเลย = เล่นทั้งหมด) · ติ๊ก 🔁 วนอ่านซ้ำ ให้เล่นวนจนกดหยุด
  */
-export type ListenPicks = { has: (id: string) => boolean; toggle: (id: string) => void; setAll: (ids: string[]) => void; clear: () => void; count: number }
+export type ListenPicks = { ids: string[]; has: (id: string) => boolean; toggle: (id: string) => void; setAll: (ids: string[]) => void; clear: () => void; count: number }
 
 /** รายการที่ติ๊กไว้ — จำไว้ในเครื่อง ต่อหน้า */
 export function useListenPicks(page: string): ListenPicks {
@@ -28,6 +28,7 @@ export function useListenPicks(page: string): ListenPicks {
     }
   }
   return {
+    ids, // เรียงตามลำดับที่ติ๊ก
     has: (id) => ids.includes(id),
     toggle: (id) => save(ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]),
     setAll: (all) => save(all),

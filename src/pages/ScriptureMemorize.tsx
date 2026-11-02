@@ -22,6 +22,31 @@ const parseLines = (p: NotePrayer) => p.text.split('\n').map((l, i) => {
 })
 import { SyncLine } from './PrayerNotebook'
 
+type ListenMode = 'verse' | 'both' // เฉพาะข้อพระคัมภีร์ · ข้อพระคัมภีร์ + ความหมายฝ่ายวิญญาณ
+const MODE_KEY = 'khatha.sm.mode.v1'
+function useListenMode() {
+  const [mode, setM] = useState<ListenMode>(() => { try { return localStorage.getItem(MODE_KEY) === 'verse' ? 'verse' : 'both' } catch { return 'both' } })
+  const set = (m: ListenMode) => { setM(m); try { localStorage.setItem(MODE_KEY, m) } catch { /* ignore */ } }
+  return [mode, set] as const
+}
+/** ข้ออ้างอิง → เนื้อข้อ → (ถ้าเลือกโหมด 'both' และการ์ดมี) ความหมายฝ่ายวิญญาณ */
+const sectionsFor = (x: NotePrayer, mode: ListenMode) => {
+  const meaning = mode === 'both' ? speakMeaning(x.cheer) : ''
+  return [
+    { id: `${x.id}|r`, text: speakableRef(x.title) },
+    { id: `${x.id}|t`, text: parseLines(x).map((l) => l.t).join(' ') },
+    ...(meaning ? [{ id: `${x.id}|s`, text: meaning }] : []),
+  ]
+}
+function ListenModeBox({ mode, setMode, what }: { mode: ListenMode; setMode: (m: ListenMode) => void; what: string }) {
+  return (
+    <fieldset className="sm-mode"><legend>🔊 ฟังแบบ</legend>
+      <label><input type="radio" name="sm-mode" id="sm-mode-verse" checked={mode === 'verse'} onChange={() => setMode('verse')} /> เฉพาะข้อพระคัมภีร์ของแต่ละการ์ด</label>
+      <label><input type="radio" name="sm-mode" id="sm-mode-both" checked={mode === 'both'} onChange={() => setMode('both')} /> ข้อพระคัมภีร์ + ความหมายฝ่ายวิญญาณของแต่ละการ์ด ({what})</label>
+    </fieldset>
+  )
+}
+
 /**
  * ท่องจำคัมภีร์:
  *  1) ⚙️ สร้างหมวด (ไม่ต้องมีเนื้อหา) → ขึ้นเป็นการ์ดหมวดทันที · เลือกดูทีละหมวดจากช่องเลือกด้านบน
@@ -33,6 +58,10 @@ export default function ScriptureMemorize({ nb, n }: { nb: NotebookApi; n: numbe
   const cats = useNotebookCategories(n)
   const tts = useSpeech('th-TH')
   const picks = useListenPicks(`scripture${n}`)
+  const catPicks = useListenPicks(`scriptureCats${n}`) // ติ๊กเลือกหมวดที่จะฟัง (เรียงตามลำดับที่ติ๊ก)
+  const [mode, setMode] = useListenMode()
+  const [catQueue, setCatQueue] = useState<string[]>([]) // หมวดที่กำลังเล่น (ลำดับ)
+  const [cur, setCur] = useState<string | null>(null) // ข้อที่กำลังอ่าน
   const [sel, setSel] = useState(ALL)
   const [openId, setOpenId] = useState<string | null>(null) // หมวดที่เปิดอยู่
   const [tab, setTab] = useState<'search' | 'cats' | 'three'>('cats') // แถบเล็กด้านบน: ค้นหาข้อพระคัมภีร์ · หมวด · 3
@@ -58,6 +87,26 @@ export default function ScriptureMemorize({ nb, n }: { nb: NotebookApi; n: numbe
     if (sel === name) setSel(ALL)
     if (openId === id) setOpenId(null)
   }
+
+  const catKey = (c: { id: string; name: string }) => c.id
+  const itemsOfCat = (name: string) => list.filter((p) => p.category === name).sort((a, b) => a.id.localeCompare(b.id))
+  const allCatRows = [...cats.cats.map((c) => ({ id: c.id, name: c.name })), ...(noneCount > 0 ? [{ id: NONE, name: '' }] : [])]
+  const playable = allCatRows.filter((c) => itemsOfCat(c.name).length > 0)
+  const activeTts = tts.speaking || tts.paused
+  const playCats = (rows: { id: string; name: string }[]) => {
+    const q = rows.filter((c) => itemsOfCat(c.name).length > 0)
+    if (!tts.supported || !q.length) return
+    setCatQueue(q.map(catKey))
+    const xs = q.flatMap((c) => itemsOfCat(c.name))
+    setCur(xs[0].id)
+    tts.speakSections(xs.flatMap((x) => sectionsFor(x, mode)), (sid) => setCur(String(sid).split('|')[0]))
+  }
+  const rowsFromPicks = () => catPicks.count ? catPicks.ids.map((id) => allCatRows.find((c) => c.id === id)).filter((c): c is { id: string; name: string } => !!c) : playable
+  const playingCat = activeTts && cur ? (list.find((p) => p.id === cur)?.category ?? null) : null
+  const playingRow = playingCat === null ? null : allCatRows.find((c) => c.name === playingCat) ?? null
+  const qIdx = playingRow ? catQueue.indexOf(playingRow.id) : -1
+  const stepCat = (d: number) => { const i = qIdx + d; if (qIdx >= 0 && i >= 0 && i < catQueue.length) playCats(catQueue.slice(i).map((id) => allCatRows.find((c) => c.id === id)!).filter(Boolean)) }
+  const openCat = (id: string) => { if (activeTts) tts.stop(); setOpenId(id) }
 
   if (open) return <CategoryView nb={nb} cat={open.name} catNames={cats.cats.map((c) => c.name)} tts={tts} picks={picks} slot={slot} onBack={() => { tts.stop(); setOpenId(null) }} />
 
@@ -94,25 +143,56 @@ export default function ScriptureMemorize({ nb, n }: { nb: NotebookApi; n: numbe
         onRename={(c, name) => rename(c.id, c.name, name)}
         onRemove={(c) => removeCat(c.id, c.name)}
       />
+      {playable.length > 0 && tts.supported && <div className="sm-bar" role="group" aria-label="ฟังทั้งหมวด">
+        <ListenModeBox mode={mode} setMode={setMode} what="เรียงตามที่ติ๊ก · วนซ้ำ" />
+        <div className="sv-row">
+          {activeTts ? (
+            <>
+              {tts.speaking
+                ? <button type="button" className="btn btn--gold" onClick={tts.pause} aria-label="หยุดชั่วคราว">⏸ หยุด</button>
+                : <button type="button" className="btn btn--gold" onClick={tts.resume} aria-label="ฟังต่อ">▶ ต่อ</button>}
+              <button type="button" className="btn btn--ghost" disabled={qIdx <= 0} onClick={() => stepCat(-1)} aria-label="หมวดก่อนหน้า">⏮</button>
+              <button type="button" className="btn btn--ghost" disabled={qIdx < 0 || qIdx >= catQueue.length - 1} onClick={() => stepCat(1)} aria-label="หมวดถัดไป">⏭</button>
+              <button type="button" className="btn btn--ghost" onClick={tts.stop} aria-label="หยุดเลย">⏹</button>
+            </>
+          ) : (
+            <button type="button" className="btn btn--gold" id="sm-cats-play" onClick={() => playCats(rowsFromPicks())}>{catPicks.count ? `▶ ฟังหมวดที่เลือก (${rowsFromPicks().length})` : '▶ ฟังทุกหมวด'}</button>
+          )}
+        </div>
+        <p className="source-note">ติ๊กช่องหน้าหมวดที่ต้องการ (1 หมวดหรือหลายหมวด) แล้วกดฟัง · จะเล่นเรียงตามลำดับที่ติ๊ก · ไม่ติ๊กเลย = ฟังทุกหมวด</p>
+      </div>}
       <ul className="sm-cats">
-        {visible.map((c) => (
-          <li key={c.id}>
-            <button type="button" className="sm-cat" onClick={() => setOpenId(c.id)} aria-label={`เปิดหมวด ${c.name}`}>
-              <span className="sm-cat__icon" aria-hidden="true">📖</span>
-              <span className="sm-cat__t"><b>{c.name}</b><small>{counts[c.name] ? `${counts[c.name]} ข้อ` : 'ยังไม่มีข้อ'}</small></span>
-              <span aria-hidden="true">›</span>
-            </button>
-          </li>
-        ))}
+        {visible.map((c) => {
+          const n = itemsOfCat(c.name).length
+          const on = playingRow?.id === c.id
+          return (
+            <li key={c.id} className={`sm-cat-row${on ? ' sm-cat-row--on' : ''}`}>
+              {tts.supported && n > 0 && <PickBox picks={catPicks} id={c.id} label={`หมวด ${c.name}`} />}
+              <button type="button" className="sm-cat" onClick={() => openCat(c.id)} aria-label={`เปิดหมวด ${c.name}`}>
+                <span className="sm-cat__icon" aria-hidden="true">📖</span>
+                <span className="sm-cat__t"><b>{c.name}</b><small>{counts[c.name] ? `${counts[c.name]} ข้อ` : 'ยังไม่มีข้อ'}</small></span>
+                <span aria-hidden="true">›</span>
+              </button>
+              {tts.supported && n > 0 && (on
+                ? <button type="button" className="us-play us-play--on" onClick={tts.stop} aria-label={`หยุดฟังหมวด ${c.name}`}>⏹</button>
+                : <button type="button" className="us-play" onClick={() => playCats([c])} aria-label={`ฟังหมวด ${c.name}`}>▶</button>)}
+            </li>
+          )
+        })}
         {noneCount > 0 && sel === ALL && (
-          <li>
-            <button type="button" className="sm-cat" onClick={() => setOpenId(NONE)} aria-label="ข้อที่ไม่มีหมวด">
+          <li className={`sm-cat-row${playingRow?.id === NONE ? ' sm-cat-row--on' : ''}`}>
+            {tts.supported && <PickBox picks={catPicks} id={NONE} label="หมวด ไม่มีหมวด" />}
+            <button type="button" className="sm-cat" onClick={() => openCat(NONE)} aria-label="ข้อที่ไม่มีหมวด">
               <span className="sm-cat__icon" aria-hidden="true">🗂️</span>
               <span className="sm-cat__t"><b>ไม่มีหมวด</b><small>{noneCount} ข้อ</small></span>
             </button>
+            {tts.supported && (playingRow?.id === NONE
+              ? <button type="button" className="us-play us-play--on" onClick={tts.stop} aria-label="หยุดฟังหมวด ไม่มีหมวด">⏹</button>
+              : <button type="button" className="us-play" onClick={() => playCats([{ id: NONE, name: '' }])} aria-label="ฟังหมวด ไม่มีหมวด">▶</button>)}
           </li>
         )}
       </ul>
+      {playable.length > 0 && tts.supported && <ListenSettings tts={tts} picks={catPicks} ids={playable.map(catKey)} />}
       <SyncLine sync={nb.sync} onRetry={nb.syncNow} list={list} />
       </div>
     </>
@@ -130,9 +210,7 @@ function CategoryView({ nb, cat, catNames, tts, picks, slot, onBack }: { nb: Not
   const [flip, setFlip] = useState<Set<string>>(new Set()) // การ์ดที่สลับสถานะต่างจากค่าตั้งต้น
   const isOpen = (id: string) => (allOpen ? !flip.has(id) : flip.has(id))
   const toggleCard = (id: string) => setFlip((f) => { const n = new Set(f); if (n.has(id)) n.delete(id); else n.add(id); return n })
-  // ---- โหมดฟัง: เฉพาะข้อพระคัมภีร์ · ข้อพระคัมภีร์ + ความหมายฝ่ายวิญญาณ ----
-  const [mode, setModeState] = useState<'verse' | 'both'>(() => { try { return localStorage.getItem('khatha.sm.mode.v1') === 'verse' ? 'verse' : 'both' } catch { return 'both' } })
-  const setMode = (m: 'verse' | 'both') => { setModeState(m); try { localStorage.setItem('khatha.sm.mode.v1', m) } catch { /* ignore */ } }
+  const [mode, setMode] = useListenMode()
   const [saveCat, setSaveCat] = useState(cat) // หมวดที่จะบันทึกเข้า (ตั้งต้น = หมวดที่เปิดอยู่)
   useEffect(() => setSaveCat(cat), [cat])
   const [manual, setManual] = useState('')
@@ -204,19 +282,11 @@ function CategoryView({ nb, cat, catNames, tts, picks, slot, onBack }: { nb: Not
     ], (sid) => setCur(String(sid).split('|')[0]))
   }
   const pool = picks.count ? items.filter((x) => picks.has(x.id)) : items
-  const sectionsOf = (x: NotePrayer) => {
-    const meaning = mode === 'both' ? speakMeaning(x.cheer) : ''
-    return [
-      { id: `${x.id}|r`, text: speakableRef(x.title) },
-      { id: `${x.id}|t`, text: parseLines(x).map((l) => l.t).join(' ') },
-      ...(meaning ? [{ id: `${x.id}|s`, text: meaning }] : []),
-    ]
-  }
   const play = (xs: NotePrayer[]) => {
     if (!tts.supported || !xs.length) return
     setSpiritPlay(null)
     setCur(xs[0].id)
-    tts.speakSections(xs.flatMap(sectionsOf), (sid) => setCur(String(sid).split('|')[0]))
+    tts.speakSections(xs.flatMap((x) => sectionsFor(x, mode)), (sid) => setCur(String(sid).split('|')[0]))
   }
   const curIdx = pool.findIndex((x) => x.id === cur)
   const stepTo = (d: number) => { const i = curIdx < 0 ? 0 : curIdx + d; if (i >= 0 && i < pool.length) play(pool.slice(i)) }
@@ -302,10 +372,7 @@ function CategoryView({ nb, cat, catNames, tts, picks, slot, onBack }: { nb: Not
       {note && <p className="nb-sync nb-sync--ok" role="status">{note}</p>}
       {items.length === 0 && <p className="source-note sm-empty">{cat ? 'หมวดนี้ยังไม่มีข้อพระคัมภีร์' : 'ไม่มีข้อที่อยู่นอกหมวด'}</p>}
       {items.length > 0 && <div className="sm-bar" role="group" aria-label="ตัวเลือกการฟังและการแสดงผล">
-        {tts.supported && <fieldset className="sm-mode"><legend>🔊 ฟังแบบ</legend>
-          <label><input type="radio" name="sm-mode" id="sm-mode-verse" checked={mode === 'verse'} onChange={() => setMode('verse')} /> เฉพาะข้อพระคัมภีร์ของแต่ละการ์ด</label>
-          <label><input type="radio" name="sm-mode" id="sm-mode-both" checked={mode === 'both'} onChange={() => setMode('both')} /> ข้อพระคัมภีร์ + ความหมายฝ่ายวิญญาณของแต่ละการ์ด (เรียง · วนซ้ำ)</label>
-        </fieldset>}
+        {tts.supported && <ListenModeBox mode={mode} setMode={setMode} what="เรียง · วนซ้ำ" />}
         <div className="sv-row">
           <button type="button" className="mini" id="sm-expand-all" onClick={() => { setAllOpen(true); setFlip(new Set()) }}>▾ ขยายทั้งหมด</button>
           <button type="button" className="mini" id="sm-collapse-all" onClick={() => { setAllOpen(false); setFlip(new Set()) }}>▴ ย่อทั้งหมด</button>
