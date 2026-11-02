@@ -5,6 +5,7 @@ import { parseRef, refUrl } from '../data/bible'
 import { Spoken, useFollow } from '../components/Spoken'
 import { autoCheer } from '../lib/cheer'
 import { cleanStory, refsWithSuggest, scoreNote, useNotebookSpace, usePrayerNotebook, type NotebookApi, type NotePrayer } from '../lib/prayerNotebook'
+import { spaceOf } from '../lib/notebookSpaces'
 import type { SyncStatus } from '../lib/sync'
 import { speakableRef, useSpeech, type SpeechSection } from '../lib/speech'
 import { PrayerMode, useVerseTexts } from './Prayer'
@@ -18,10 +19,9 @@ export default function PrayerNotebookPage() {
 }
 
 /** สมุด 1/2/3 (หน้าแรก): หน้าตาและการทำงานเหมือนเตรียมคำอธิษฐานทุกอย่าง แต่เป็นสมุดว่างของตัวเอง */
-export const NOTEBOOK_SPACES = [1, 2, 3] as const
 export function NotebookSpacePage() {
   const n = Number(useParams().n)
-  if (!NOTEBOOK_SPACES.includes(n as 1 | 2 | 3)) return <Navigate to="/" replace />
+  if (!spaceOf(n)) return <Navigate to="/" replace />
   return <NotebookSpaceView n={n} key={n} />
 }
 function NotebookSpaceView({ n }: { n: number }) {
@@ -124,8 +124,8 @@ function NotebookView({ nb, space }: { nb: NotebookApi; space?: number }) {
   return (
     <>
       <div className="page-head nb-page-head">
-        <span className="page-icon" aria-hidden="true">{space ? '📒' : '🙏'}</span>
-        <h1>{space ? `สมุด ${space}` : 'เตรียมคำอธิษฐาน'}</h1>
+        <span className="page-icon" aria-hidden="true">{space ? spaceOf(space)?.icon : '🙏'}</span>
+        <h1>{space ? spaceOf(space)?.name : 'เตรียมคำอธิษฐาน'}</h1>
       </div>
 
       <div className="nb-bar">
@@ -147,7 +147,7 @@ function NotebookView({ nb, space }: { nb: NotebookApi; space?: number }) {
         <p className="empty">กำลังเปิดสมุดคำอธิษฐาน…</p>
       ) : shown.length === 0 ? (
         <div className="card nb-empty">
-          <p>{query ? `ยังไม่มีคำอธิษฐานเรื่อง “${query}”` : space ? 'สมุดนี้ยังว่างอยู่ กด “＋ เพิ่ม” เพื่อเริ่มบันทึก' : 'ยังไม่มีคำอธิษฐานในสมุด'}</p>
+          <p>{query ? `ยังไม่มีคำอธิษฐานเรื่อง “${query}”` : space ? `${spaceOf(space)?.name ?? 'สมุด'} ยังว่างอยู่ กด “＋ เพิ่ม” เพื่อเริ่มบันทึก` : 'ยังไม่มีคำอธิษฐานในสมุด'}</p>
           {editing !== 'new' && <button type="button" className="btn btn--gold" onClick={startNew}>＋ เพิ่มคำอธิษฐาน{query ? 'เรื่องนี้' : ''}</button>}
         </div>
       ) : (
