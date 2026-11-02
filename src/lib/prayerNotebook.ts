@@ -322,3 +322,28 @@ export function useNotebookSpace(n: number): NotebookApi {
     restoreDefaults: async () => undefined,
   }
 }
+
+/** หมวดของสมุดเพิ่มเติม (เพิ่ม/เปลี่ยนชื่อ/ลบได้ตลอด) — ใช้ร่วมกันออนไลน์เหมือนข้อมูลของสมุด */
+export interface NbCategory { id: string; name: string; updated: number; by?: string; deleted?: boolean }
+export function useNotebookCategories(n: number) {
+  const store = useSharedStore<NbCategory>({ localKey: `khatha.notebook${n}.cats.v1`, file: `notebook${n}-cats.json`, label: `หมวดของสมุด ${n}` })
+  const cats = [...store.items].sort((a, b) => a.name.localeCompare(b.name, 'th'))
+  const newId = () => `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`
+  return {
+    cats,
+    add: (name: string): boolean => {
+      const t = name.trim()
+      if (!t || cats.some((c) => c.name === t)) return false
+      store.put([{ id: newId(), name: t, updated: Date.now() }])
+      return true
+    },
+    rename: (id: string, name: string): boolean => {
+      const t = name.trim()
+      const c = cats.find((x) => x.id === id)
+      if (!c || !t || (t !== c.name && cats.some((x) => x.name === t))) return false
+      store.put([{ ...c, name: t }])
+      return true
+    },
+    remove: (id: string) => store.remove(id),
+  }
+}
