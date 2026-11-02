@@ -49,11 +49,11 @@ check((await p.textContent('.en-sheet__text')).includes('Noah was the son of Lam
 await p.evaluate(() => (window.__said = [])); await p.click('.en-sheet [aria-label="Read aloud"]'); await p.waitForTimeout(400)
 check((await p.evaluate(() => window.__said)).some((x) => x.lang === 'en-US' && x.text.includes('Noah')), 'read aloud in English')
 await p.click('.en-sheet .sheet__close')
-// ข้อพระคำ (หน้าบุคคล) → WEB ไม่ใช้ AI
+// ข้อพระคำ (หน้าบุคคล) → ไม่มีปุ่มอังกฤษ (พระคัมภีร์ใช้ฉบับ 1971 ฉบับเดียว)
 await p.goto(URL + '#/people/noah'); await p.waitForSelector('.ref-read__toggle'); await p.click('.ref-read__toggle >> nth=1'); await p.waitForSelector('.ref-read__chapter .spoken')
-await press(p.locator('.ref-read__chapter .spoken').first()); await p.click('.text-tools [aria-label="แปลอังกฤษ"]'); await p.waitForSelector('.en-sheet .bv')
-check((await p.textContent('.en-sheet .sheet__title')).includes('World English Bible') && (await p.textContent('.en-sheet .sheet__title')).includes('Hebrews 11'), 'verse → World English Bible (no AI): ' + (await p.textContent('.en-sheet .sheet__title strong')))
-await p.click('.en-sheet .sheet__close')
+await press(p.locator('.ref-read__chapter .spoken').first()); await p.waitForSelector('.text-tools')
+check(await p.locator('.text-tools [aria-label="แปลอังกฤษ"]').count() === 0, 'verse text: no English button (TH1971 only)')
+await p.keyboard.press('Escape'); await p.locator('.text-tools .bible-selbar__x').click().catch(() => {})
 // สมุดคำอธิษฐาน
 await p.goto(URL + '#/prayer'); await p.waitForSelector('.nb-card'); await p.fill('#nb-q', 'อาหาร'); await p.waitForSelector('.nb-card--open .nb-tabs')
 await p.click('.nb-card--open .nb-tabs >> text=อธิษฐาน'); await press(p.locator('.nb-card__text p').first()); await p.waitForSelector('.text-tools')

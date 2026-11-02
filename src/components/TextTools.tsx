@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import { openPronEditor, Spoken, TOOLS_EVENT, type ToolsDetail } from './Spoken'
 import { HL_COLORS } from '../lib/highlights'
 import { useTextHighlights } from '../lib/textHighlights'
-import { EN_BOOKS, loadBookEn } from '../data/bible'
 import { getAiProvider } from '../lib/ai'
 import { useSpeech } from '../lib/speech'
 
@@ -53,7 +52,7 @@ export default function TextTools() {
             <button type="button" onClick={() => setPalette(!palette)} aria-pressed={palette} aria-label="ไฮไลต์"><span>🖍️</span>ไฮไลต์</button>
             <button type="button" onClick={copy} aria-label="คัดลอกข้อความ"><span>📋</span>คัดลอก</button>
             <button type="button" onClick={share} aria-label="แชร์ข้อความ"><span>📤</span>แชร์</button>
-            <button type="button" onClick={() => { setEn(d); setD(null) }} aria-label="แปลอังกฤษ"><span>🌐</span>อังกฤษ</button>
+            {!d.verse && <button type="button" onClick={() => { setEn(d); setD(null) }} aria-label="แปลอังกฤษ"><span>🌐</span>อังกฤษ</button>}
             <button type="button" onClick={() => { openPronEditor({ text: d.text, start: d.start, end: d.end }); setD(null) }} aria-label="แก้คำอ่าน"><span>🔤</span>คำอ่าน</button>
             <button type="button" disabled={!d.read} onClick={() => { d.read?.(); setD(null) }} aria-label="ฟังจากตรงนี้"><span>🔊</span>ฟังต่อ</button>
           </div>
@@ -67,7 +66,7 @@ export default function TextTools() {
 type EnState = { kind: 'loading' } | { kind: 'ok'; label: string; source: string; lines: { n?: number; t: string }[] } | { kind: 'none' }
 
 /**
- * ภาษาอังกฤษ: ข้อพระคัมภีร์ใช้ฉบับ World English Bible (ไม่ให้ AI แปลพระคัมภีร์)
+ * ภาษาอังกฤษ: เฉพาะข้อความทั่วไป (เรื่องเล่า คำอธิษฐาน) — ข้อพระคัมภีร์ไม่มีฉบับอังกฤษ ใช้เฉพาะฉบับ 1971 (ปุ่มนี้ไม่แสดงเมื่อเป็นข้อพระคัมภีร์)
  * ข้อความทั่วไป (เรื่องเล่า คำอธิษฐาน) ใช้ผู้ช่วย AI ที่ใส่คีย์ไว้ · ไม่มีคีย์ → เปิด Google แปลภาษา
  */
 function EnglishPopup({ d, onClose }: { d: ToolsDetail; onClose: () => void }) {
@@ -79,13 +78,6 @@ function EnglishPopup({ d, onClose }: { d: ToolsDetail; onClose: () => void }) {
   useEffect(() => {
     let alive = true
     ;(async () => {
-      if (d.verse) {
-        const c = await loadBookEn(d.verse.book)
-        const lines = d.verse.verses.map((n) => ({ n, t: c?.[d.verse!.ch - 1]?.[n - 1] ?? '' })).filter((x) => x.t)
-        const vs = d.verse.verses
-        if (alive) setSt(lines.length ? { kind: 'ok', label: `${EN_BOOKS[d.verse.book - 1]} ${d.verse.ch}:${vs[0]}${vs.length > 1 ? `–${vs[vs.length - 1]}` : ''}`, source: 'World English Bible (ฉบับภาษาอังกฤษ สาธารณสมบัติ)', lines } : { kind: 'none' })
-        return
-      }
       const provider = await getAiProvider()
       if (!provider) return alive && setSt({ kind: 'none' })
       const c = new AbortController()

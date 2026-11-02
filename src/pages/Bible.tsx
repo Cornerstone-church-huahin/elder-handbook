@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { EN_BOOKS, loadBookEn } from '../data/bible'
 import { HL_COLORS, useHighlights } from '../lib/highlights'
 import { openPronEditor, Spoken, useFollow, words } from '../components/Spoken'
 import { createPortal } from 'react-dom'
@@ -161,7 +160,6 @@ export function BibleChapterPage() {
   const [reading, setReading] = useState<{ c: number; v: number } | null>(null)
   const [msg, setMsg] = useState('')
   const [palette, setPalette] = useState(false)
-  const [en, setEn] = useState(false)
   const hl = useHighlights()
   const hlMap = useMemo(() => {
     const m: Record<number, string> = {}
@@ -347,14 +345,12 @@ export function BibleChapterPage() {
             <button type="button" onClick={() => setPalette(!palette)} aria-pressed={palette} aria-label="ไฮไลต์"><span>🖍️</span>ไฮไลต์</button>
             <button type="button" onClick={copy} aria-label="คัดลอก"><span>📋</span>คัดลอก</button>
             <button type="button" onClick={share} aria-label="แชร์"><span>📤</span>แชร์</button>
-            <button type="button" onClick={() => setEn(true)} aria-label="แปลอังกฤษ"><span>🌐</span>อังกฤษ</button>
             <button type="button" onClick={() => { const t = verses[sorted[0] - 1] ?? ''; const w = words(t).find((x) => x.segment.trim()); openPronEditor({ text: t, start: w?.index ?? 0, end: (w?.index ?? 0) + (w?.segment.length ?? 1) }) }} aria-label="แก้คำอ่าน"><span>🔤</span>คำอ่าน</button>
             <button type="button" onClick={() => (sel.length === 1 ? listenOn() : listenSelected())} aria-label={sel.length === 1 ? 'ฟังตั้งแต่ข้อนี้เป็นต้นไป' : 'ฟังข้อที่เลือก'}><span>🔊</span>{sel.length === 1 ? 'ฟังต่อ' : 'ฟัง'}</button>
           </div>
         </div>
       )}
 
-      {en && <EnglishSheet book={bookNo} ch={ch} verses={sorted} onClose={() => setEn(false)} onOpen={() => tts.stop()} />}
 
       {tts.supported && slot && all && createPortal(
         <div className="nb-fab" role="group" aria-label="ฟังเสียงอ่าน">
@@ -374,73 +370,6 @@ export function BibleChapterPage() {
         </div>,
         slot,
       )}
-    </div>
-  )
-}
-
-/** ป๊อปอัพภาษาอังกฤษ: World English Bible (ฉบับแปลที่พิมพ์แล้ว สาธารณสมบัติ) — ไม่ใช้ AI แปลพระคัมภีร์ */
-function EnglishSheet({ book, ch, verses, onClose, onOpen }: { book: number; ch: number; verses: number[]; onClose: () => void; onOpen: () => void }) {
-  const [c, setC] = useState<string[][] | null | undefined>(undefined)
-  const tts = useSpeech('en-US')
-  const [copied, setCopied] = useState(false)
-  useEffect(() => {
-    onOpen()
-    loadBookEn(book).then(setC)
-  }, [book]) // eslint-disable-line react-hooks/exhaustive-deps
-  const lines = verses.map((v) => ({ v, t: c?.[ch - 1]?.[v - 1] ?? '' }))
-  const label = `${EN_BOOKS[book - 1]} ${ch}:${rangeLabel(verses)}`
-  // อ่านทีละข้อ + ไฮไลต์วิ่งตามคำที่กำลังอ่าน
-  const [at, setAt] = useState<{ v: number; i: number } | null>(null)
-  const [end, setEnd] = useState(0)
-  const play = (from?: { id: string; at: number }) =>
-    tts.speakSections(
-      [{ id: '0', text: label }, ...lines.filter((x) => x.t).map((x) => ({ id: String(x.v), text: x.t }))],
-      (id) => setAt({ v: Number(id), i: 0 }),
-      (id, i, e) => { setAt({ v: Number(id), i }); setEnd(e) },
-      from,
-    )
-  const active = (tts.speaking || tts.paused) && at
-  useEffect(() => {
-    // เลื่อนตามเสียงอ่าน: Spoken จัดการให้
-  }, [active, at?.v]) // eslint-disable-line react-hooks/exhaustive-deps
-  const renderLine = (v: number, t: string) => <Spoken text={t} id={String(v)} follow={active ? { id: String(at.v), at: at.i, end } : null} word onTap={(id, i) => play({ id, at: i })} />
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(`${label} (WEB)\n${lines.map((x) => `${x.v} ${x.t}`).join('\n')}`)
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 1500)
-    } catch {
-      /* ignore */
-    }
-  }
-  return (
-    <div className="sheet-backdrop" onClick={() => { tts.stop(); onClose() }}>
-      <div className="sheet sheet--short en-sheet" role="dialog" aria-modal="true" aria-label="ภาษาอังกฤษ" onClick={(e) => e.stopPropagation()}>
-        <div className="sheet__head">
-          <div className="sheet__title"><strong className={active && at.v === 0 ? 'en-label--now' : ''}>🌐 {label}</strong><span>World English Bible (ฉบับภาษาอังกฤษ สาธารณสมบัติ)</span></div>
-          <button type="button" className="sheet__close" onClick={() => { tts.stop(); onClose() }}>ปิด</button>
-        </div>
-        <div className="en-sheet__text" lang="en">
-          {c === undefined ? <p className="empty">Loading…</p> : !c ? <p className="empty">เปิดฉบับภาษาอังกฤษไม่ได้ตอนนี้ (อาจออฟไลน์)</p> : lines.map((x) => (
-            <p key={x.v} id={`en${x.v}`} className={`bv${active && at.v === x.v ? ' bv--now' : ''}`}><sup>{x.v}</sup>{x.t ? renderLine(x.v, x.t) : '—'}</p>
-          ))}
-        </div>
-        {c && tts.supported && (
-          <div className="en-sheet__controls">
-            {tts.speaking ? (
-              <button type="button" className="btn btn--gold" onClick={tts.pause} aria-label="Pause">⏸ หยุด</button>
-            ) : tts.paused ? (
-              <button type="button" className="btn btn--gold" onClick={tts.resume} aria-label="Resume">▶ ฟังต่อ</button>
-            ) : (
-              <button type="button" className="btn btn--gold" onClick={() => play()} aria-label="Read aloud">🔊 อ่านออกเสียง</button>
-            )}
-            <button type="button" className="btn btn--ghost" onClick={() => play()} aria-label="Replay">↺ เล่นซ้ำ</button>
-            <button type="button" className={`btn ${tts.looping ? 'btn--navy' : 'btn--ghost'}`} aria-pressed={tts.looping} onClick={() => tts.setLoop(!tts.looping)} aria-label="Loop">🔁 วน{tts.looping ? ' (เปิด)' : ''}</button>
-            <button type="button" className="btn btn--ghost" onClick={copy} aria-label="Copy English">{copied ? '✓ คัดลอกแล้ว' : '📋 คัดลอก'}</button>
-          </div>
-        )}
-        {tts.noVoice && <p className="nb-none">เครื่องนี้ยังไม่มีเสียงภาษาอังกฤษ · ติดตั้งเสียง English ในการตั้งค่าการอ่านออกเสียงของเครื่อง</p>}
-      </div>
     </div>
   )
 }

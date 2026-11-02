@@ -32,18 +32,13 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png,json}'], // รวมระเบียบปฏิบัติฯ (json) ให้อ่านได้แม้ออฟไลน์
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024, // เนื้อหาบุคคล 150 คน ~2.2MB ให้ใช้ออฟไลน์ได้
         // พระคัมภีร์ทั้งเล่ม (~11MB) ไม่โหลดล่วงหน้า — เก็บไว้ในเครื่องเฉพาะเล่มที่เปิดอ่านแล้ว
-        globIgnores: ['**/ocr/**', '**/data/bible/**', '**/data/bible-en/**', '**/data/stories/**'],
+        globIgnores: ['**/ocr/**', '**/data/bible/**', '**/data/stories/**'],
         navigateFallback: 'index.html',
         runtimeCaching: [
           {
             urlPattern: /\/data\/bible\/\d+\.json$/,
             handler: 'CacheFirst',
             options: { cacheName: 'bible-th1971', expiration: { maxEntries: 70 } },
-          },
-          {
-            urlPattern: /\/data\/bible-en\/\d+\.json$/,
-            handler: 'CacheFirst',
-            options: { cacheName: 'bible-web-en', expiration: { maxEntries: 70 } },
           },
           {
             urlPattern: /\/data\/stories\/[\w-]+\.json$/,
