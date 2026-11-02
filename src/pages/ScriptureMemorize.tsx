@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import BiblePicker, { type PickedPassage } from '../components/BiblePicker'
 import BibleSearchPanel from '../components/BibleSearchPanel'
+import ShareVerseSheet from '../components/ShareVerseSheet'
 import ListenSettings, { PickBox, useListenPicks } from '../components/ListenSettings'
 import NotebookCategoryBar, { ALL, NONE } from '../components/NotebookCategoryBar'
 import { spaceOf } from '../lib/notebookSpaces'
@@ -118,6 +119,7 @@ function CategoryView({ nb, cat, tts, picks, slot, onBack }: { nb: NotebookApi; 
   const [delId, setDelId] = useState<string | null>(null)
   const [cur, setCur] = useState<string | null>(null)
   const [pickerKey, setPickerKey] = useState(0)
+  const [sharing, setSharing] = useState<NotePrayer | null>(null)
   const items = useMemo(() => (nb.list ?? []).filter((p) => p.category === cat).sort((a, b) => a.id.localeCompare(b.id)), [nb.list, cat])
   const active = tts.speaking || tts.paused
 
@@ -198,6 +200,7 @@ function CategoryView({ nb, cat, tts, picks, slot, onBack }: { nb: NotebookApi; 
                 {tts.supported && (on
                   ? <button type="button" className="us-play us-play--on" onClick={tts.stop} aria-label="หยุดอ่าน">⏹</button>
                   : <button type="button" className="us-play" onClick={() => play(queueFrom(p.id))} aria-label={`ฟัง ${p.title}`}>▶</button>)}
+                <button type="button" className="mini" aria-label={`แชร์ ${p.title}`} onClick={() => setSharing(p)}>📤</button>
                 {delId === p.id
                   ? <span className="edit-only"><button type="button" className="btn btn--danger" onClick={() => { if (cur === p.id) tts.stop(); nb.remove(p.id); setDelId(null) }}>ลบ</button> <button type="button" className="btn btn--ghost" onClick={() => setDelId(null)}>ไม่ลบ</button></span>
                   : <button type="button" className="mini edit-only" aria-label={`ลบ ${p.title}`} onClick={() => setDelId(p.id)}>🗑️</button>}
@@ -208,6 +211,7 @@ function CategoryView({ nb, cat, tts, picks, slot, onBack }: { nb: NotebookApi; 
       </ul>
 
       {items.length > 0 && tts.supported && <ListenSettings tts={tts} picks={picks} ids={items.map((x) => x.id)} />}
+      {sharing && <ShareVerseSheet refLabel={sharing.title} lines={parseLines(sharing).map((l) => ({ n: l.n, t: l.t }))} onClose={() => setSharing(null)} />}
     </>
   )
 }

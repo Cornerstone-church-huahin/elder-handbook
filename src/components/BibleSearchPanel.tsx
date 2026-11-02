@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { BIBLE_BOOKS, getVerses, keyWords, parseRef, searchBible, type VerseText } from '../data/bible'
 import { topicRefs } from '../data/bibleTopics'
 import { popularRank } from '../data/popularVerses'
+import ShareVerseSheet from './ShareVerseSheet'
 
 /** ข้อความของข้ออ้างอิง (null = กำลังโหลด · [] = ไม่พบ) */
 type Texts = Record<string, VerseText[] | null>
@@ -20,6 +21,7 @@ export default function BibleSearchPanel({ categories, onSave }: { categories: s
   const [busy, setBusy] = useState('')
   const [msg, setMsg] = useState('')
   const [note, setNote] = useState('')
+  const [sharing, setSharing] = useState<{ ref: string; lines: VerseText[] } | null>(null)
   const [add, setAdd] = useState('')
   const [cat, setCat] = useState('')
   const [saved, setSaved] = useState<Record<string, boolean>>({})
@@ -86,6 +88,11 @@ export default function BibleSearchPanel({ categories, onSave }: { categories: s
     }
   }
 
+  const removeTag = (t: string) => {
+    setTags((cur) => cur.filter((x) => x !== t))
+    setSaved(({ [t]: _gone, ...rest }) => rest) // eslint-disable-line @typescript-eslint/no-unused-vars
+  }
+
   const saveAll = () => {
     let n = 0, dup = 0
     const next = { ...saved }
@@ -124,7 +131,7 @@ export default function BibleSearchPanel({ categories, onSave }: { categories: s
             {tags.map((t) => (
               <li key={t} className={`bs__tag${found[t] ? ' bs__tag--found' : ''}`} title={pop[t] ? 'ข้อที่ใช้สอน/ท่องจำกันแพร่หลาย' : found[t] ? 'ค้นเจอจากคำในพระคัมภีร์ (อาจเกี่ยวข้องน้อยกว่า)' : 'ข้อที่คัดไว้ตามหัวข้อ'}>
                 <span>{pop[t] ? '⭐ ' : ''}{t}</span>
-                <button type="button" aria-label={`ลบ ${t}`} onClick={() => setTags(tags.filter((x) => x !== t))}>✕</button>
+                <button type="button" aria-label={`ลบ ${t}`} onClick={() => removeTag(t)}>✕</button>
               </li>
             ))}
           </ul>
@@ -157,13 +164,27 @@ export default function BibleSearchPanel({ categories, onSave }: { categories: s
               {v === null || v === undefined ? <p className="source-note">กำลังเปิดพระคัมภีร์…</p>
                 : v.length ? <p className="bs__text">{v.map((x) => <span key={x.n}>{v.length > 1 && <sup>{x.n}</sup>}{x.text} </span>)}</p>
                   : <p className="source-note">ไม่พบข้อความข้อนี้</p>}
-              {v && v.length > 0 && (
-                <button type="button" className="mini edit-only" disabled={saved[t]} onClick={() => { const ok = onSave(cat, t, v); setSaved({ ...saved, [t]: true }); setNote(ok ? `เก็บ ${t} แล้ว` : `${t} มีอยู่ในหมวดนี้แล้ว`) }}>{saved[t] ? '✅ เก็บแล้ว' : '💾 เก็บข้อนี้'}</button>
-              )}
+              <div className="bs__card-btns">
+                {v && v.length > 0 && (
+                  <button type="button" className="mini edit-only" disabled={saved[t]} onClick={() => { const ok = onSave(cat, t, v); setSaved({ ...saved, [t]: true }); setNote(ok ? `เก็บ ${t} แล้ว` : `${t} มีอยู่ในหมวดนี้แล้ว`) }}>{saved[t] ? '✅ เก็บแล้ว' : '💾 เก็บข้อนี้'}</button>
+                )}
+                {v && v.length > 0 && <button type="button" className="mini" aria-label={`แชร์ ${t}`} onClick={() => setSharing({ ref: t, lines: v })}>📤 แชร์</button>}
+                <button type="button" className="mini" aria-label={`ลบการ์ด ${t}`} onClick={() => removeTag(t)}>🗑️ ลบ</button>
+              </div>
             </li>
           )
         })}
       </ul>
+
+      {tags.length > 0 && (
+        <div className="bs__float" role="group" aria-label="สรุปข้อที่เลือก">
+          <span className="bs__count" role="status" aria-label={`ข้อพระคัมภีร์ทั้งหมด ${tags.length} ข้อ`}>📖 {tags.length} ข้อ</span>
+          <button type="button" className="btn btn--gold edit-only" id="bs-float-save" disabled={tags.every((t) => saved[t]) || !tags.some((t) => !saved[t] && texts[t]?.length)} onClick={saveAll}>
+            {tags.every((t) => saved[t]) ? '✅ เก็บครบแล้ว' : `💾 บันทึกทั้งหมด (${tags.filter((t) => !saved[t] && texts[t]?.length).length}) → ${cat || 'ไม่มีหมวด'}`}
+          </button>
+        </div>
+      )}
+      {sharing && <ShareVerseSheet refLabel={sharing.ref} lines={sharing.lines.map((x) => ({ n: x.n, t: x.text }))} onClose={() => setSharing(null)} />}
     </section>
   )
 }
