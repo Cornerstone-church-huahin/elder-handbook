@@ -32,6 +32,8 @@ export interface ShareStyle {
   textX: number; textY: number; textScale: number // ตำแหน่ง (สัดส่วนของการ์ด) และขนาดของกลุ่มข้อความ
   logoX: number; logoY: number; logoScale: number // ตำแหน่งและขนาดของกลุ่มโลโก้
   logoBrightness: number; logoSaturation: number; logoSharpness: number // ปรับโลโก้: สว่าง/สี (-100..100) · คมชัด 0–100
+  logoZoom: number; logoOX: number; logoOY: number // ปรับรูปในวง: ซูม (1 = พอดีกรอบ) · เลื่อน -1..1
+  logoShape: 'circle' | 'rounded' | 'none'; logoBg: string // รูปทรงกรอบโลโก้ และสีพื้นหลัง ('transparent' = ไม่มีพื้น)
 }
 
 export const DEFAULT_STYLE: ShareStyle = {
@@ -39,6 +41,7 @@ export const DEFAULT_STYLE: ShareStyle = {
   photoZoom: 1, photoX: 0, photoY: 0, filter: 'none', brightness: 0, contrast: 0, saturation: 0, blur: 0, tone: 'none', toneStrength: 0.6,
   overlay: '#000000', overlayOpacity: 0.45, overlayMode: 'bottom', align: 'center', font: 'sans', fontScale: 1, box: 'none', quote: true, showLogo: true, footer: 'คริสตจักรศิลาเอก',
   sharpness: 0, textX: 0.5, textY: 0.47, textScale: 1, logoX: 0.5, logoY: 0.86, logoScale: 1, logoBrightness: 0, logoSaturation: 0, logoSharpness: 0,
+  logoZoom: 1, logoOX: 0, logoOY: 0, logoShape: 'circle', logoBg: '#ffffff',
 }
 
 /** สไตล์สำเร็จรูป: แตะครั้งเดียวได้ทั้งชุด (สี ลวดลาย กรอบ ฟิลเตอร์) แล้วปรับต่อเองได้ */
@@ -75,12 +78,12 @@ export const FRAMES: { id: Frame; label: string }[] = [
   { id: 'corners', label: 'มุมประดับ' }, { id: 'polaroid', label: 'โพลารอยด์' },
 ]
 
-export interface SharePrefs { style: ShareStyle; logo?: string }
+export interface SharePrefs { style: ShareStyle; logo?: string; logoId?: string }
 const KEY = 'khatha.share.v2'
 export function getSharePrefs(): SharePrefs {
   try {
-    const v = JSON.parse(localStorage.getItem(KEY) ?? 'null') as { style?: Partial<ShareStyle>; logo?: string } | null
-    return { style: { ...DEFAULT_STYLE, ...(v?.style ?? {}) }, logo: v?.logo }
+    const v = JSON.parse(localStorage.getItem(KEY) ?? 'null') as { style?: Partial<ShareStyle>; logo?: string; logoId?: string } | null
+    return { style: { ...DEFAULT_STYLE, ...(v?.style ?? {}) }, logo: v?.logo, logoId: v?.logoId }
   } catch {
     return { style: { ...DEFAULT_STYLE } }
   }
@@ -280,6 +283,35 @@ function sharpen(ctx: CanvasRenderingContext2D, w: number, h: number, amount: nu
   ctx.putImageData(new ImageData(out, w, h), 0, 0)
 }
 
+/** โลโก้เริ่มต้นของแอป */
+export const STANDARD_LOGO = './icon-192.png'
+export const loadLogoImage = (src: string) => loadImg(src)
+
+/**
+ * วาดโลโก้ในกรอบ (วงกลม/สี่เหลี่ยมมุมมน/ไม่มีกรอบ) ที่จุด (0,0) ขนาดกรอบ S — ใช้ทั้งในการ์ดและช่องปรับโลโก้
+ * ซูม 1 = รูปพอดีกรอบ (เห็นครบ) · ซูมมากขึ้น = เข้าไปในวง ตัดขอบว่างทิ้ง · เลื่อนได้ · ปรับสว่าง/สี/ความคมชัดได้
+ */
+export function paintLogo(ctx: CanvasRenderingContext2D, img: HTMLImageElement, st: ShareStyle, S = 112) {
+  const nat = Math.max(img.width, img.height)
+  const k = Math.min(1, 512 / nat)
+  const lc = document.createElement('canvas'); lc.width = Math.max(1, Math.round(img.width * k)); lc.height = Math.max(1, Math.round(img.height * k))
+  const lctx = lc.getContext('2d', { willReadFrequently: st.logoSharpness > 0 })!
+  if ('filter' in lctx) lctx.filter = `brightness(${1 + st.logoBrightness / 100}) saturate(${1 + st.logoSaturation / 100})`
+  lctx.drawImage(img, 0, 0, lc.width, lc.height)
+  if ('filter' in lctx) lctx.filter = 'none'
+  sharpen(lctx, lc.width, lc.height, st.logoSharpness)
+  ctx.save()
+  const path = () => { if (st.logoShape === 'circle') { ctx.beginPath(); ctx.arc(0, 0, S / 2, 0, Math.PI * 2) } else if (st.logoShape === 'rounded') rrect(ctx, -S / 2, -S / 2, S, S, S * 0.22); else { ctx.beginPath(); ctx.rect(-S / 2, -S / 2, S, S) } }
+  path()
+  if (st.logoBg !== 'transparent') { ctx.fillStyle = st.logoBg; ctx.fill() }
+  ctx.clip()
+  const base = Math.min(S / img.width, S / img.height) * st.logoZoom
+  const w = img.width * base, h = img.height * base
+  ctx.drawImage(lc, -w / 2 + st.logoOX * (S / 2), -h / 2 + st.logoOY * (S / 2), w, h)
+  ctx.restore()
+  if (st.logoShape !== 'none' && st.logoBg !== 'transparent') { ctx.save(); path(); ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(255,255,255,.95)'; ctx.stroke(); ctx.restore() }
+}
+
 /**
  * วาดการ์ดข้อพระคัมภีร์ลงบน canvas ที่ให้มา (พิกัดตรรกะ 1080×1350 · K = สเกลของ canvas เช่น 0.5 ทำภาพตัวอย่าง)
  * ข้อความ (รวมเครื่องหมายคำพูด ชื่อข้อ) และโลโก้ (รวมข้อความท้ายภาพ) เป็น "กลุ่ม" ที่เลื่อนตำแหน่งและย่อขยายอิสระได้
@@ -399,25 +431,16 @@ export async function drawVerse(c: HTMLCanvasElement, o: { ref: string; lines: S
   let boxLogo: Box | null = null
   const lgx = st.logoX * W, lgy = st.logoY * H
   let logoImg: HTMLImageElement | null = null
-  if (st.showLogo) logoImg = await loadImg(o.logo || './icon-192.png')
+  if (st.showLogo) logoImg = await loadImg(o.logo || STANDARD_LOGO)
   if (logoImg || st.footer) {
     ctx.save()
     ctx.translate(lgx, lgy); ctx.scale(st.logoScale, st.logoScale)
     ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'
     let top = 0, bottom = 0, half = 40
     if (logoImg) {
-      const s = 100, k = Math.min(s / logoImg.width, s / logoImg.height)
-      const w = Math.max(1, Math.round(logoImg.width * k)), h = Math.max(1, Math.round(logoImg.height * k))
-      // ปรับโลโก้: สว่าง / สี / ความคมชัด (ทำบน canvas เล็กก่อนวาดลงการ์ด)
-      const lc = document.createElement('canvas'); lc.width = w * 2; lc.height = h * 2
-      const lctx = lc.getContext('2d', { willReadFrequently: st.logoSharpness > 0 })!
-      if ('filter' in lctx) lctx.filter = `brightness(${1 + st.logoBrightness / 100}) saturate(${1 + st.logoSaturation / 100})`
-      lctx.drawImage(logoImg, 0, 0, lc.width, lc.height)
-      if ('filter' in lctx) lctx.filter = 'none'
-      sharpen(lctx, lc.width, lc.height, st.logoSharpness)
-      ctx.save(); ctx.beginPath(); ctx.arc(0, 0, s / 2 + 6, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,.92)'; ctx.fill(); ctx.clip()
-      ctx.drawImage(lc, -w / 2, -h / 2, w, h); ctx.restore()
-      top = -(s / 2 + 8); bottom = s / 2 + 8; half = s / 2 + 8
+      const S = 112
+      paintLogo(ctx, logoImg, st, S)
+      top = -(S / 2 + 8); bottom = S / 2 + 8; half = S / 2 + 8
     }
     if (st.footer) {
       ctx.fillStyle = st.text; ctx.globalAlpha = 0.92; ctx.font = `600 34px ${family}`

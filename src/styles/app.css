@@ -1596,3 +1596,13 @@ mark{background:#ffe38a;color:inherit;border-radius:3px;padding:0 .1rem}
 .sm-edit__cat select{min-height:44px;padding:0 .6rem;border:1.5px solid var(--navy);border-radius:.6rem;background:var(--surface,#fff);color:inherit;font:inherit;font-weight:400}
 .sm-edit__row{display:flex;flex-direction:column;gap:.15rem;font-size:.85rem}
 .sm-edit__row textarea{padding:.5rem .7rem;border:1.5px solid var(--navy);border-radius:.6rem;background:var(--surface,#fff);color:inherit;font:inherit;font-size:1rem}
+
+/* โลโก้ต้นแบบ + ช่องปรับโลโก้ในวง */
+.sv-logos{display:grid;grid-template-columns:repeat(4,1fr);gap:.4rem}
+.sv-logoitem{position:relative}
+.sv-logotile{width:100%;display:flex;flex-direction:column;align-items:center;gap:.15rem;padding:.2rem;border:2px solid rgba(0,0,0,.15);border-radius:.6rem;background:repeating-conic-gradient(#e8e8e8 0 25%,#fafafa 0 50%) 50%/16px 16px;color:inherit;font:inherit;font-size:.68rem;line-height:1.15;cursor:pointer;text-align:center}
+.sv-logotile img,.sv-logotile .sv-art__ph{width:100%;aspect-ratio:1/1;object-fit:contain;border-radius:.4rem;display:block}
+.sv-logotile span:last-child{background:rgba(255,255,255,.85);border-radius:.3rem;padding:0 .2rem}
+.sv-logotile--on{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold)}
+.sv-edwrap{display:flex;justify-content:center}
+.sv-logoed{width:min(100%,260px);height:auto;aspect-ratio:1/1;border-radius:.7rem;border:2px solid var(--navy);cursor:grab;display:block}
