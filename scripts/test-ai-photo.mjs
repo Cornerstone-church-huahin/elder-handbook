@@ -1,8 +1,10 @@
 // แชร์เป็นภาพ: แต่งรูปอัตโนมัติในเครื่อง (ปรับสว่าง/สี + โทนเช้า/เย็น) และ AI แต่งรูป (Gemini จำลอง): ต้องยินยอมก่อน · สร้างซ้ำได้แบบต่างกัน · เลือกภาพย่อ/กลับต้นฉบับ · แจ้งข้อผิดพลาด
 import { chromium } from 'playwright'
+import { cardsOpenByDefault } from './_cards-open.mjs'
 import fs from 'node:fs'
 const URL = process.env.URL || 'http://localhost:4173/'
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+cardsOpenByDefault(b)
 let fail = 0; const check = (ok, m) => { console.log((ok ? 'PASS ' : 'FAIL ') + m); if (!ok) fail++ }
 async function open(withKey) {
   const ctx = await b.newContext({ viewport: { width: 390, height: 844 } })

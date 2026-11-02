@@ -1,7 +1,9 @@
 // หน้าแรก: แถบ 6 ปุ่ม · ท่องจำคัมภีร์ (หมวด → การ์ดหมวด → เลือกข้อจากพระคัมภีร์ → ติ๊กฟังวน) · สมุด 2/3 = ระบบเดียวกับเตรียมคำอธิษฐาน แต่เป็นสมุดว่างแยกที่เก็บ
 import { chromium } from 'playwright'
+import { cardsOpenByDefault } from './_cards-open.mjs'
 const URL = process.env.URL || 'http://localhost:4173/'
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+cardsOpenByDefault(b)
 let fail = 0; const check = (ok, m) => { console.log((ok ? 'PASS ' : 'FAIL ') + m); if (!ok) fail++ }
 const ctx = await b.newContext({ viewport: { width: 390, height: 844 } })
 await ctx.addInitScript(() => {

@@ -1,7 +1,9 @@
 // 🕊️ ความหมายฝ่ายวิญญาณบนการ์ด: ปุ่ม 🔁 ฟังวนซ้ำ — เล่นเฉพาะความหมาย (ตัดเครื่องหมาย markdown) วนไปเรื่อย ๆ จนกดหยุด · แสดงผล markdown เป็นตัวหนา/รายการ
 import { chromium } from 'playwright'
+import { cardsOpenByDefault } from './_cards-open.mjs'
 const URL = process.env.URL || 'http://localhost:4173/'
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+cardsOpenByDefault(b)
 let fail = 0; const check = (ok, m) => { console.log((ok ? 'PASS ' : 'FAIL ') + m); if (!ok) fail++ }
 const ctx = await b.newContext({ viewport: { width: 390, height: 844 } })
 await ctx.addInitScript(() => {

@@ -1,7 +1,9 @@
 // ท่องจำคัมภีร์: ไอคอน 🔤 แก้คำอ่านบนการ์ด → เลือกคำจากข้อความทั้งก้อน → ใส่คำอ่าน → เสียงอ่านเปลี่ยนทันที และใช้กับการ์ดอื่นที่มีคำเดียวกัน (ทั้งแอป)
 import { chromium } from 'playwright'
+import { cardsOpenByDefault } from './_cards-open.mjs'
 const URL = process.env.URL || 'http://localhost:4173/'
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+cardsOpenByDefault(b)
 let fail = 0; const check = (ok, m) => { console.log((ok ? 'PASS ' : 'FAIL ') + m); if (!ok) fail++ }
 const ctx = await b.newContext({ viewport: { width: 390, height: 844 } })
 await ctx.addInitScript(() => {
