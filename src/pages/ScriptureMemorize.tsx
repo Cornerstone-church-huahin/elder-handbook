@@ -66,7 +66,11 @@ export default function ScriptureMemorize({ nb, n }: { nb: NotebookApi; n: numbe
       <div hidden={tab !== 'search'}>
         <BibleSearchPanel
           categories={cats.cats.map((c) => c.name)}
-          onSave={(category, label, verses) => nb.add({ title: label, category, refs: [], story: '', text: verses.map((v) => `${v.n}\t${v.text}`).join('\n'), notes: '' })}
+          onSave={(category, label, verses) => {
+            if (list.some((p) => p.category === category && p.title === label)) return false
+            nb.add({ title: label, category, refs: [], story: '', text: verses.map((v) => `${v.n}\t${v.text}`).join('\n'), notes: '' })
+            return true
+          }}
         />
       </div>
       {tab === 'three' && <p className="source-note sm-empty">แถบ 3 ยังว่างอยู่ — บอกได้ว่าอยากให้เป็นอะไร</p>}

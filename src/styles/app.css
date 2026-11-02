@@ -1505,3 +1505,7 @@ mark{background:#ffe38a;color:inherit;border-radius:3px;padding:0 .1rem}
 .bs__text sup{font-size:.65em;margin-right:.15em;opacity:.7}
 .topbar__back{white-space:nowrap;flex:none}
 .topbar__slot:has(.sm-tabs){flex:1;min-width:0;margin:0 .3rem}
+
+.bs__tag--found{background:transparent;border:1.5px solid var(--gold);color:inherit}
+.bs__saveall{display:flex;flex-wrap:wrap;gap:.6rem;align-items:flex-end}
+.bs__saveall .bs__cat{flex:1 1 9rem}
