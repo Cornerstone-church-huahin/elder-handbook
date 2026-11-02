@@ -2,16 +2,48 @@
  * พื้นหลังสำเร็จรูป: ภาพวาดสไตล์เดียวกัน (ไล่สีนุ่ม ๆ เบา ๆ เหมาะกับข้อพระคัมภีร์) สร้างด้วยโค้ดในแอปเอง
  * ไม่ใช่ภาพถ่ายจากอินเทอร์เน็ต → ไม่มีปัญหาลิขสิทธิ์ ใช้ฟรีได้ทุกที่ และใช้ออฟไลน์ได้ · ปรับฟิลเตอร์/โทน/ความคมชัดซ้อนทับได้เหมือนรูปปกติ
  */
-export interface Art { id: string; label: string }
-export const ARTS: Art[] = [
-  { id: 'sunrise', label: 'รุ่งอรุณเหนือเขา' }, { id: 'sunset', label: 'อาทิตย์ตก + กางเขน' }, { id: 'night', label: 'ดาวและพระจันทร์' },
-  { id: 'sea', label: 'ทะเลสงบ' }, { id: 'field', label: 'ทุ่งข้าวทอง' }, { id: 'rays', label: 'ลำแสงผ่านเมฆ' },
-  { id: 'bokeh', label: 'แสงโบเก้' }, { id: 'water', label: 'สีน้ำพาสเทล' }, { id: 'forest', label: 'ป่าหมอก' },
-  { id: 'purple', label: 'ภูเขาม่วง' }, { id: 'dunes', label: 'เนินทราย' }, { id: 'paper', label: 'กระดาษนุ่ม' },
+export interface Art { id: string; scene: string; label: string; v: number }
+export const SCENES: { id: string; label: string; variants: number }[] = [
+  { id: 'sunrise', label: 'รุ่งอรุณ', variants: 8 }, { id: 'sunset', label: 'อาทิตย์ตก+กางเขน', variants: 8 }, { id: 'night', label: 'ดาวและพระจันทร์', variants: 8 },
+  { id: 'sea', label: 'ทะเลสงบ', variants: 8 }, { id: 'field', label: 'ทุ่งข้าว', variants: 8 }, { id: 'rays', label: 'ลำแสงผ่านเมฆ', variants: 8 },
+  { id: 'bokeh', label: 'แสงโบเก้', variants: 8 }, { id: 'water', label: 'สีน้ำพาสเทล', variants: 8 }, { id: 'forest', label: 'ป่าหมอก', variants: 8 },
+  { id: 'purple', label: 'ภูเขาหมอก', variants: 8 }, { id: 'dunes', label: 'เนินทราย', variants: 8 }, { id: 'paper', label: 'กระดาษนุ่ม', variants: 8 },
+  { id: 'mesh', label: 'ไล่สีออโรรา', variants: 12 }, { id: 'arch', label: 'โค้งเรขาคณิต', variants: 12 },
 ]
 
+/** โทนสี 8 แบบ ใช้กับพื้นหลังทุกฉาก (เปลี่ยนเฉดทั้งภาพด้วยเมทริกซ์สี ไม่ต้องใช้ canvas filter จึงใช้ได้ทุกเครื่อง) */
+interface Grade { label: string; hue: number; sat: number; bri: number; tint?: [number, number, number, number] }
+const GRADES: Grade[] = [
+  { label: 'ดั้งเดิม', hue: 0, sat: 1, bri: 1 },
+  { label: 'อุ่นทอง', hue: -6, sat: 1.1, bri: 1.03, tint: [255, 190, 90, 0.14] },
+  { label: 'เย็นฟ้า', hue: 8, sat: 1, bri: 1, tint: [90, 150, 255, 0.16] },
+  { label: 'ชมพูพาสเทล', hue: -18, sat: 0.95, bri: 1.06, tint: [255, 150, 190, 0.16] },
+  { label: 'เขียวมิ้นต์', hue: 35, sat: 0.9, bri: 1.04, tint: [120, 230, 190, 0.14] },
+  { label: 'ลาเวนเดอร์', hue: -35, sat: 0.95, bri: 1.02, tint: [170, 130, 240, 0.16] },
+  { label: 'ซีเปียเก่า', hue: 0, sat: 0.55, bri: 1.02, tint: [190, 130, 70, 0.28] },
+  { label: 'ขาวดำนุ่ม', hue: 0, sat: 0.12, bri: 1.05, tint: [230, 225, 215, 0.1] },
+]
+const MESH_PALETTES: string[][] = [
+  ['#ff9a9e', '#fad0c4', '#fbc2eb', '#a1c4fd'], ['#84fab0', '#8fd3f4', '#c2e9fb', '#e0c3fc'], ['#f6d365', '#fda085', '#fbc2eb', '#ffecd2'], ['#667eea', '#764ba2', '#f093fb', '#4facfe'],
+  ['#43e97b', '#38f9d7', '#4facfe', '#fee140'], ['#fa709a', '#fee140', '#a18cd1', '#fbc2eb'], ['#0f2027', '#203a43', '#2c5364', '#6dd5ed'], ['#ffecd2', '#fcb69f', '#ff9a9e', '#fecfef'],
+  ['#2b5876', '#4e4376', '#c471ed', '#f64f59'], ['#89f7fe', '#66a6ff', '#c3cfe2', '#f5f7fa'], ['#232526', '#414345', '#d4af37', '#f5e6c8'], ['#d299c2', '#fef9d7', '#a8edea', '#fed6e3'],
+]
+const ARCH_PALETTES: [string, string, string, string][] = [
+  ['#f4e3d0', '#e8b4a0', '#c9806b', '#7a4b3f'], ['#e8f1ec', '#b7d3c6', '#6fa08c', '#2f5d4e'], ['#f9f1e3', '#f0c987', '#d98b3a', '#7a4a1a'], ['#eef0fb', '#b9c3f0', '#7c8be0', '#3b4a99'],
+  ['#fbeaf0', '#f2b5c9', '#d9738f', '#8a2f4f'], ['#e9f4f7', '#a9d3df', '#5aa1b8', '#1f5870'], ['#f3efe6', '#d9cdb4', '#a99872', '#5e5238'], ['#2a2a40', '#47476e', '#8a8ad6', '#d6d6ff'],
+  ['#fff4e0', '#ffd08a', '#f28a4b', '#a9441f'], ['#efe8f7', '#cbb6e8', '#9a7cd0', '#573d93'], ['#e8f5e9', '#c1e1c5', '#7dbb86', '#35703f'], ['#1f2a44', '#31456f', '#d4af37', '#f6e3a8'],
+]
+export const ARTS: Art[] = (() => {
+  // เรียงแบบสลับฉาก (แบบที่ 1 ของทุกฉาก ก่อน แล้วแบบที่ 2 …) หน้าแรกจึงเห็นความหลากหลายทุกฉาก
+  const out: Art[] = []
+  const max = Math.max(...SCENES.map((x) => x.variants))
+  for (let v = 0; v < max; v++) for (const sc of SCENES) if (v < sc.variants) out.push({ id: `${sc.id}.${v}`, scene: sc.id, v, label: `${sc.label}${sc.id === 'mesh' || sc.id === 'arch' ? ` ${v + 1}` : ` · ${GRADES[v].label}`}` })
+  return out
+})()
+
 const W = 1080, H = 1350
-const rng = (seed: number) => () => (seed = (seed * 16807) % 2147483647) / 2147483647
+let VAR = 0 // แบบที่ (ขยับตำแหน่งดาว/ภูเขา/แสง ให้แต่ละแบบไม่ซ้ำกัน)
+const rng = (seed: number) => { seed = (seed + VAR * 977) % 2147483646 + 1; return () => (seed = (seed * 16807) % 2147483647) / 2147483647 }
 type C = CanvasRenderingContext2D
 
 function lin(c: C, y0: number, y1: number, stops: [number, string][]) {
@@ -28,7 +60,7 @@ function glow(c: C, x: number, y: number, r: number, col: string, a = 1) {
 function ridge(c: C, base: number, amp: number, freq: number, phase: number, fill: string | CanvasGradient, seed = 1) {
   const r = rng(seed); const ph2 = r() * 6
   c.beginPath(); c.moveTo(0, H)
-  for (let x = 0; x <= W; x += 8) c.lineTo(x, base + Math.sin(x * freq + phase) * amp + Math.sin(x * freq * 2.3 + ph2) * amp * 0.45)
+  for (let x = 0; x <= W; x += 8) c.lineTo(x, base + Math.sin(x * freq + phase + VAR * 1.7) * amp * (1 + (VAR % 3) * 0.12) + Math.sin(x * freq * 2.3 + ph2) * amp * 0.45)
   c.lineTo(W, H); c.closePath(); c.fillStyle = fill; c.fill()
 }
 function cloud(c: C, x: number, y: number, s: number, a: number) {
@@ -137,12 +169,51 @@ const PAINT: Record<string, (c: C) => void> = {
   },
 }
 
-/** วาดพื้นหลังเป็น data URL JPEG (w × h ตามสัดส่วน 4:5) */
+PAINT.mesh = (c: C) => {
+  const pal = MESH_PALETTES[VAR % MESH_PALETTES.length]
+  lin(c, 0, H, [[0, pal[0]], [1, pal[1]]])
+  const r = rng(77)
+  pal.forEach((col, i) => { const x = r() * W, y = (i / 4 + r() * 0.3) * H, rad = 480 + r() * 360; const g = c.createRadialGradient(x, y, 0, x, y, rad); g.addColorStop(0, col); g.addColorStop(1, 'rgba(255,255,255,0)'); c.globalAlpha = 0.85; c.fillStyle = g; c.fillRect(0, 0, W, H) })
+  c.globalAlpha = 1
+  const g2 = c.createRadialGradient(W / 2, H * 0.35, 0, W / 2, H * 0.35, 700); g2.addColorStop(0, 'rgba(255,255,255,.25)'); g2.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g2; c.fillRect(0, 0, W, H)
+}
+PAINT.arch = (c: C) => {
+  const pal = ARCH_PALETTES[VAR % ARCH_PALETTES.length]
+  c.fillStyle = pal[0]; c.fillRect(0, 0, W, H)
+  const arch = (cx: number, base: number, w: number, h: number, col: string) => { c.fillStyle = col; c.beginPath(); c.moveTo(cx - w / 2, base); c.lineTo(cx - w / 2, base - h + w / 2); c.arc(cx, base - h + w / 2, w / 2, Math.PI, 0); c.lineTo(cx + w / 2, base); c.closePath(); c.fill() }
+  arch(W / 2, H, 900, 1100, pal[1]); arch(W / 2, H, 640, 820, pal[2]); arch(W / 2, H, 380, 560, pal[3])
+  c.fillStyle = pal[3]; c.globalAlpha = 0.5; c.beginPath(); c.arc(W * (0.25 + (VAR % 4) * 0.17), 260, 70, 0, 7); c.fill(); c.globalAlpha = 1
+}
+
+function applyGrade(ctx: C, w: number, h: number, g: Grade) {
+  if (g.hue === 0 && g.sat === 1 && g.bri === 1 && !g.tint) return
+  const img = ctx.getImageData(0, 0, w, h), d = img.data
+  const a = (g.hue * Math.PI) / 180, cs = Math.cos(a), sn = Math.sin(a)
+  const m = [0.213 + cs * 0.787 - sn * 0.213, 0.715 - cs * 0.715 - sn * 0.715, 0.072 - cs * 0.072 + sn * 0.928, 0.213 - cs * 0.213 + sn * 0.143, 0.715 + cs * 0.285 + sn * 0.14, 0.072 - cs * 0.072 - sn * 0.283, 0.213 - cs * 0.213 - sn * 0.787, 0.715 - cs * 0.715 + sn * 0.715, 0.072 + cs * 0.928 + sn * 0.072]
+  const t = g.tint
+  for (let i = 0; i < d.length; i += 4) {
+    let r = d[i], gg = d[i + 1], b = d[i + 2]
+    const r2 = m[0] * r + m[1] * gg + m[2] * b, g2 = m[3] * r + m[4] * gg + m[5] * b, b2 = m[6] * r + m[7] * gg + m[8] * b
+    const L = 0.299 * r2 + 0.587 * g2 + 0.114 * b2
+    r = (L + (r2 - L) * g.sat) * g.bri; gg = (L + (g2 - L) * g.sat) * g.bri; b = (L + (b2 - L) * g.sat) * g.bri
+    if (t) { r += (t[0] - r) * t[3]; gg += (t[1] - gg) * t[3]; b += (t[2] - b) * t[3] }
+    d[i] = r; d[i + 1] = gg; d[i + 2] = b
+  }
+  ctx.putImageData(img, 0, 0)
+}
+
+/** วาดพื้นหลังเป็น data URL JPEG (id = "ฉาก.แบบที่" เช่น sunrise.3 · w = ความกว้าง สัดส่วน 4:5) */
 export function makeArt(id: string, w = W): string {
+  const [scene, vs] = id.split('.')
+  const v = Math.max(0, Number(vs) || 0)
   const c = document.createElement('canvas')
   c.width = w; c.height = Math.round((w * H) / W)
-  const ctx = c.getContext('2d')!
+  const ctx = c.getContext('2d', { willReadFrequently: true })!
   ctx.scale(w / W, w / W)
-  ;(PAINT[id] ?? PAINT.sunrise)(ctx)
+  VAR = v
+  const base = SCENES.find((x) => x.id === scene)
+  ;(PAINT[scene] ?? PAINT.sunrise)(ctx)
+  VAR = 0
+  if (base && base.id !== 'mesh' && base.id !== 'arch') { ctx.setTransform(1, 0, 0, 1, 0, 0); applyGrade(ctx, c.width, c.height, GRADES[v % GRADES.length]) }
   return c.toDataURL('image/jpeg', w >= 600 ? 0.9 : 0.8)
 }
