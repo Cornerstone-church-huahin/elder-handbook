@@ -1584,3 +1584,15 @@ mark{background:#ffe38a;color:inherit;border-radius:3px;padding:0 .1rem}
 .sv-webq{flex:1;min-width:0;min-height:44px;padding:0 .7rem;border:1.5px solid var(--navy);border-radius:.6rem;background:var(--surface,#fff);color:inherit;font:inherit}
 .sv-arts--web{grid-template-columns:repeat(3,1fr)}
 .sv-arts--web .sv-art img{aspect-ratio:1/1}
+
+.sv-stockitem{position:relative}
+.sv-stockx{position:absolute;top:.25rem;right:.25rem;width:26px;height:26px;border-radius:50%;border:0;background:rgba(20,33,61,.8);color:#fff;font-size:.7rem;cursor:pointer;padding:0}
+
+/* แก้ไขการ์ดข้อพระคัมภีร์ */
+.sm-item--edit{display:block}
+.sm-edit{display:flex;flex-direction:column;gap:.5rem;width:100%}
+.sm-edit__h{margin:0;font-weight:700}
+.sm-edit__cat{display:flex;flex-direction:column;gap:.2rem;font-weight:700;font-size:.85rem;max-width:16rem}
+.sm-edit__cat select{min-height:44px;padding:0 .6rem;border:1.5px solid var(--navy);border-radius:.6rem;background:var(--surface,#fff);color:inherit;font:inherit;font-weight:400}
+.sm-edit__row{display:flex;flex-direction:column;gap:.15rem;font-size:.85rem}
+.sm-edit__row textarea{padding:.5rem .7rem;border:1.5px solid var(--navy);border-radius:.6rem;background:var(--surface,#fff);color:inherit;font:inherit;font-size:1rem}

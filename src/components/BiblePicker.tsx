@@ -27,12 +27,12 @@ const squash = (s: string) => digits(s).replace(/\s+/g, '')
  * → เลือกบท → ปุ่มเลขข้อทั้งหมดของบทนั้น (เช่น 20 ข้อ = เลข 1–20) แตะเลือกได้ติดกัน (1 2 3) หรือเว้น (1 3 5) หรือข้อเดียว
  * → ข้อความจากพระคัมภีร์ไทยฉบับ 1971 ขึ้นให้ทันที เรียงตามเลขข้อ
  */
-export default function BiblePicker({ onChange }: { onChange: (p: PickedPassage | null) => void }) {
-  const [q, setQ] = useState('')
-  const [book, setBook] = useState<number | null>(null)
+export default function BiblePicker({ onChange, initial }: { onChange: (p: PickedPassage | null) => void; /** ค่าตั้งต้น (ตอนแก้ไขการ์ดเดิม): เล่ม บท และข้อที่เลือกไว้ */ initial?: { book: number; ch: number; verses: number[] } }) {
+  const [q, setQ] = useState(initial ? BIBLE_BOOKS[initial.book - 1].name : '')
+  const [book, setBook] = useState<number | null>(initial?.book ?? null)
   const [chapters, setChapters] = useState<string[][] | null>(null)
-  const [ch, setCh] = useState(1)
-  const [sel, setSel] = useState<number[]>([])
+  const [ch, setCh] = useState(initial?.ch ?? 1)
+  const [sel, setSel] = useState<number[]>(initial?.verses ?? [])
   const [focus, setFocus] = useState(false)
 
   const hits = useMemo(() => {
@@ -75,7 +75,7 @@ export default function BiblePicker({ onChange }: { onChange: (p: PickedPassage 
     <div className="bp">
       <label className="bp__book">
         <span>📖 ข้อพระคัมภีร์ — พิมพ์ชื่อเล่ม</span>
-        <input id="bp-book" value={q} placeholder="เช่น 1 เปโตร  ยอห์น  สดุดี" autoComplete="off"
+        <input id={`bp-book${initial ? '-edit' : ''}`} value={q} placeholder="เช่น 1 เปโตร  ยอห์น  สดุดี" autoComplete="off"
           onFocus={() => setFocus(true)} onBlur={() => setTimeout(() => setFocus(false), 150)}
           onChange={(e) => { setQ(e.target.value); setBook(null); setFocus(true) }} />
       </label>
@@ -87,7 +87,7 @@ export default function BiblePicker({ onChange }: { onChange: (p: PickedPassage 
       {book && (
         <>
           <label className="bp__ch">บทที่
-            <select id="bp-ch" value={ch} onChange={(e) => changeCh(+e.target.value)}>{nums(chapterCount).map((n) => <option key={n} value={n}>{n}</option>)}</select>
+            <select id={`bp-ch${initial ? '-edit' : ''}`} value={ch} onChange={(e) => changeCh(+e.target.value)}>{nums(chapterCount).map((n) => <option key={n} value={n}>{n}</option>)}</select>
           </label>
           <div className="bp__vs" role="group" aria-label={`เลขข้อ บทที่ ${ch} (${verseCount} ข้อ)`}>
             <p className="bp__vs__h">แตะเลขข้อที่ต้องการ ({verseCount || '…'} ข้อ) — เลือกติดกัน เว้นข้อ หรือข้อเดียวก็ได้

@@ -75,3 +75,30 @@ export async function aiEditPhoto(o: { photo: string; goals: string[]; note?: st
   }
   return `data:${img.inlineData.mimeType || 'image/png'};base64,${img.inlineData.data}`
 }
+
+const BG_THEMES = [
+  'a serene sunrise over rolling green hills with soft golden light', 'a peaceful calm lake at dawn with mist and reflections', 'a field of golden wheat under a warm evening sky',
+  'majestic mountains above soft clouds at sunrise', 'a quiet forest path with sunbeams through morning fog', 'gentle ocean waves at sunset with warm pastel sky',
+  'a starry night sky over silhouetted hills with a soft moon glow', 'a meadow of wildflowers in soft morning light', 'a tranquil waterfall in a lush green valley',
+  'soft heavenly rays of light breaking through clouds', 'a calm desert dune landscape at golden hour', 'a still river winding through autumn trees in soft light',
+  'a pastel watercolor sky blending pink, peach and lavender', 'snowy mountain peaks glowing at first light', 'a lone olive tree on a hill at dusk', 'a tranquil garden path with blossoming trees in spring',
+]
+/** AI สร้างพื้นหลังใหม่ (ไม่ส่งรูปของผู้ใช้ ส่งแต่คำบรรยาย) · n = ลำดับ ใช้เลือกธีม/ทำให้ต่างกัน */
+export async function aiGenerateBackground(n: number, signal?: AbortSignal): Promise<{ dataUrl: string; label: string }> {
+  const key = getAiSettings().keys.gemini?.trim()
+  if (!key) throw new Error('ยังไม่มีคีย์ Gemini — ใส่ที่ ตั้งค่า › ผู้ช่วย AI ก่อน')
+  const theme = BG_THEMES[(n + Math.floor(Math.random() * BG_THEMES.length)) % BG_THEMES.length]
+  const prompt = `Create a beautiful, serene, high-quality portrait (4:5) background image for a Bible verse card: ${theme}. No text, no people, no logos, no watermarks. Soft calm colors, uncluttered composition with open space in the middle for text.`
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${getPhotoModel()}:generateContent`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
+    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseModalities: ['TEXT', 'IMAGE'], temperature: 1 } }),
+    signal,
+  }).catch(() => { throw new Error('ไม่มีอินเทอร์เน็ต หรือเชื่อมต่อ Gemini ไม่ได้') })
+  if (!r.ok) throw new Error(r.status === 429 ? 'โควต้า Gemini เต็มชั่วคราว รอสักครู่แล้วลองใหม่' : r.status === 400 || r.status === 403 ? `Gemini ปฏิเสธคำขอ (${r.status}) — ตรวจคีย์/โมเดล` : `Gemini ผิดพลาด (${r.status})`)
+  const j = await r.json()
+  const parts: { inlineData?: { mimeType?: string; data?: string } }[] = j?.candidates?.[0]?.content?.parts ?? []
+  const img = parts.find((x) => x.inlineData?.data)
+  if (!img?.inlineData?.data) throw new Error('Gemini ไม่ส่งรูปกลับมา (อาจถูกกรองเนื้อหา) ลองใหม่')
+  return { dataUrl: `data:${img.inlineData.mimeType || 'image/png'};base64,${img.inlineData.data}`, label: 'AI: ' + theme.split(' ').slice(0, 5).join(' ') }
+}

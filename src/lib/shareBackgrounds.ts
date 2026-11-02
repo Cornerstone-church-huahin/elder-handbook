@@ -42,6 +42,8 @@ export const ARTS: Art[] = (() => {
 })()
 
 const W = 1080, H = 1350
+let RANDOM = false // true = โหมดสุ่ม (สร้างเพิ่มในสต็อก): จานสีของไล่สี/โค้งสุ่มใหม่ทุกครั้ง
+let RPAL: string[] = []
 let VAR = 0 // แบบที่ (ขยับตำแหน่งดาว/ภูเขา/แสง ให้แต่ละแบบไม่ซ้ำกัน)
 const rng = (seed: number) => { seed = (seed + VAR * 977) % 2147483646 + 1; return () => (seed = (seed * 16807) % 2147483647) / 2147483647 }
 type C = CanvasRenderingContext2D
@@ -170,7 +172,7 @@ const PAINT: Record<string, (c: C) => void> = {
 }
 
 PAINT.mesh = (c: C) => {
-  const pal = MESH_PALETTES[VAR % MESH_PALETTES.length]
+  const pal = RANDOM ? RPAL : MESH_PALETTES[VAR % MESH_PALETTES.length]
   lin(c, 0, H, [[0, pal[0]], [1, pal[1]]])
   const r = rng(77)
   pal.forEach((col, i) => { const x = r() * W, y = (i / 4 + r() * 0.3) * H, rad = 480 + r() * 360; const g = c.createRadialGradient(x, y, 0, x, y, rad); g.addColorStop(0, col); g.addColorStop(1, 'rgba(255,255,255,0)'); c.globalAlpha = 0.85; c.fillStyle = g; c.fillRect(0, 0, W, H) })
@@ -178,7 +180,7 @@ PAINT.mesh = (c: C) => {
   const g2 = c.createRadialGradient(W / 2, H * 0.35, 0, W / 2, H * 0.35, 700); g2.addColorStop(0, 'rgba(255,255,255,.25)'); g2.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g2; c.fillRect(0, 0, W, H)
 }
 PAINT.arch = (c: C) => {
-  const pal = ARCH_PALETTES[VAR % ARCH_PALETTES.length]
+  const pal = (RANDOM ? [RPAL[0], RPAL[1], RPAL[2], RPAL[3]] : ARCH_PALETTES[VAR % ARCH_PALETTES.length]) as [string, string, string, string]
   c.fillStyle = pal[0]; c.fillRect(0, 0, W, H)
   const arch = (cx: number, base: number, w: number, h: number, col: string) => { c.fillStyle = col; c.beginPath(); c.moveTo(cx - w / 2, base); c.lineTo(cx - w / 2, base - h + w / 2); c.arc(cx, base - h + w / 2, w / 2, Math.PI, 0); c.lineTo(cx + w / 2, base); c.closePath(); c.fill() }
   arch(W / 2, H, 900, 1100, pal[1]); arch(W / 2, H, 640, 820, pal[2]); arch(W / 2, H, 380, 560, pal[3])
@@ -216,4 +218,32 @@ export function makeArt(id: string, w = W): string {
   VAR = 0
   if (base && base.id !== 'mesh' && base.id !== 'arch') { ctx.setTransform(1, 0, 0, 1, 0, 0); applyGrade(ctx, c.width, c.height, GRADES[v % GRADES.length]) }
   return c.toDataURL('image/jpeg', w >= 600 ? 0.9 : 0.8)
+}
+
+// ---------- สร้างแบบสุ่มเพิ่ม (สำหรับสต็อก) ----------
+const hsl = (h: number, s: number, l: number) => `hsl(${Math.round(h) % 360},${Math.round(s)}%,${Math.round(l)}%)`
+const TINTS: [number, number, number][] = [[255, 190, 90], [90, 150, 255], [255, 150, 190], [120, 230, 190], [170, 130, 240], [255, 220, 150], [150, 200, 255]]
+
+/** พื้นหลังสุ่มใหม่ 1 ภาพ: สุ่มฉาก ตำแหน่ง โทนสี และจานสี → ไม่ซ้ำกับของเดิม · คืน data URL JPEG + ชื่อ */
+export function makeRandomArt(seed: number, w = W): { dataUrl: string; label: string } {
+  let st = (seed % 2147483646) + 1
+  const r = () => (st = (st * 16807) % 2147483647) / 2147483647
+  const range = (a: number, b: number) => a + r() * (b - a)
+  const sc = SCENES[Math.floor(r() * SCENES.length)]
+  const c = document.createElement('canvas')
+  c.width = w; c.height = Math.round((w * H) / W)
+  const ctx = c.getContext('2d', { willReadFrequently: true })!
+  ctx.scale(w / W, w / W)
+  const h0 = range(0, 360)
+  RPAL = [hsl(h0, range(55, 80), range(62, 82)), hsl(h0 + range(20, 50), range(55, 80), range(60, 84)), hsl(h0 + range(60, 110), range(50, 75), range(55, 80)), hsl(h0 + range(150, 220), range(45, 70), range(50, 76))]
+  if (sc.id === 'arch') RPAL = [hsl(h0, range(30, 60), range(90, 96)), hsl(h0, range(40, 65), range(75, 85)), hsl(h0, range(40, 65), range(55, 66)), hsl(h0, range(40, 60), range(25, 38))]
+  RANDOM = true; VAR = 100 + (seed % 90000)
+  ;(PAINT[sc.id] ?? PAINT.sunrise)(ctx)
+  RANDOM = false; VAR = 0
+  const tint = TINTS[Math.floor(r() * TINTS.length)]
+  if (sc.id !== 'mesh' && sc.id !== 'arch') {
+    ctx.setTransform(1, 0, 0, 1, 0, 0)
+    applyGrade(ctx, c.width, c.height, { label: '', hue: range(-55, 55), sat: range(0.75, 1.25), bri: range(0.97, 1.08), tint: [tint[0], tint[1], tint[2], range(0, 0.22)] })
+  }
+  return { dataUrl: c.toDataURL('image/jpeg', w >= 600 ? 0.88 : 0.8), label: `${sc.label} · สุ่ม #${seed % 10000}` }
 }
