@@ -5,10 +5,10 @@ export const ALL = '__all'
 export const NONE = '__none'
 
 /**
- * แถบเลือกหมวด (ท่องจำคัมภีร์): เลือกหมวดจากรายการ · ⚙️ จัดการหมวด (เพิ่ม เปลี่ยนชื่อ ลบ ได้ตลอดเวลา) · ＋ เพิ่ม
+ * แถบเลือกหมวด (ท่องจำคัมภีร์): เลือกหมวดจากรายการ · ⚙️ จัดการหมวด (สร้าง เปลี่ยนชื่อ ลบ ได้ตลอดเวลา — สร้างแล้วขึ้นเป็นการ์ดหมวดทันที ไม่ต้องมีเนื้อหา)
  * เปลี่ยนชื่อ/ลบหมวด → รายการในหมวดนั้นย้ายตาม (ลบหมวด = รายการอยู่ในกลุ่ม "ไม่มีหมวด" ไม่ถูกลบ)
  */
-export default function NotebookCategoryBar({ icon, cats, counts, noneCount, total, value, onChange, onAdd, onRename, onRemove, onNew, showNew }: {
+export default function NotebookCategoryBar({ icon, cats, counts, noneCount, total, value, onChange, onAdd, onRename, onRemove }: {
   icon: string
   cats: NbCategory[]
   counts: Record<string, number>
@@ -19,8 +19,6 @@ export default function NotebookCategoryBar({ icon, cats, counts, noneCount, tot
   onAdd: (name: string) => boolean
   onRename: (c: NbCategory, name: string) => boolean
   onRemove: (c: NbCategory) => void
-  onNew: () => void
-  showNew: boolean
 }) {
   const [manage, setManage] = useState(false)
   const [name, setName] = useState('')
@@ -46,13 +44,12 @@ export default function NotebookCategoryBar({ icon, cats, counts, noneCount, tot
           </select>
         </label>
         <button type="button" className={`nb-gear${manage ? ' nb-gear--on' : ''}`} aria-label="จัดการหมวด" aria-expanded={manage} onClick={() => setManage(!manage)}>⚙️</button>
-        {showNew && <button type="button" className="btn btn--gold nb-add edit-only" onClick={onNew}>＋ เพิ่ม</button>}
       </div>
       {manage && (
         <section className="card nb-catmgr" aria-label="จัดการหมวด">
           <h2 className="section__title">⚙️ จัดการหมวด</h2>
           <ul className="nb-catmgr__list">
-            {cats.length === 0 && <li className="source-note">ยังไม่มีหมวด — พิมพ์ชื่อด้านล่างแล้วกด ＋ เพิ่มหมวด</li>}
+            {cats.length === 0 && <li className="source-note">ยังไม่มีหมวด — พิมพ์ชื่อด้านล่างแล้วกด “บันทึกหมวด”</li>}
             {cats.map((c) => {
               const v = edit[c.id] ?? c.name
               return (
@@ -75,7 +72,7 @@ export default function NotebookCategoryBar({ icon, cats, counts, noneCount, tot
           </ul>
           <div className="nb-catmgr__add">
             <input aria-label="ชื่อหมวดใหม่" placeholder="ชื่อหมวดใหม่ เช่น ความรัก ความเชื่อ" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} />
-            <button type="button" className="btn btn--gold" onClick={add}>＋ เพิ่มหมวด</button>
+            <button type="button" className="btn btn--gold" onClick={add}>💾 บันทึกหมวด</button>
           </div>
           {err && <p className="ai-keys__err" role="alert">{err}</p>}
         </section>

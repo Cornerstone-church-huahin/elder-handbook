@@ -1449,3 +1449,36 @@ mark{background:#ffe38a;color:inherit;border-radius:3px;padding:0 .1rem}
 .nb-catmgr input{flex:1 1 9rem;min-width:0;min-height:44px;padding:0 .7rem;border:1.5px solid var(--navy);border-radius:.6rem;background:var(--surface,#fff);color:inherit;font:inherit}
 .nb-catmgr__add{display:flex;gap:.4rem;align-items:center}
 .nb-catmgr__del{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem;font-size:.85rem}
+
+/* ท่องจำคัมภีร์: การ์ดหมวด · เลือกข้อพระคัมภีร์ · รายการข้อ */
+.sm-cats{list-style:none;margin:.6rem 0;padding:0;display:flex;flex-direction:column;gap:.5rem}
+.sm-cat{width:100%;display:flex;align-items:center;gap:.7rem;padding:.8rem 1rem;border:1.5px solid var(--gold);border-radius:.9rem;background:var(--surface,#fff);color:inherit;font:inherit;text-align:left;cursor:pointer;box-shadow:var(--shadow)}
+.sm-cat__icon{font-size:1.5rem}
+.sm-cat__t{flex:1;min-width:0;display:flex;flex-direction:column}
+.sm-cat__t b{font-size:1.05rem}
+.sm-cat__t small{opacity:.7}
+.sm-head{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:.4rem}
+.sm-head__t{margin:0;font-size:1.25rem}
+.sm-add{display:flex;flex-direction:column;gap:.7rem;margin:.4rem 0}
+.bp{position:relative}
+.bp__book{display:flex;flex-direction:column;gap:.25rem;font-weight:700;font-size:.9rem}
+.bp input,.bp select,.sm-manual textarea{min-height:46px;padding:0 .7rem;border:1.5px solid var(--navy);border-radius:.6rem;background:var(--surface,#fff);color:inherit;font:inherit;font-weight:400;font-size:1rem}
+.sm-manual textarea{padding:.5rem .7rem;width:100%}
+.bp__hits{list-style:none;margin:.2rem 0 0;padding:0;border:1.5px solid var(--navy);border-radius:.6rem;background:var(--surface,#fff);overflow:hidden}
+.bp__hits button{width:100%;min-height:44px;padding:0 .8rem;text-align:left;border:0;border-bottom:1px solid rgba(0,0,0,.08);background:none;color:inherit;font:inherit;font-size:1rem;cursor:pointer}
+.bp__ch{display:flex;flex-direction:column;gap:.2rem;font-weight:700;font-size:.85rem;margin-top:.5rem;max-width:9rem}
+.bp__vs__h{margin:.6rem 0 .3rem;font-size:.85rem;font-weight:700;display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+.bp__grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:.35rem}
+.bp__v{min-height:44px;border:1.5px solid var(--navy);border-radius:.6rem;background:var(--surface,#fff);color:inherit;font:inherit;font-weight:700;font-size:1rem;cursor:pointer}
+.bp__v--on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.sm-content{border:1.5px dashed var(--gold);border-radius:.7rem;padding:.5rem .7rem;min-height:3.2rem}
+.sm-content__h{margin:0 0 .2rem;font-weight:700;font-size:.85rem}
+.sm-verses{margin:0;padding-left:1.6rem;line-height:1.6}
+.sm-list{list-style:none;margin:.6rem 0;padding:0;display:flex;flex-direction:column;gap:.4rem}
+.sm-item{display:flex;align-items:flex-start;gap:.2rem;padding:.4rem .5rem;border:1.5px solid var(--gold);border-radius:.8rem;background:var(--surface,#fff)}
+.sm-item--on{background:rgba(212,175,55,.18)}
+.sm-item__body{flex:1;min-width:0}
+.sm-item__body p{margin:.15rem 0 0;font-size:.92rem;line-height:1.5}
+.sm-item__body sup{font-size:.65em;margin-right:.15em;opacity:.7}
+.sm-item__btns{display:flex;flex-direction:column;gap:.3rem;align-items:center}
+.sm-empty{margin:.8rem 0}
