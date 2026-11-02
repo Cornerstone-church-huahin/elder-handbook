@@ -118,6 +118,8 @@ export default function ScriptureMemorize({ nb, n }: { nb: NotebookApi; n: numbe
 
 function CategoryView({ nb, cat, catNames, tts, picks, slot, onBack }: { nb: NotebookApi; cat: string; catNames: string[]; tts: ReturnType<typeof useSpeech>; picks: ReturnType<typeof useListenPicks>; slot: HTMLElement | null; onBack: () => void }) {
   const [passage, setPassage] = useState<PickedPassage | null>(null)
+  const [saveCat, setSaveCat] = useState(cat) // หมวดที่จะบันทึกเข้า (ตั้งต้น = หมวดที่เปิดอยู่)
+  useEffect(() => setSaveCat(cat), [cat])
   const [manual, setManual] = useState('')
   // ---- ✍️ เขียนเอง: พิมพ์/วางข้ออ้างอิงและข้อความเอง (เช่น ตามพระคัมภีร์เล่มที่ใช้อยู่) ----
   const [custom, setCustom] = useState(false)
@@ -130,8 +132,9 @@ function CategoryView({ nb, cat, catNames, tts, picks, slot, onBack }: { nb: Not
     const r = parseRef(title)
     const first = r?.verses[0] ?? 1
     const nums = r && r.verses.length === cLines.length ? r.verses : cLines.map((_, i) => first + i)
-    nb.add({ title, category: cat, refs: [], story: '', text: cLines.map((t, i) => `${nums[i]}\t${t}`).join('\n'), notes: '' })
+    nb.add({ title, category: saveCat, refs: [], story: '', text: cLines.map((t, i) => `${nums[i]}\t${t}`).join('\n'), notes: '' })
     setCLabel(''); setCText(''); setCustom(false)
+    setNote(saveCat === cat ? '' : `✅ บันทึกแล้วในหมวด “${saveCat || 'ไม่มีหมวด'}”`)
   }
   const [delId, setDelId] = useState<string | null>(null)
   const [cur, setCur] = useState<string | null>(null)
@@ -165,10 +168,11 @@ function CategoryView({ nb, cat, catNames, tts, picks, slot, onBack }: { nb: Not
   const content = passage ? (passage.lines.length ? passage.lines : manual.split('\n').map((x) => x.trim()).filter(Boolean)) : []
   const save = () => {
     if (!passage || !content.length) return
-    nb.add({ title: passage.label, category: cat, refs: [], story: '', text: (passage.lines.length ? passage.lines.map((t, i) => `${passage.verses[i]}\t${t}`) : content.map((t, i) => `${passage.verses[i] ?? passage.verses[0] + i}\t${t}`)).join('\n'), notes: '' })
+    nb.add({ title: passage.label, category: saveCat, refs: [], story: '', text: (passage.lines.length ? passage.lines.map((t, i) => `${passage.verses[i]}\t${t}`) : content.map((t, i) => `${passage.verses[i] ?? passage.verses[0] + i}\t${t}`)).join('\n'), notes: '' })
     setPassage(null)
     setManual('')
     setPickerKey(pickerKey + 1) // ล้างช่องเลือก เตรียมใส่ข้อถัดไป
+    setNote(saveCat === cat ? '' : `✅ บันทึกแล้วในหมวด “${saveCat || 'ไม่มีหมวด'}”`)
   }
 
   const pool = picks.count ? items.filter((x) => picks.has(x.id)) : items
@@ -218,6 +222,12 @@ function CategoryView({ nb, cat, catNames, tts, picks, slot, onBack }: { nb: Not
             <label>ข้อความ
               <textarea id="sm-custom-text" rows={5} value={cText} onChange={(e) => setCText(e.target.value)} placeholder="พิมพ์หรือวางข้อความที่นี่ (หลายข้อ: บรรทัดละข้อ)" />
             </label>
+            <label className="sm-savecat">💾 บันทึกเข้าหมวด
+          <select id="sm-savecat" aria-label="บันทึกเข้าหมวด" value={saveCat} onChange={(e) => setSaveCat(e.target.value)}>
+            <option value="">ไม่มีหมวด</option>
+            {[...catNames, ...(saveCat && !catNames.includes(saveCat) ? [saveCat] : [])].map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </label>
             <button type="button" className="btn btn--gold" id="sm-custom-save" disabled={!cLabel.trim() || !cLines.length} onClick={saveCustom}>💾 บันทึกข้อนี้</button>
           </div>
         ) : null}
@@ -236,7 +246,14 @@ function CategoryView({ nb, cat, catNames, tts, picks, slot, onBack }: { nb: Not
               </label>
             )}
         </div>
-        {!custom && <button type="button" className="btn btn--gold" disabled={!passage || !content.length} onClick={save}>💾 บันทึกข้อนี้</button>}
+        {!custom && <>
+          <label className="sm-savecat">💾 บันทึกเข้าหมวด
+          <select id="sm-savecat" aria-label="บันทึกเข้าหมวด" value={saveCat} onChange={(e) => setSaveCat(e.target.value)}>
+            <option value="">ไม่มีหมวด</option>
+            {[...catNames, ...(saveCat && !catNames.includes(saveCat) ? [saveCat] : [])].map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </label>
+        <button type="button" className="btn btn--gold" disabled={!passage || !content.length} onClick={save}>💾 บันทึกข้อนี้</button></>}
       </section>}
 
       {note && <p className="nb-sync nb-sync--ok" role="status">{note}</p>}
