@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import ColorField from './ColorField'
 import {
   FILTERS, FRAMES, PATTERNS, STYLE_PRESETS, TONES, autoAdjust, DEFAULT_STYLE, STANDARD_LOGO, drawVerse, fileToLogo, handleOf, loadLogoImage, paintLogo, fileToPhoto, getSharePrefs, renderVerseImage, setSharePrefs, shareText,
@@ -41,7 +41,9 @@ function ZoomSlider({ value, onChange }: { value: number; onChange: (v: number) 
   return (
     <div className="sv-sl sv-zoom">
       <span className="sv-zoom__head"><i>ซูม <b>{Math.round(value * 100) / 100}×</b></i>{Math.abs(value - 1) > 0.001 && <button type="button" className="mini" id="sv-zoom-reset" onClick={() => onChange(1)}>↺ กลับ 1×</button>}</span>
-      <input type="range" id="sv-zoom" aria-label="ซูมรูป (กลางแถบ = 1×)" aria-valuetext={`${Math.round(value * 100) / 100} เท่า`} min={-1} max={1} step={0.01} value={zoomToPos(value)} onChange={(e) => onChange(posToZoom(+e.target.value))} />
+      <input type="range" id="sv-zoom" className="sv-center" aria-label="ซูมรูป (กลางแถบ = 1×)" aria-valuetext={`${Math.round(value * 100) / 100} เท่า`} min={-1} max={1} step={0.01} value={zoomToPos(value)}
+        style={{ '--lo': (Math.min(0, zoomToPos(value)) + 1) / 2, '--hi': (Math.max(0, zoomToPos(value)) + 1) / 2 } as CSSProperties}
+        onChange={(e) => onChange(posToZoom(+e.target.value))} />
       <span className="sv-zoom__ends" aria-hidden="true"><span>🔍− ซูมออก</span><span>1× พอดี</span><span>ซูมเข้า 🔍+</span></span>
     </div>
   )
