@@ -38,6 +38,16 @@ await p.locator('.sv-sl', { hasText: 'เลื่อนซ้าย-ขวา' 
 check((await shot()) !== o1, 'when zoomed out the picture can still be moved left/right')
 await set(-0.6); await p.click('#sv-zoom-reset'); await p.waitForTimeout(450)
 check((await label()).includes('1×') && await p.locator('#sv-zoom-reset').count() === 0, '“กลับ 1×” resets the zoom')
+// สีเติมของแถบ: เริ่มจากกลาง ไม่ใช่จากซ้ายสุด
+const rowAt = async (frac) => { const buf = await p.locator('#sv-zoom').screenshot(); const d = 'data:image/png;base64,' + buf.toString('base64'); return p.evaluate(async ([u, f]) => { const i = new Image(); i.src = u; await i.decode(); const c = document.createElement('canvas'); c.width = i.width; c.height = i.height; const g = c.getContext('2d'); g.drawImage(i, 0, 0); const q = g.getImageData(Math.round(i.width * f), Math.round(i.height / 2), 1, 1).data; return [q[0], q[1], q[2]] }, [d, frac]) }
+const isGold = ([r, g, b]) => r > 180 && g > 140 && b < 110, isGrey = ([r, g, b]) => Math.abs(r - 217) < 14 && Math.abs(g - 214) < 14 && Math.abs(b - 205) < 14
+await set(0); const m1 = [await rowAt(0.2), await rowAt(0.8)]
+check(m1.every(isGrey), 'at 1× (centre): NO fill on the left or the right ' + JSON.stringify(m1))
+await set(-0.8); const m2 = [await rowAt(0.02), await rowAt(0.3), await rowAt(0.8)]
+check(isGrey(m2[0]) && isGold(m2[1]) && isGrey(m2[2]), 'slid left: coloured only between the thumb and the centre ' + JSON.stringify(m2))
+await set(0.8); const m3 = [await rowAt(0.2), await rowAt(0.6), await rowAt(0.8)]
+check(isGrey(m3[0]) && isGold(m3[1]) && !isGold(m3[0]), 'slid right: coloured only between the centre and the thumb ' + JSON.stringify(m3))
+await set(0)
 check(errs.length === 0, 'no JS errors ' + errs.join(';'))
 await p.locator('.sv-sl', { hasText: 'เลื่อนซ้าย-ขวา' }).locator('input').fill('0'); await set(-0.6); await p.locator('.sv-tools').scrollIntoViewIfNeeded(); await p.screenshot({ path: '/tmp/claude-0/zoom.png' })
 await b.close(); console.log(fail ? 'FAILED' : 'ALL PASSED'); process.exit(fail ? 1 : 0)
