@@ -1658,3 +1658,5 @@ mark{background:#ffe38a;color:inherit;border-radius:3px;padding:0 .1rem}
 .sm-cat-row .sm-cat{flex:1;min-width:0}
 .sm-cat-row--on .sm-cat{background:rgba(212,175,55,.2)}
 .voice-note{margin:.2rem 0;padding:.35rem .5rem;border-radius:.6rem;font-size:.85rem;line-height:1.5}.voice-note--ok{background:rgba(46,125,50,.12)}.voice-note--warn{background:rgba(198,40,40,.1)}.voice-note__link{font-weight:700;white-space:nowrap}
+.sv-zoom__ends{display:flex;justify-content:space-between;font-size:.72rem;opacity:.7}.sv-zoom .mini{margin-left:.4rem}
+.sv-zoom__head{align-items:center}.sv-zoom__head i{font-style:normal}
