@@ -17,7 +17,7 @@ export interface ShareStyle {
   text: string; accent: string
   pattern: Pattern
   frame: Frame; frameColor: string
-  photoZoom: number; photoX: number; photoY: number // ตำแหน่งภาพ (ซูม 1–3 · เลื่อน -1..1)
+  photoZoom: number; photoX: number; photoY: number // ตำแหน่งภาพ (ซูม 0.5–3 · 1 = พอดีเต็มการ์ด · เลื่อน -1..1)
   filter: Filter; brightness: number; contrast: number; saturation: number; blur: number // ปรับภาพ (-50..50 · -100..100 · 0..12)
   tone: Tone; toneStrength: number // โทนสีตามช่วงเวลา (เช้า/เย็น ฯลฯ) ความแรง 0–1
   overlay: string; overlayOpacity: number; overlayMode: OverlayMode // ฟิล์มสีทับภาพให้อ่านง่าย
@@ -342,11 +342,19 @@ export async function drawVerse(c: HTMLCanvasElement, o: { ref: string; lines: S
     const paintBg = (ctx: CanvasRenderingContext2D) => {
     if (photo) {
       // ภาพจากเครื่อง: เต็มการ์ด ซูม/เลื่อนได้ + ปรับภาพ/ฟิลเตอร์
-      const k = Math.max(W / photo.width, H / photo.height) * st.photoZoom
+      const cover = Math.max(W / photo.width, H / photo.height)
+      const k = cover * st.photoZoom
       const w = photo.width * k, h = photo.height * k
-      const dx = (W - w) / 2 + st.photoX * Math.max(0, (w - W) / 2), dy = (H - h) / 2 + st.photoY * Math.max(0, (h - H) / 2)
+      // เลื่อนได้ทั้งตอนซูมเข้า (ภาพใหญ่กว่าการ์ด) และซูมออก (ภาพเล็กกว่าการ์ด: เลื่อนไปชิดขอบได้)
+      const dx = (W - w) / 2 + st.photoX * Math.abs(w - W) / 2, dy = (H - h) / 2 + st.photoY * Math.abs(h - H) / 2
       const f = FILTERS.find((x) => x.id === st.filter)?.css ?? ''
       const adj = `${f} brightness(${1 + st.brightness / 100}) contrast(${1 + st.contrast / 100}) saturate(${1 + st.saturation / 100})${st.blur ? ` blur(${st.blur}px)` : ''}`.trim()
+      if (w < W - 0.5 || h < H - 0.5) {
+        // ซูมออกจนภาพเล็กกว่าการ์ด: เติมพื้นหลังด้วยภาพเดียวกันขยายเต็มและเบลอ (ไม่ให้เหลือขอบว่าง)
+        const kb = cover * 1.15, bw = photo.width * kb, bh = photo.height * kb
+        if ('filter' in ctx) ctx.filter = `${adj} blur(${Math.round(18 * K)}px) brightness(0.85)`
+        ctx.drawImage(photo, (W - bw) / 2, (H - bh) / 2, bw, bh)
+      }
       if ('filter' in ctx) ctx.filter = adj
       ctx.drawImage(photo, dx, dy, w, h)
       if ('filter' in ctx) ctx.filter = 'none'

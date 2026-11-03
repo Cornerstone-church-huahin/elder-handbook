@@ -31,6 +31,21 @@ function Slider({ label, value, min, max, step = 1, onChange, unit = '' }: { lab
       <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(+e.target.value)} /></label>
   )
 }
+/**
+ * ซูมรูปพื้นหลัง: จุดกึ่งกลางแถบ = 1× (พอดีเต็มการ์ด) · ซ้าย = ซูมออก (ลงไปถึง 0.5×) · ขวา = ซูมเข้า (ถึง 3×)
+ * แตะกลางแถบหรือกดปุ่ม "กลับ 1×" เพื่อคืนค่า · ลากผ่านกลางจะดูดเข้า 1× ให้เอง
+ */
+const zoomToPos = (z: number) => (z >= 1 ? (z - 1) / 2 : (z - 1) / 0.5)
+const posToZoom = (t: number) => (Math.abs(t) < 0.04 ? 1 : Math.round((t >= 0 ? 1 + 2 * t : 1 + 0.5 * t) * 100) / 100)
+function ZoomSlider({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  return (
+    <div className="sv-sl sv-zoom">
+      <span className="sv-zoom__head"><i>ซูม <b>{Math.round(value * 100) / 100}×</b></i>{Math.abs(value - 1) > 0.001 && <button type="button" className="mini" id="sv-zoom-reset" onClick={() => onChange(1)}>↺ กลับ 1×</button>}</span>
+      <input type="range" id="sv-zoom" aria-label="ซูมรูป (กลางแถบ = 1×)" aria-valuetext={`${Math.round(value * 100) / 100} เท่า`} min={-1} max={1} step={0.01} value={zoomToPos(value)} onChange={(e) => onChange(posToZoom(+e.target.value))} />
+      <span className="sv-zoom__ends" aria-hidden="true"><span>🔍− ซูมออก</span><span>1× พอดี</span><span>ซูมเข้า 🔍+</span></span>
+    </div>
+  )
+}
 /** รูปที่เลือกไว้ + ผล AI: จำไว้ตลอดที่เปิดแอป (ปิดหน้าต่างแล้วเปิดข้ออื่นยังใช้รูปเดิมได้ · ไม่เก็บถาวร) */
 const kept: { orig?: string; versions: string[]; vi: number } = { versions: [], vi: -1 }
 const thumbCache: Record<string, string> = {}
@@ -561,7 +576,7 @@ export default function ShareVerseSheet({ refLabel, lines, onClose }: { refLabel
                     <Slider label="ความคมชัด" value={style.sharpness} min={0} max={100} onChange={(v) => upd({ sharpness: v })} />
                     <Slider label="เบลอ" value={style.blur} min={0} max={12} onChange={(v) => upd({ blur: v })} />
                     <p className="sv-h">ตำแหน่งรูป</p>
-                    <Slider label="ซูม" value={style.photoZoom} min={1} max={3} step={0.05} unit="×" onChange={(v) => upd({ photoZoom: v })} />
+                    <ZoomSlider value={style.photoZoom} onChange={(v) => upd({ photoZoom: v })} />
                     <Slider label="เลื่อนซ้าย-ขวา" value={style.photoX} min={-1} max={1} step={0.05} onChange={(v) => upd({ photoX: v })} />
                     <Slider label="เลื่อนขึ้น-ลง" value={style.photoY} min={-1} max={1} step={0.05} onChange={(v) => upd({ photoY: v })} />
                     <p className="sv-h">ฟิล์มสีทับรูป (ให้ตัวอักษรอ่านง่าย)</p>
