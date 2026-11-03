@@ -1662,8 +1662,9 @@ mark{background:#ffe38a;color:inherit;border-radius:3px;padding:0 .1rem}
 .sv-zoom__head{align-items:center}.sv-zoom__head i{font-style:normal}
 
 /* แถบเลื่อนที่เริ่มจากกลาง (ซูม): ตอนอยู่กลางไม่มีสีเติม · เลื่อนซ้าย/ขวาจึงมีสีเติมเฉพาะระหว่างกลางถึงลูกกลม */
-.sv-center{-webkit-appearance:none;appearance:none;background:linear-gradient(#8a8578,#8a8578) 50% 50% / 2px 18px no-repeat;height:32px;margin:0;--tw:28px;--gap:#d9d6cd;--fill:var(--gold,#d4af37);--L:calc(var(--tw) / 2 + (100% - var(--tw)) * var(--lo,.5));--H:calc(var(--tw) / 2 + (100% - var(--tw)) * var(--hi,.5))}
+.sv-center{-webkit-appearance:none;appearance:none;background:linear-gradient(#8a8578,#8a8578) calc(var(--tw) / 2 - 1px + (100% - var(--tw)) * var(--z,.5)) 50% / 2px 18px no-repeat;height:32px;margin:0;--tw:28px;--gap:#d9d6cd;--fill:var(--gold,#d4af37);--L:calc(var(--tw) / 2 + (100% - var(--tw)) * var(--lo,.5));--H:calc(var(--tw) / 2 + (100% - var(--tw)) * var(--hi,.5))}
 .sv-center::-webkit-slider-runnable-track{height:8px;border-radius:4px;background:linear-gradient(to right,var(--gap) 0,var(--gap) var(--L),var(--fill) var(--L),var(--fill) var(--H),var(--gap) var(--H),var(--gap) 100%)}
 .sv-center::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:var(--tw);height:var(--tw);margin-top:calc((8px - var(--tw)) / 2);border-radius:50%;background:var(--navy,#1b2a4e);border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)}
 .sv-center::-moz-range-track{height:8px;border-radius:4px;background:linear-gradient(to right,var(--gap) 0,var(--gap) var(--L),var(--fill) var(--L),var(--fill) var(--H),var(--gap) var(--H),var(--gap) 100%)}
 .sv-center::-moz-range-thumb{width:calc(var(--tw) - 6px);height:calc(var(--tw) - 6px);border-radius:50%;background:var(--navy,#1b2a4e);border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+.sv-sl input:not(.sv-center){accent-color:var(--gold,#d4af37)}
