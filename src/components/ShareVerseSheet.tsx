@@ -25,10 +25,43 @@ function Chips<T extends string>({ items, value, onPick, label }: { items: { id:
     </div>
   )
 }
-function Slider({ label, value, min, max, step = 1, onChange, unit = '' }: { label: string; value: number; min: number; max: number; step?: number; onChange: (v: number) => void; unit?: string }) {
+/**
+ * แถบเลื่อนทั่วไป
+ * · ค่าที่มีทั้งบวกและลบ (min<0<max) และแถบที่มีค่ากลาง `mid` (เช่น ขนาด 1×, ตำแหน่งกึ่งกลาง 0.5) → ลูกกลมเริ่มที่กลางแถบ ไม่มีสีเติมตอนอยู่กลาง · เลื่อนซ้าย/ขวามีสีเติมเฉพาะจากกลางถึงลูกกลม
+ *   (ค่าบวกลบแสดงเครื่องหมาย +/−) · ถ้าช่วงซ้าย-ขวาของค่ากลางไม่เท่ากัน (เช่น 0.3–4 รอบ 1×) จะแบ่งแถบครึ่งซ้าย/ขวาให้กลางแถบตรงค่ากลางพอดี
+ * · แถบที่ต้องเริ่มจากศูนย์จริง (ความคมชัด เบลอ ความเข้ม) ไม่ใส่ mid → ยังเติมสีจากซ้ายสุดเหมือนเดิม
+ */
+function Slider({ label, value, min, max, step = 1, onChange, unit = '', mid }: { label: string; value: number; min: number; max: number; step?: number; onChange: (v: number) => void; unit?: string; mid?: number }) {
+  const m = min < 0 && max > 0 ? 0 : mid
+  const r2 = Math.round(value * 100) / 100
+  if (m === undefined) {
+    return (
+      <label className="sv-sl"><span>{label} <b>{r2}{unit}</b></span>
+        <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(+e.target.value)} /></label>
+    )
+  }
+  const shown = m === 0 ? (r2 > 0 ? `+${r2}` : r2 < 0 ? `−${Math.abs(r2)}` : '0') : `${r2}`
+  const symmetric = Math.abs(m - min - (max - m)) < 1e-9
+  const frac = (x: number) => (x - min) / (max - min)
+  const vars = { '--lo': frac(Math.min(value, m)), '--hi': frac(Math.max(value, m)), '--z': frac(m) } as CSSProperties
+  if (symmetric) {
+    return (
+      <label className="sv-sl"><span>{label} <b>{shown}{unit}</b></span>
+        <input type="range" className="sv-center" min={min} max={max} step={step} value={value} style={vars} onChange={(e) => onChange(+e.target.value)} /></label>
+    )
+  }
+  // ไม่สมมาตร: ตำแหน่งลูกกลม t∈[-1,1] (0 = ค่ากลาง) ↔ ค่าจริง
+  const toPos = (v: number) => (v >= m ? (v - m) / (max - m) : (v - m) / (m - min))
+  const toVal = (t: number) => {
+    if (Math.abs(t) < 0.03) return m
+    const raw = t >= 0 ? m + t * (max - m) : m + t * (m - min)
+    return Math.min(max, Math.max(min, Number((Math.round(raw / step) * step).toFixed(4))))
+  }
+  const t = toPos(value)
+  const pv = { '--lo': (Math.min(0, t) + 1) / 2, '--hi': (Math.max(0, t) + 1) / 2, '--z': 0.5 } as CSSProperties
   return (
-    <label className="sv-sl"><span>{label} <b>{Math.round(value * 100) / 100}{unit}</b></span>
-      <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(+e.target.value)} /></label>
+    <label className="sv-sl"><span>{label} <b>{shown}{unit}</b></span>
+      <input type="range" className="sv-center" min={-1} max={1} step={0.005} value={t} style={pv} aria-valuetext={`${r2}${unit}`} data-real-min={min} data-real-max={max} data-mid={m} onChange={(e) => onChange(toVal(+e.target.value))} /></label>
   )
 }
 /**
@@ -602,7 +635,7 @@ export default function ShareVerseSheet({ refLabel, lines, onClose }: { refLabel
                 <Chips label="ตำแหน่งข้อความ" items={[{ id: 'center', label: 'กึ่งกลาง' }, { id: 'left', label: 'ชิดซ้าย' }]} value={style.align} onPick={(v) => upd({ align: v })} />
                 <Chips label="แบบอักษร" items={[{ id: 'sans', label: 'ทั่วไป' }, { id: 'serif', label: 'มีหัว (เซอริฟ)' }]} value={style.font} onPick={(v) => upd({ font: v })} />
                 <Chips label="กล่องหลังข้อความ" items={[{ id: 'none', label: 'ไม่มีกล่อง' }, { id: 'glass', label: 'โปร่งใส' }, { id: 'solid', label: 'ทึบ' }]} value={style.box} onPick={(v) => upd({ box: v })} />
-                <Slider label="ขนาดตัวอักษร" value={style.fontScale} min={0.7} max={1.3} step={0.05} unit="×" onChange={(v) => upd({ fontScale: v })} />
+                <Slider label="ขนาดตัวอักษร" value={style.fontScale} min={0.7} max={1.3} step={0.05} unit="×" mid={1} onChange={(v) => upd({ fontScale: v })} />
                 <label className="sv-chk"><input type="checkbox" checked={style.quote} onChange={(e) => upd({ quote: e.target.checked })} /> เครื่องหมายคำพูดตกแต่ง “</label>
                 <div className="sv-row"><button type="button" className="btn btn--ghost" onClick={() => resetKeys(STYLE_KEYS)}>↺ รีเซ็ตสไตล์เป็นค่าเริ่มต้น</button></div>
               </div>
@@ -612,13 +645,13 @@ export default function ShareVerseSheet({ refLabel, lines, onClose }: { refLabel
               <div className="sv-tools">
                 <p className="source-note">ลากข้อความหรือโลโก้บนภาพได้เลย หรือใช้แถบเลื่อนด้านล่างเพื่อจัดตำแหน่งละเอียด</p>
                 <p className="sv-h">📝 ข้อความ</p>
-                <Slider label="ซ้าย–ขวา" value={style.textX} min={0} max={1} step={0.01} onChange={(v) => upd({ textX: v })} />
-                <Slider label="บน–ล่าง" value={style.textY} min={0} max={1} step={0.01} onChange={(v) => upd({ textY: v })} />
-                <Slider label="ขนาดกรอบ" value={style.textScale} min={0.3} max={2.5} step={0.05} unit="×" onChange={(v) => upd({ textScale: v })} />
+                <Slider label="ซ้าย–ขวา" value={style.textX} min={0} max={1} step={0.01} mid={0.5} onChange={(v) => upd({ textX: v })} />
+                <Slider label="บน–ล่าง" value={style.textY} min={0} max={1} step={0.01} mid={0.5} onChange={(v) => upd({ textY: v })} />
+                <Slider label="ขนาดกรอบ" value={style.textScale} min={0.3} max={2.5} step={0.05} unit="×" mid={1} onChange={(v) => upd({ textScale: v })} />
                 <p className="sv-h">🏷️ โลโก้</p>
-                <Slider label="ซ้าย–ขวา" value={style.logoX} min={0} max={1} step={0.01} onChange={(v) => upd({ logoX: v })} />
-                <Slider label="บน–ล่าง" value={style.logoY} min={0} max={1} step={0.01} onChange={(v) => upd({ logoY: v })} />
-                <Slider label="ขนาดโลโก้" value={style.logoScale} min={0.3} max={4} step={0.05} unit="×" onChange={(v) => upd({ logoScale: v })} />
+                <Slider label="ซ้าย–ขวา" value={style.logoX} min={0} max={1} step={0.01} mid={0.5} onChange={(v) => upd({ logoX: v })} />
+                <Slider label="บน–ล่าง" value={style.logoY} min={0} max={1} step={0.01} mid={0.5} onChange={(v) => upd({ logoY: v })} />
+                <Slider label="ขนาดโลโก้" value={style.logoScale} min={0.3} max={4} step={0.05} unit="×" mid={1} onChange={(v) => upd({ logoScale: v })} />
                 <div className="sv-row">
                   <button type="button" className="btn btn--ghost" onClick={() => upd({ textX: 0.5 })}>↔ ข้อความกึ่งกลาง</button>
                   <button type="button" className="btn btn--ghost" onClick={() => upd({ logoX: 0.5 })}>↔ โลโก้กึ่งกลาง</button>
@@ -681,7 +714,7 @@ export default function ShareVerseSheet({ refLabel, lines, onClose }: { refLabel
                   <button type="button" className="btn btn--ghost" id="sv-logo-fill" onClick={fillCircle}>⭕ ขยายเต็มวง</button>
                   <button type="button" className="btn btn--ghost" id="sv-logo-fit" onClick={() => upd({ logoZoom: 1, logoOX: 0, logoOY: 0 })}>▢ พอดีรูป (ตั้งต้น)</button>
                 </div>
-                <Slider label="ซูมรูปในวง" value={style.logoZoom} min={0.5} max={4} step={0.05} unit="×" onChange={(v) => upd({ logoZoom: v })} />
+                <Slider label="ซูมรูปในวง" value={style.logoZoom} min={0.5} max={4} step={0.05} unit="×" mid={1} onChange={(v) => upd({ logoZoom: v })} />
                 <Slider label="เลื่อนซ้าย–ขวา" value={style.logoOX} min={-1.5} max={1.5} step={0.02} onChange={(v) => upd({ logoOX: v })} />
                 <Slider label="เลื่อนขึ้น–ลง" value={style.logoOY} min={-1.5} max={1.5} step={0.02} onChange={(v) => upd({ logoOY: v })} />
                 <Chips label="รูปทรงกรอบโลโก้" items={LOGO_SHAPES} value={style.logoShape} onPick={(v) => upd({ logoShape: v })} />
@@ -691,7 +724,7 @@ export default function ShareVerseSheet({ refLabel, lines, onClose }: { refLabel
                 <div className="sv-chips" role="group" aria-label="ตำแหน่งโลโก้">
                   {CORNERS.map((c) => <button key={c.id} type="button" className="sv-chip" aria-label={`วางโลโก้ ${c.label}`} onClick={() => upd({ logoX: c.x, logoY: c.y })}>{c.label}</button>)}
                 </div>
-                <Slider label="ขนาดโลโก้บนการ์ด" value={style.logoScale} min={0.3} max={4} step={0.05} unit="×" onChange={(v) => upd({ logoScale: v })} />
+                <Slider label="ขนาดโลโก้บนการ์ด" value={style.logoScale} min={0.3} max={4} step={0.05} unit="×" mid={1} onChange={(v) => upd({ logoScale: v })} />
 
                 <p className="sv-h">ปรับสี/ความคมชัดของโลโก้</p>
                 <Slider label="ความสว่าง" value={style.logoBrightness} min={-60} max={60} onChange={(v) => upd({ logoBrightness: v })} />
